@@ -1,213 +1,629 @@
-# SPYDER_PLAN.md: Spyder, a personal accountability time tracker for Windows
+# SPYDER_PLAN.md: implementation plan for Spyder
 
-> **On approval:** create `C:\Users\rexon\spyder\`, move `temp.md` there from `C:\Users\rexon\OneDrive\Desktop\spyder\` (then delete the empty OneDrive folder), and save this plan as `C:\Users\rexon\spyder\SPYDER_PLAN.md`. Then run `git init` and make commit `chore: add plan`. The user continues in a new Claude Code session opened in `C:\Users\rexon\spyder`.
+Spyder is a personal Windows app that holds the user accountable for their time. It has a Rize-style floating timer widget. Every minute of work hours belongs to a labelled session. Away and sleep time is accounted for. Foreground apps and websites are tracked. There are daily, weekly and monthly reports with charts, an end-of-day review, and spreadsheet export. **No AI.**
 
-## How to execute this plan (rules for the implementing agent)
-1. Work **one phase at a time, in order**. Do not start phase N+1 until every verification item in phase N passes.
-2. After each phase: run its verification steps and **look at the screenshots yourself** (Read the PNGs). Fix anything that fails, then append an entry to the **Progress log** at the bottom (date, what was verified, any deviations). Commit with the phase's commit message. Local git only, never push.
-3. Ask the user (AskUserQuestion) whenever a decision isn't covered here. Don't guess on product behavior.
-4. Keep `src/core/` pure (no Electron, no I/O, injected clock) so that all timing logic is unit-testable.
-5. Every time-based behavior must be testable fast. Use the injectable `Clock` and the dev env var `SPYDER_CLOCK_SCALE` (e.g. `600` makes 30 min take 3 s). Debug IPC hooks such as `debug:simulateIdle`, `debug:simulateSuspend`/`Resume`, `debug:setNow` and `debug:injectActivity` are compiled in only when `SPYDER_DEBUG=1`.
+## 0. Read these first (in this order)
+1. `CONTEXT.md`: the glossary. Use these terms exactly in code, UI and commits (Session, Segment, Away period, Check-in, Nudge, Review, ...).
+2. `docs/product-decisions.md`: every settled behavior decision (P1–P30) and why. **Don't re-ask these.**
+3. `docs/adr/`: architectural decisions (ADR-0001…0010) and why.
+4. This file: the exact spec and the phases.
 
-## Context
-Spyder is a personal Windows app that holds you accountable for your time. It has a floating Rize-style timer widget. Every minute of your work hours belongs to a labelled session. Away and sleep time is accounted for. The foreground app and website are tracked so the data can't be gamed. It has daily, weekly and monthly reports and spreadsheet export. **No AI.**
+## 1. Rules for the implementing agent
+1. **Work one phase at a time, in order.** A phase is done only when *every* item in its **Verify** list passes. Then append to the Progress log (§14) and commit with the given message. Local git only; never push.
+2. **View your own screenshots.** E2E tests save PNGs to `tests/e2e/__shots__/`. Open each one with the Read tool and compare it with `design/DESIGN.md`. Fix visual problems before moving on.
+3. **Never weaken, skip or delete a test to make it pass.** If a spec item seems wrong, ask the user.
+4. **If stuck:** after 3 failed attempts at the same problem, stop and ask the user (AskUserQuestion). Include the exact error output and what you tried.
+5. **Ask the user** only about behavior not covered by this file or `docs/product-decisions.md`. Record each new decision in `docs/product-decisions.md` (the next P number) and record new architectural decisions as ADRs.
+6. **Keep `src/core/` pure**: no `electron`, `node:fs`, `node:sqlite` or `Date.now()` imports there. Time comes from the `ctx.now` argument (ADR-0006).
+7. Use **TypeScript strict**. No `any` without a `// reason:` comment. Use only erasable TS syntax in `scripts/` (no `enum`, no parameter properties).
+8. Shell: the machine is Windows 11. PowerShell and Git Bash are both available. Use forward-slash paths in Node code (`path.join`).
 
-Prior-art check (Nov 2026): ActivityWatch, OpenTime, Dayflow (Mac) and its Windows port, rize-local-public and VibeFriend. None has this session- and accountability-first model on Windows. **Decision: build from scratch**, reusing ideas and code from **OpenTime** (github.com/ElectricGamer61/OpenTime, Apache-2.0; add attribution in `NOTICE`):
-- `@miniben90/x-win` foreground-window capture, probed in a child process (`src/main/capture/index.ts`)
-- the Chrome address-bar UI Automation helper protocol (`src/main/capture/addressBar.ts`, `src/native/address-helper`)
-- idle handling via `powerMonitor` (`src/main/tracker.ts`)
+## 2. Environment and versions (checked 2026-11-21)
+- Node **v25.9.0**, npm 11.5.2, git 2.44, Python 3.13. **No .NET SDK.**
+- .NET Framework compiler: `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe`. UIA assemblies are in `...\v4.0.30319\WPF\` (ADR-0008).
+- Latest Electron is **45.4.1** (bundles **Node 24.22.3**, Chromium 156). Pin `electron@45`.
+- Package versions at planning time: `electron-vite@6`, `@miniben90/x-win@3.7.0`. Use whatever `npm install` resolves for the others, then record the versions in the Progress log.
+- Browsers used: **Chrome and Firefox**.
 
-## Environment facts (checked 2026-11-21)
-Node v25.9.0, npm 11.5.2, git 2.44 and Python 3.13 are installed. **No .NET SDK.** The built-in `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe` and `...\WPF\UIAutomationClient.dll` exist, so the Chrome URL helper targets .NET Framework 4.x and is compiled with the built-in csc.exe. Browsers: Chrome and Firefox.
+**Dependencies:**
+- Runtime: `react react-dom zustand date-fns recharts exceljs clsx @miniben90/x-win`
+- Dev: `electron@45 electron-vite vite @vitejs/plugin-react typescript @types/react @types/react-dom @types/node tailwindcss @tailwindcss/vite vitest @vitest/coverage-v8 @playwright/test playwright tsx eslint @eslint/js typescript-eslint eslint-plugin-react-hooks prettier electron-builder`
 
-## Stack
-Electron (latest stable) + electron-vite + React + TypeScript (strict) + Tailwind · better-sqlite3 (rebuilt for Electron via @electron/rebuild) · Recharts · exceljs · Vitest (unit) · Playwright `_electron` (e2e and screenshots) · electron-builder (NSIS) · ESLint and Prettier. Data lives in `%APPDATA%\Spyder\spyder.db`.
+## 3. Known pitfalls (read before Phase 1)
+- **`node:sqlite` is not on Vite's builtin list.** In `electron.vite.config.ts`, add `'node:sqlite'` to `main.build.rollupOptions.external`. Otherwise the build fails with "failed to resolve node:sqlite".
+- **x-win is a native addon** (a prebuilt `.node`, N-API, so no rebuild needed). Externalize `@miniben90/x-win` in the main build, and set `asarUnpack: ["**/*.node"]` in electron-builder config.
+- **Don't add `"type": "module"`** to package.json. electron-vite's default CommonJS output for main and preload is what we want.
+- Call `app.setAppUserModelId('com.spyder.app')` at startup, or Windows toast notifications won't appear.
+- Call `app.setName('Spyder')` **before** `app.whenReady()`. Data dir = `process.env.SPYDER_DATA_DIR ?? path.join(app.getPath('appData'), 'Spyder')`.
+- `powerMonitor` can only be used after `app.whenReady()`. `powerMonitor.getSystemIdleTime()` returns **seconds**.
+- Transparent frameless windows on Windows need `transparent: true, backgroundColor: '#00000000', frame: false, hasShadow: false`. The drag area uses CSS `-webkit-app-region: drag`, and every button inside it needs `-webkit-app-region: no-drag`.
+- When restoring the widget position, check it is still on a connected display (`screen.getDisplayMatching`). If not, reset it to top-center of the primary display.
+- `globalShortcut.register` returns `false` if the combo is taken. Show a warning in Settings; don't crash.
+- Use `webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, preload }`. Expose the API only through `contextBridge`.
+- Store all timestamps as **epoch milliseconds (UTC)**. Compute "days" in **local time** with date-fns (P30).
+- Git: add `.gitattributes` with `* text=auto eol=lf` so CRLF warnings don't pollute diffs.
+- Playwright: `_electron.launch()` is marked experimental. If it fails to attach to Electron 45, fall back to launching with `--remote-debugging-port=9223` and `chromium.connectOverCDP('http://127.0.0.1:9223')`. Record which one worked in the Progress log.
+- `node:sqlite` fallback (ADR-0003): if `require('node:sqlite')` throws inside Electron, switch to `better-sqlite3` + `@electron/rebuild`. Keep all SQL behind `src/main/db/db.ts` so the switch touches one file.
 
-## Product spec (settled with the user)
-
-**Sessions: always-on during work hours.** No untracked work time. On work-hours start, app launch during hours, or return from away, an *open* session starts automatically.
-
-| Type | Start | Running | End |
-|---|---|---|---|
-| Planned | name + optional project + duration + direction (count up 0→30 or down 30→0; default set in Settings, toggle per session) | widget shows the timer | Ring + prompt: Done / +5 / +15 / +custom / Switch task. If ignored, **overtime** counts in red and the prompt **repeats every 5 min**. The overrun is stored. |
-| Timed | duration only | — | Ring + "What did you do in the last X min?" (name + project), then a new open session |
-| Open | auto, or manual Start | counts up, 24h cap; **check-in every 30 min** (configurable): "What have you been doing?" → *log & continue* or *log & start fresh* | "Done" → label it → a fresh open session starts |
-| Break | from the widget, optional countdown | — | ends on "Back to work", or after the countdown with a prompt. **No break reminders.** |
-
-- Labels: a free-text name with autocomplete from history, plus an optional project from a user-managed list. Planned vs actual is stored per session.
-- **Away / sleep:** idle ≥ **5 min** of no input, `suspend` or `lock-screen` cuts the running session at the last input time. On return: "You were away 1h12m — what was it?" The choices are Break / Meeting-call / Offline work (label) / Not working / **I was working** (merges the time back into the session).
-- Crash safety: the active state is saved every 15 s. On restart, the gap since the last save goes through the same prompt. Away time past the end of work hours is counted as outside hours.
-- **Work hours:** a schedule per weekday (with days off), overridable for today only. Outside hours there are no auto-sessions or prompts, but activity is still logged and reported separately. **Workday %** = clamp((now − start) ÷ (end − start), 0, 100).
-- **Tracking:** the foreground app (exe and name) and window title are sampled every 2 s, and consecutive identical samples are merged into activity rows.
-  - Chrome: domain via the UIA helper. Only the host is stored.
-  - Firefox: window title only. A title-suffix map (e.g. `– YouTube` → youtube.com, user-extendable) is applied; the rest are grouped as `Firefox: <title>`.
-  - Private/incognito windows are recorded as "Private browsing" with no title.
-- **Categories:** Productive / Neutral / Distracting / Uncategorized. A default rule list ships with the app, and rules can match an app, a domain or a title keyword. Anything new is Uncategorized until tagged with one click (in the report or the rules editor).
-- **Distraction nudge:** during a work session, **5 continuous minutes** on a Distracting app/site turns the widget red and shows a toast ("You're on youtube.com — 'Replying to emails' is running"). It's flagged in the report. No blocking.
-- **Widget:** as close to Rize's desktop widget as the reference material allows. Always-on-top, frameless, draggable, and it remembers its position. It shows the current session name and timer, workday-% progress and today's productive time. Hover or click expands Start / Pause / Done / +time / Break. It can be dismissed to the tray and returns via a tray click or a global hotkey (default `Ctrl+Alt+S`). The end-of-timer ring is a built-in chime.
-- **Accountability:**
-  - a daily productive-time goal (shown in the widget and report)
-  - a **streak** of consecutive workdays with the goal hit
-  - planned vs actual per session
-  - the **end-of-day review**, which auto-opens when work hours end: label any leftover time; the **"Today's wins"** and **"How I'll improve"** panels (bullet entries); and **custom KPIs** you define (e.g. "Calls made"), with numbers entered daily and charted over time.
-  - Productive time = time in work sessions (excluding breaks and away time) minus time on Distracting apps/sites.
-  - Day score = productive time ÷ scheduled time.
-- **Reports** (dashboard window, Rize-like layout with sidebar navigation):
-  - Daily: stat header (work time, productive %, goal ring, score, streak); a timeline of sessions, away blocks and a category-colored activity strip; a session list with planned vs actual; top apps/sites with **absolute time and % of tracked time** (e.g. `youtube.com 38m · 1.2%`); a category donut; distraction flags; the review panels.
-  - Weekly: stacked bars per day by category, goal hits, top sites, estimate accuracy.
-  - Monthly: calendar heatmap, trend lines, KPI charts.
-- **Export:** for a date range, one `.xlsx` with sheets for Sessions, Activity, App-Site summary, Daily summary, Away, Reviews and KPIs, plus the same data as separate CSV files (UTF-8 with BOM, with formula-injection escaping).
-
-## Project layout
+## 4. Architecture
 ```
-src/core/      clock.ts, types.ts, schedule.ts, sessionEngine.ts, categorize.ts, titleMap.ts, merge.ts, aggregate.ts, streaks.ts  (+ *.test.ts)
-src/main/      main.ts, windows.ts, tray.ts, hotkey.ts, ipc.ts, tracker.ts, idle.ts, notify.ts, export.ts, debug.ts
-src/main/capture/  foreground.ts (x-win child probe), chromeUrl.ts (helper client), firefoxTitle.ts
-src/main/db/   migrations/*.sql, db.ts, repo.ts
-src/native/    UrlHelper.cs + build-helper.ps1 (csc.exe → resources/UrlHelper.exe)
-src/renderer/  widget/, prompts/, dashboard/{daily,weekly,monthly,review,rules,settings}/, ui/ (shared components)
-design/        reference/ (Rize screenshots), DESIGN.md (tokens and layout spec)
-scripts/       seed.ts (fake days), db-dump.ts, soak.ts
-tests/e2e/     Playwright specs; screenshots → tests/e2e/__shots__/
+Main process (src/main)                                    Renderer (src/renderer, one bundle, hash routes)
+ ├─ engine host: holds EngineState, runs a TICK every 1 s     ├─ #/widget     floating widget
+ │   (clock time) and applies effects (DB, ring, prompts)   ├─ #/prompt     prompt window (one at a time)
+ ├─ idle.ts: powerMonitor → AWAY_BEGIN / AWAY_END           └─ #/dashboard/{today,week,month,review,rules,settings}
+ ├─ tracker.ts: samples every 2 s → activity rows + nudge
+ │    ├─ capture/foreground.ts (x-win in utilityProcess)
+ │    ├─ capture/chromeUrl.ts (UrlHelper.exe over stdin/stdout)
+ │    └─ capture/firefoxTitle.ts
+ ├─ db/ (node:sqlite) · ipc.ts · windows.ts · tray.ts · hotkey.ts · notify.ts · export.ts · debug.ts
+Core (src/core, pure): clock · types · schedule · sessionEngine · nudge · categorize · titlePatterns · merge · aggregate · streaks · format
 ```
-DB tables: `sessions, away_periods, activity, projects, rules, title_map, schedule, day_overrides, reviews, review_items, kpis, kpi_values, settings, heartbeat`.
 
----
+**Layout:**
+```
+src/core/            *.ts + *.test.ts (Vitest)
+src/main/            main.ts, engineHost.ts, idle.ts, tracker.ts, windows.ts, tray.ts, hotkey.ts, ipc.ts, notify.ts, export.ts, debug.ts, settings.ts
+src/main/capture/    foreground.ts, foregroundProbe.ts (utilityProcess entry), chromeUrl.ts, firefoxTitle.ts
+src/main/db/         db.ts, migrate.ts, repo.ts, migrations/001_init.sql, seedDefaults.ts
+src/preload/         index.ts (contextBridge → window.spyder), api.d.ts
+src/renderer/        index.html, main.tsx, router.tsx, styles.css, ui/, widget/, prompt/, dashboard/
+src/native/          UrlHelper.cs
+scripts/             build-helper.ps1, make-icon.ps1, db-dump.ts, seed.ts, capture-check.ts, soak.ts
+resources/           icon.png, icon.ico, UrlHelper.exe (built)
+design/              reference/*.png, DESIGN.md
+tests/e2e/           *.spec.ts, helpers.ts, __shots__/
+```
 
-## Phase 0: Setup and design reference
-- Move the folder, save the plan, run `git init`, add `.gitignore` (node_modules, out, dist, *.db).
-- **Rize UI research:** gather real images of Rize's desktop widget, timer, dashboard and reports. Sources: rize.io pages (save the `<img>` URLs), the Product Hunt gallery, Microsoft Store and Mac App Store listings, docs.rize.io articles, YouTube review thumbnails and review blogs. Download them into `design/reference/` with curl, then **view each one** with Read. If the widget isn't clearly visible, ask the user for their screenshot.
-- Write `design/DESIGN.md`: color tokens (dark theme and category colors), type scale, radii and spacing, widget anatomy (collapsed and expanded, with sizes), dashboard layout, and chart styles. No Rize logo or brand marks.
+## 5. Settings (`settings` table, JSON values) and defaults
+| key | default | meaning |
+|---|---|---|
+| goalSec | 18000 (5 h) | daily productive goal (P24) |
+| idleThresholdSec | 300 | P7 |
+| checkInIntervalSec | 1800 | P8 |
+| nagIntervalSec | 300 | P5 re-nag |
+| nudgeAfterSec | 300 | P13 |
+| nudgeRepeatSec | 300 | P13 |
+| nudgeResetSec | 60 | P14 |
+| shortAwayIgnoreSec | 60 | away periods shorter than this are ignored (short locks) |
+| defaultDirection | "down" | P4 |
+| hotkey | "Control+Alt+S" | P23 |
+| autostart | true | P29 |
+| sampleIntervalSec | 2 | tracker |
+| appPercentScope | "work_hours" | P26 ("work_hours" \| "all_day") |
+| keepWorkingStepMin | 30 | P20 |
+| widgetPos | null | `{x,y}`, saved on move |
 
-**Verify:** `design/reference/` has at least 3 images showing the widget and dashboard, each reviewed. DESIGN.md covers every UI surface in this plan. Show the user a short summary of the design direction and get a go-ahead.
-**Commit:** `chore: phase 0 — setup and design reference`
+Default schedule (P10): weekday 1–5 (Mon–Fri) enabled 600–1020 (10:00–17:00), with 0 and 6 disabled. `weekday` uses JS `Date.getDay()` numbering (0 = Sunday).
 
-## Phase 1: Scaffold
-- electron-vite + React + TS + Tailwind (tokens from DESIGN.md), ESLint and Prettier, Vitest, Playwright `_electron`.
-- Windows: an empty widget (frameless, transparent, alwaysOnTop, skipTaskbar) and the dashboard. A tray icon with Show widget / Open dashboard / Quit. Single-instance lock.
-- better-sqlite3 rebuilt for Electron. A migration runner with the full schema. The `Clock` abstraction with `SPYDER_CLOCK_SCALE`. The `SPYDER_DEBUG` IPC scaffold.
-- npm scripts: `dev, build, typecheck, lint, test, test:e2e, db:dump, seed`.
+## 6. Data model: `src/main/db/migrations/001_init.sql`
+```sql
+CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_ms INTEGER NOT NULL);
+CREATE TABLE projects (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  color TEXT NOT NULL DEFAULT '#8B5CF6', archived INTEGER NOT NULL DEFAULT 0, created_ms INTEGER NOT NULL);
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,                                  -- crypto.randomUUID()
+  kind TEXT NOT NULL CHECK (kind IN ('planned','timed','open','break')),
+  name TEXT,                                            -- NULL = unlabelled (P21); 'Unknown' allowed from review
+  project_id TEXT REFERENCES projects(id),
+  planned_sec INTEGER,                                  -- NULL for open sessions / unplanned breaks
+  direction TEXT CHECK (direction IN ('up','down')),    -- planned only
+  status TEXT NOT NULL CHECK (status IN ('running','paused','interrupted','done')),
+  started_ms INTEGER NOT NULL, ended_ms INTEGER,
+  elapsed_sec INTEGER NOT NULL DEFAULT 0,               -- sum of closed segments (kept in sync on segment close)
+  overtime_sec INTEGER NOT NULL DEFAULT 0,              -- max(0, elapsed - planned) at close
+  end_reason TEXT CHECK (end_reason IN ('done','switched','work_hours_end','cap_24h','checkin_fresh','resumed')),
+  created_ms INTEGER NOT NULL);
+CREATE INDEX idx_sessions_started ON sessions(started_ms);
+CREATE TABLE segments (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  start_ms INTEGER NOT NULL, end_ms INTEGER,           -- end NULL = currently open
+  source TEXT NOT NULL DEFAULT 'live' CHECK (source IN ('live','away_working')));
+CREATE INDEX idx_segments_start ON segments(start_ms);
+CREATE TABLE away_periods (
+  id TEXT PRIMARY KEY, start_ms INTEGER NOT NULL, end_ms INTEGER NOT NULL,
+  reason TEXT NOT NULL CHECK (reason IN ('idle','suspend','lock','not_running')),
+  classification TEXT CHECK (classification IN ('break','meeting','offline_work','not_working','working')), -- NULL = pending
+  label TEXT, interrupted_session_id TEXT REFERENCES sessions(id), classified_ms INTEGER);
+CREATE INDEX idx_away_start ON away_periods(start_ms);
+CREATE TABLE activity (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER NOT NULL,
+  exe TEXT NOT NULL,                                    -- lowercase basename, e.g. 'chrome.exe'
+  app_name TEXT NOT NULL, title TEXT,                   -- title NULL for private windows
+  domain TEXT,                                          -- host without 'www.', NULL if unknown / not a browser
+  browser TEXT CHECK (browser IN ('chrome','firefox','edge')),
+  is_private INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX idx_activity_start ON activity(start_ms);
+CREATE TABLE distraction_flags (
+  id TEXT PRIMARY KEY, ts_ms INTEGER NOT NULL, session_id TEXT REFERENCES sessions(id),
+  target TEXT NOT NULL, continuous_sec INTEGER NOT NULL);
+CREATE TABLE rules (
+  id TEXT PRIMARY KEY, match_type TEXT NOT NULL CHECK (match_type IN ('app','domain','title')),
+  pattern TEXT NOT NULL,                                -- lowercase. app: exe name; domain: host or suffix; title: substring
+  category TEXT NOT NULL CHECK (category IN ('productive','neutral','distracting')),
+  is_default INTEGER NOT NULL DEFAULT 0, created_ms INTEGER NOT NULL,
+  UNIQUE (match_type, pattern, is_default));
+CREATE TABLE title_patterns (
+  id TEXT PRIMARY KEY, match TEXT NOT NULL CHECK (match IN ('suffix','prefix','contains')),
+  pattern TEXT NOT NULL, domain TEXT NOT NULL, is_default INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE schedule (weekday INTEGER PRIMARY KEY CHECK (weekday BETWEEN 0 AND 6),
+  enabled INTEGER NOT NULL, start_min INTEGER NOT NULL, end_min INTEGER NOT NULL);
+CREATE TABLE day_overrides (date TEXT PRIMARY KEY,     -- 'YYYY-MM-DD' local
+  enabled INTEGER NOT NULL, start_min INTEGER NOT NULL, end_min INTEGER NOT NULL);
+CREATE TABLE reviews (date TEXT PRIMARY KEY, completed_ms INTEGER, productive_sec INTEGER, work_sec INTEGER,
+  scheduled_sec INTEGER, goal_sec INTEGER, goal_met INTEGER, score REAL);
+CREATE TABLE review_items (id TEXT PRIMARY KEY, date TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('win','improve')), text TEXT NOT NULL, sort INTEGER NOT NULL, created_ms INTEGER NOT NULL);
+CREATE TABLE kpis (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, unit TEXT, archived INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL);
+CREATE TABLE kpi_values (date TEXT NOT NULL, kpi_id TEXT NOT NULL REFERENCES kpis(id), value REAL NOT NULL, PRIMARY KEY (date, kpi_id));
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);            -- JSON-encoded
+CREATE TABLE heartbeat (id INTEGER PRIMARY KEY CHECK (id = 1), ts_ms INTEGER NOT NULL, engine_state TEXT NOT NULL);
+```
+- Run `PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;` on open.
+- `seedDefaults.ts` inserts the default schedule, settings, rules (§9.4) and title patterns (§9.3) only if the tables are empty.
+
+## 7. Session engine spec: `src/core/sessionEngine.ts`
+This is a pure reducer: `reduce(state, event, ctx) → { state, effects }`.
+`ctx = { now: number, window(dateMs) → {startMs,endMs} | null, settings, newId() → string }`. `window()` returns today's work hours after overrides, or null on a day off.
+
+```ts
+type Kind = 'planned' | 'timed' | 'open' | 'break';
+interface Active { id: string; kind: Kind; name: string | null; projectId: string | null;
+  plannedSec: number | null; direction: 'up' | 'down' | null;
+  accumulatedSec: number;            // closed segments
+  segmentId: string | null; segmentStartMs: number | null;
+  timeUpAtMs: number | null; lastNagMs: number | null; lastCheckInMs: number; }
+interface EngineState {
+  mode: 'off_hours' | 'working' | 'away';
+  current: Active | null;            // running session while mode === 'working'
+  paused: Active | null;             // session suspended by PAUSE (current is then a break), P17
+  away: { startMs: number; reason: 'idle'|'suspend'|'lock'|'not_running'; interrupted: Active | null } | null;
+  prompts: Prompt[];                 // queue; visible = first after sorting by (priority, createdMs)
+  reviewOpenedFor: string | null;    // 'YYYY-MM-DD'
+}
+type PromptType = 'away' | 'recovery' | 'timeUp' | 'label' | 'breakEnd' | 'checkIn';
+interface Prompt { id: string; type: PromptType; sessionId?: string; awayId?: string; createdMs: number; }
+// priority: away/recovery = 0; timeUp/label/breakEnd = 1; checkIn = 2. Dedupe by (type, sessionId).
+```
+`elapsed(a) = a.accumulatedSec + (a.segmentStartMs ? (now - a.segmentStartMs)/1000 : 0)`. `inWork(now) = window(now) && start ≤ now < end`.
+
+**Events:** `BOOT{heartbeat}`, `TICK`, `START{kind,name?,projectId?,plannedSec?,direction?}`, `DONE`, `EXTEND{sec}`, `PAUSE`, `RESUME`, `LABEL{sessionId,name,projectId}`, `ANSWER{promptId,answer}`, `AWAY_BEGIN{atMs,reason}`, `AWAY_END`, `KEEP_WORKING`, `SCHEDULE_CHANGED`.
+
+**Effects:**
+- `{db:'insertSession'|'updateSession'|'openSegment'|'closeSegment'|'insertSegment'|'insertAway'|'updateAway', row}`
+- `{ring}`
+- `{promptsChanged}`
+- `{openReview:date}`
+- `{setDayOverride:{date,endMin}}`
+- `{openStartPopover}`
+- `{saveHeartbeat}`
+
+**Rules:**
+- **E1 BOOT.**
+  - No heartbeat: behave like TICK.
+  - Heartbeat with `mode='working'`: if `now − hb.ts ≤ 60 s`, restore the state. Close the stale open segment at `hb.ts` and open a new one at `now`. Otherwise, apply AWAY_BEGIN{atMs: hb.ts, reason:'not_running'} to the restored state, then AWAY_END. This produces a `recovery` prompt.
+  - Heartbeat with `mode='away'`: restore and apply AWAY_END.
+- **E2 TICK, off_hours.** If `inWork(now)`, start an open session (E10) and set `mode='working'`.
+- **E3 TICK, working.** In order:
+  - (a) If `!inWork(now)` and today's window has ended: close `current` and `paused` at `window.endMs` (`work_hours_end`). Queue a `label` prompt for an unlabelled non-break session. Set `mode='off_hours'`. Emit `openReview(today)` if `reviewOpenedFor ≠ today` (P20).
+  - (b) planned/timed/break with `plannedSec`: when `elapsed ≥ plannedSec` and `timeUpAtMs == null`, set `timeUpAtMs = lastNagMs = now`, ring, and queue `timeUp` (planned), `label` (timed) or `breakEnd` (break).
+  - (c) If `timeUpAtMs != null`, its prompt is still queued, and `now − lastNagMs ≥ nagIntervalSec`: ring, set `lastNagMs = now`, and move that prompt to the front of its priority (P5).
+  - (d) open: if `now − lastCheckInMs ≥ checkInIntervalSec` and no `checkIn` is queued, queue `checkIn` (P8).
+  - (e) open: if `elapsed ≥ 86400`, close it (`cap_24h`), queue `label` if unlabelled, and start an open session.
+  - (f) Every 15 s, emit `saveHeartbeat`.
+- **E4 TICK, away.** Do nothing.
+- **E5 AWAY_BEGIN.**
+  - Ignore it if `mode ≠ 'working'` or `current.kind = 'break'` (P18).
+  - Otherwise: close the current segment at `max(atMs, segmentStartMs)` and set the session status to `interrupted`. Set `away = {startMs: atMs, reason, interrupted: current}`, `current = null` and `mode = 'away'`.
+  - If `paused` is set, it stays paused.
+- **E6 AWAY_END.**
+  - Let `end = now`. If today's window ended during the away period, `end = min(now, window.endMs)`.
+  - If `end − startMs < shortAwayIgnoreSec`: resume the interrupted session with a new segment at `now`. No away period is recorded.
+  - Otherwise: insert an away_period `[startMs, end]` with classification NULL, and queue `recovery` (if the reason was `not_running`) or `away`.
+  - Then:
+    - If `inWork(now)`: resume the interrupted session with a new segment at `now` (P19). If there was none, start an open session. Set `mode = 'working'`.
+    - Else: close the interrupted session at `startMs` (`work_hours_end`), set `mode = 'off_hours'`, and emit `openReview`.
+- **E7 ANSWER away/recovery** with `{classification, label?}`:
+  - `offline_work` requires a label.
+  - `working`: insert a segment `[start, end]` (`source='away_working'`) into the interrupted session and add it to `elapsed_sec`. If there was no interrupted session, create a `done` open session with that segment and queue `label` for it.
+  - Update the away row.
+- **E8 START.**
+  - If `current` is a non-break session with `name == null`, reject with `{error:'needs_label', sessionId}`. The UI must send LABEL first (P21).
+  - Close `current` and `paused` (`switched`). Insert the new session plus its first segment at `now`. For open sessions, set `lastCheckInMs = now`.
+  - If START happens in off hours, emit `setDayOverride(today, endMin = minutes(now) + max(keepWorkingStepMin, ceil(plannedSec/60)))` and set `mode = 'working'`.
+- **E9 DONE.**
+  - On a break: if `paused`, RESUME (E12). Otherwise close the break (`done`) and start an open session.
+  - Otherwise: close at `now` (`done`, with `overtime_sec`). Queue `label` if `name == null`. Start an open session if `inWork(now)`.
+- **E10 startOpen.** Insert an open session with `name = null` and set `lastCheckInMs = now`.
+- **E11 EXTEND{sec}.** Add `sec` to `plannedSec`. If `elapsed < plannedSec` now, clear `timeUpAtMs` and `lastNagMs`, and remove that session's `timeUp`, `label` or `breakEnd` prompt.
+- **E12 PAUSE / RESUME.**
+  - PAUSE (non-break only): close the segment, set `status = 'paused'`, `paused = current`. Then `current` = a new break session named `Paused`.
+  - RESUME: close the break (`resumed`). `current = paused` with a new segment at `now`, `status = 'running'`, and `paused = null`.
+- **E13 ANSWER timeUp:** `done` → DONE · `{extend: sec}` → EXTEND · `switch` → DONE + `openStartPopover`.
+- **E14 ANSWER label `{name, projectId}`:** → LABEL.
+- **E15 ANSWER checkIn:**
+  - `{action:'continue', name, projectId}`: label current, `lastCheckInMs = now`.
+  - `{action:'fresh', name, projectId}`: label, close (`checkin_fresh`), start an open session.
+  - `{action:'still'}`: `lastCheckInMs = now`.
+- **E16 ANSWER breakEnd:** `back` → DONE · `{extend: 300}` → EXTEND.
+- **E17 LABEL.** Update the session row, update the state if it's `current` or `paused`, and remove `label` prompts for that session.
+- **E18 KEEP_WORKING.** Emit `setDayOverride(today, endMin = max(scheduledEndMin, minutes(now)) + keepWorkingStepMin)`. Then, if `off_hours`, start an open session and set `mode = 'working'`.
+- **E19 SCHEDULE_CHANGED.** Behave like TICK.
+
+**Widget view model** (`widgetView(state, ctx, today)` in core):
+```ts
+{
+  mode, kind,
+  title,          // name ?? 'Untitled session'; 'Off hours' when off hours
+  timerSec,       // see display rules below
+  isOvertime, overtimeSec,
+  workdayPct,     // 0–100, P11
+  productiveTodaySec, goalSec,
+  isDistracted, hasPrompt, isPaused
+}
+```
+Display rules:
+- planned, direction down: `max(planned − elapsed, 0)`. In overtime it shows `+mm:ss` in red.
+- planned up, open and break: show elapsed.
+- break with `plannedSec`: counts down.
+
+## 8. Nudge spec: `src/core/nudge.ts` (P13, P14)
+- Input per tracker sample: `{tsMs, category, target, inWorkSession}`. `inWorkSession` = mode working and current kind ≠ break.
+- State: `{distractStartMs, nonDistractStartMs, lastNudgeMs}`.
+- Not `inWorkSession`: reset everything immediately.
+- `category === 'distracting'`: set `distractStartMs ??= ts` and `nonDistractStartMs = null`.
+- Otherwise: set `nonDistractStartMs ??= ts`. If `ts − nonDistractStartMs ≥ nudgeResetSec`, reset `distractStartMs` and `lastNudgeMs`.
+- Emit a nudge `{target, continuousSec}` when `distractStartMs` is set, `ts − distractStartMs ≥ nudgeAfterSec`, and `lastNudgeMs` is null or `ts − lastNudgeMs ≥ nudgeRepeatSec`. Then set `lastNudgeMs = ts`.
+- `isDistracted` = `distractStartMs` set and `ts − distractStartMs ≥ nudgeAfterSec`.
+- The main process stores each nudge in `distraction_flags` and shows a toast: `You're on {target} — "{session name or 'Untitled session'}" is running ({n} min)`.
+
+## 9. Capture spec
+### 9.1 Sampler (`tracker.ts`)
+- Every `sampleIntervalSec` of **real** time. Timestamps come from the app `Clock`.
+- Skip sampling while `mode = 'away'`, or when `powerMonitor.getSystemIdleTime() ≥ idleThresholdSec`.
+- Sampling also continues in off hours (P10).
+- Foreground (`foreground.ts`): run `foregroundProbe.ts` with `utilityProcess.fork`. It answers `'sample'` messages with `activeWindow().toObject()`, mapped to:
+  - `title`
+  - `exe` = lowercase basename of `info.path`
+  - `appName` = `info.name`
+- If the probe crashes, restart it with backoff of 1, 2, 4, 8 and 16 s, at most 5 restarts per 10 min. After that, mark capture as unavailable: Settings shows a banner and the session engine keeps working.
+- Browser by exe:
+  - `chrome.exe` → `chrome` (§9.2)
+  - `msedge.exe` → `edge` (§9.2, best effort)
+  - `firefox.exe` → `firefox` (§9.3)
+- Merging (`core/merge.ts`): the key is `(exe, domain, title, isPrivate)`. A sample with the same key, arriving within `2 × interval + 1 s` of the previous one, extends the open row. Anything else closes the row with `end = min(lastSampleMs + interval, newSampleMs)` and starts a new one.
+- Flush the open row on idle, away or quit, never past the last input time. Drop rows shorter than 1 s. Write in batches every 30 s and on flush.
+
+### 9.2 Chrome URL helper (`src/native/UrlHelper.cs`, ADR-0008)
+- A console app with `[STAThread] Main`. It reads stdin line by line and writes one JSON line per request to stdout, flushing after each.
+  - `ping` → `{"ok":true}`
+  - `fg` → `hwnd = GetForegroundWindow()` (P/Invoke user32) and `root = AutomationElement.FromHandle(hwnd)`. The omnibox is `root.FindFirst(TreeScope.Descendants, new AndCondition(new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit), new PropertyCondition(AutomationElement.IsValuePatternAvailableProperty, true)))`, **cached per hwnd** (re-find on `ElementNotAvailableException`). It reads `((ValuePattern)el.GetCurrentPattern(ValuePattern.Pattern)).Current.Value` and outputs `{"ok":true,"hwnd":<int>,"value":"<escaped>"}`.
+  - Errors → `{"ok":false,"error":"<escaped>"}`. Write a small JSON string-escape function; don't reference any JSON library.
+- Build script `scripts/build-helper.ps1`:
+  ```powershell
+  $fw = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319"
+  & "$fw\csc.exe" /nologo /target:exe /platform:x64 /optimize+ /out:resources\UrlHelper.exe `
+    /r:"$fw\WPF\UIAutomationClient.dll" /r:"$fw\WPF\UIAutomationTypes.dll" /r:"$fw\WPF\WindowsBase.dll" src\native\UrlHelper.cs
+  ```
+- Node client (`chromeUrl.ts`): spawn the helper once, with one request in flight at a time and an 800 ms timeout. On exit, restart it (at most 5 times per 10 min, then disable and fall back to `domain = null`).
+- Parsing (`core/url.ts`):
+  - Trim the value. If it's empty or contains a space (the user is typing), reuse the last domain for that hwnd while the title is unchanged; otherwise null.
+  - If there's no scheme, prepend `https://`. Take `new URL().hostname`, lowercase it and strip a leading `www.`.
+  - `chrome://` and `edge://` pages → domain `browser-internal`.
+
+### 9.3 Firefox titles (`core/titlePatterns.ts`, ADR-0007)
+- Strip the browser suffix with `/^(.*?)\s[—–-]\s(?:Mozilla\s)?Firefox(\sPrivate Browsing)?$/`. Group 2 present → `isPrivate = 1`, and store `title = null` and `domain = null`, displayed as "Private browsing".
+- A title of just `Mozilla Firefox` → `domain = null` (new tab).
+- Match the page title against `title_patterns` (case-insensitive, longest pattern first). No match → `domain = null`. Reports show it as `Firefox: <page title>`.
+- Default title patterns (match, pattern → domain):
+  - suffix: `- YouTube`→youtube.com · `- Gmail`→mail.google.com · `- Google Docs`→docs.google.com · `- Google Sheets`→docs.google.com · `- Google Slides`→docs.google.com · `- Google Search`→google.com · `- Google Calendar`→calendar.google.com · `- Stack Overflow`→stackoverflow.com · `- Wikipedia`→wikipedia.org · `- Reddit`→reddit.com · `/ X`→x.com · `- Twitch`→twitch.tv · `| TikTok`→tiktok.com · `| Facebook`→facebook.com · `| LinkedIn`→linkedin.com · `- Outlook`→outlook.office.com · `- Claude`→claude.ai · `| Netflix`→netflix.com
+  - prefix: `GitHub - `→github.com · `Netflix`→netflix.com
+  - contains: `· GitHub`→github.com · `: r/`→reddit.com · `Instagram`→instagram.com · `ChatGPT`→chatgpt.com · `WhatsApp`→web.whatsapp.com
+
+### 9.4 Categorization (`core/categorize.ts`, ADR-0005)
+- **Precedence:** title rule > domain rule > app rule. Within a type, user rules (`is_default=0`) beat defaults, and then the longest pattern wins. No match → `uncategorized`.
+- **Domain rules** match when `domain === pattern` or `domain.endsWith('.' + pattern)`.
+- **A browser row with `domain = null`** → `neutral`.
+- Default rules:
+  - **Productive apps:** code.exe, cursor.exe, devenv.exe, idea64.exe, pycharm64.exe, webstorm64.exe, windowsterminal.exe, powershell.exe, pwsh.exe, cmd.exe, winword.exe, excel.exe, powerpnt.exe, onenote.exe, notion.exe, obsidian.exe, figma.exe, notepad.exe, notepad++.exe
+  - **Neutral apps:** outlook.exe, olk.exe, ms-teams.exe, teams.exe, zoom.exe, slack.exe, explorer.exe, chrome.exe, firefox.exe, msedge.exe, spotify.exe, discord.exe, whatsapp.exe, applicationframehost.exe
+  - **Distracting apps:** steam.exe, epicgameslauncher.exe, battle.net.exe
+  - **Productive domains:** github.com, gitlab.com, stackoverflow.com, docs.google.com, notion.so, figma.com, developer.mozilla.org, learn.microsoft.com, vercel.com, linear.app, atlassian.net, trello.com
+  - **Neutral domains:** mail.google.com, outlook.office.com, outlook.live.com, calendar.google.com, meet.google.com, zoom.us, slack.com, teams.microsoft.com, google.com, bing.com, wikipedia.org, linkedin.com, chatgpt.com, claude.ai, browser-internal, web.whatsapp.com
+  - **Distracting domains:** youtube.com, netflix.com, primevideo.com, hotstar.com, twitch.tv, reddit.com, x.com, twitter.com, facebook.com, instagram.com, tiktok.com, 9gag.com
+
+## 10. Aggregation spec: `src/core/aggregate.ts` (P25–P27, P30)
+`daySummary(date, data, rules, settings)`. All intervals are clipped to the local day `[00:00, 24:00)`.
+
+**Totals:**
+- `scheduledSec`: the work window length (after overrides); 0 on a day off.
+- `workSec` = Σ segments of non-break sessions + Σ away periods classified `meeting` or `offline_work`.
+- `breakSec` = Σ break segments + Σ away classified `break`.
+- `notWorkingSec`, `awayPendingSec`: from the away periods.
+- `distractingSec` = Σ overlap(activity categorized distracting, non-break segments).
+- `productiveSec = workSec − distractingSec`.
+- `score = scheduledSec > 0 ? productiveSec / scheduledSec : null`.
+- `goalMet = productiveSec ≥ goalSec`.
+
+**App/site table** (scope = work window if `appPercentScope = 'work_hours'` and the day has a window, otherwise the whole day):
+- Grouping key: `domain` if set; `Firefox: <title>` for an unmatched Firefox row; `Private browsing` for private rows; otherwise `appName`.
+- Each row is `{key, sec, pct = sec / Σsec × 100, category}`. Percentages sum to 100 ± 0.1.
+
+**Also returned:**
+- `categoryTotals` (for the donut)
+- sessions list: name, project, kind, start, end, elapsed, planned, overtime, delta
+- away list
+- distraction flags
+- `offHoursActivitySec`
+- unlabelled session count
+
+**Streak** (`streaks.ts`): walk back from today.
+- A scheduled day with `goalMet` → count + 1.
+- Today, not yet met → skip it.
+- Any other scheduled day not met → stop.
+- Unscheduled days are skipped.
+- Cap at 366.
+
+## 11. IPC contract (`src/preload/index.ts` → `window.spyder`; channels are named `spyder:<method>`)
+- **Engine:** `getWidget(): WidgetVM` · `onWidget(cb)` · `start(input)` → `{ok} | {error:'needs_label', sessionId}` · `done()` · `extend(sec)` · `pause()` · `resume()` · `label(sessionId, name, projectId)` · `keepWorking()`
+- **Prompts:** `getPrompt(): PromptVM | null` · `onPrompt(cb)` · `answer(promptId, answer)`
+- **Data:** `nameSuggestions(prefix)` · `listProjects()` · `saveProject(p)` · `getDay(date)` · `getRange(from, to)` · `listUncategorized(date)` · `listRules()` · `saveRule(r)` · `deleteRule(id)` · `listTitlePatterns()` · `saveTitlePattern(p)` · `deleteTitlePattern(id)`
+- **Review:** `getReview(date)` · `saveReviewItem(item)` · `deleteReviewItem(id)` · `completeReview(date)` · `listKpis()` · `saveKpi(k)` · `setKpiValue(date, kpiId, value)`
+- **Settings:** `getSettings()` · `setSettings(partial)` · `getSchedule()` · `setSchedule(rows)` · `setDayOverride(date, o | null)`
+- **Export:** `exportData({from, to, xlsxPath?, csvDir?})` (a save dialog opens if no path is given)
+- **Windows:** `hideWidget()` · `openDashboard(route)`
+- **Debug** (only registered when `SPYDER_DEBUG=1`): `debug.state()` · `debug.setNow(ms)` · `debug.advance(sec)` · `debug.simulateIdle(lastInputMs)` · `debug.simulateSuspend()` · `debug.simulateResume()` · `debug.simulateLock()` · `debug.simulateUnlock()` · `debug.injectActivity(sample)` · `debug.trayInfo()` · `debug.flush()`
+- **Clock** (`core/clock.ts`): `now() = origin + (Date.now() − realOrigin) × scale + offset`. `origin` comes from `SPYDER_NOW` (ISO local time) or `Date.now()`; `scale` from `SPYDER_CLOCK_SCALE` (default 1). `setNow` and `advance` change `offset`.
+
+## 12. UI spec
+Visuals (colors, type, spacing, exact widget anatomy) come from `design/DESIGN.md` (Phase 0). Behavior comes from here.
+
+**Windows:**
+- **widget**: frameless, transparent, always on top (`setAlwaysOnTop(true, 'floating')`), `skipTaskbar`, not resizable, size per DESIGN.md. Position is saved on `moved` (debounced 500 ms).
+- **prompt**: frameless, always on top, ~420×auto. Placed below the widget if it fits, else centered. It takes focus when shown.
+- **dashboard**: framed window, 1200×800 (min 960×640), sidebar with Today / Week / Month / Review / Rules / Settings.
+- **tray**: tooltip `Spyder — {title} {timer}`. Menu: Show widget · Open dashboard · Start session… · Pause/Resume · Quit.
+- **hotkey**: toggles the widget.
+- Closing the dashboard hides it. Only Quit exits.
+
+**Widget contents (collapsed):**
+- session title
+- timer (red with a `+` in overtime)
+- a thin workday-% bar with a `62% of day` label
+- today's productive time / goal
+- the whole widget is tinted red when `isDistracted`
+
+Expanded (click): Start · Done · +5 · +15 · Pause/Resume · Break · Open dashboard · Hide (×).
+
+**Start-session popover** (opens in the prompt window):
+- Tabs: Planned / Timed / Open / Break.
+- Name field with autocomplete (`nameSuggestions`); project dropdown with "+ New project".
+- Duration presets 15/25/30/45/60/90 plus custom.
+- Direction toggle ↑/↓ (planned only), defaulting to `defaultDirection`.
+- If `start` returns `needs_label`, the popover first shows "What were you doing for the last {elapsed}?".
+
+**Prompt copy** (use these strings exactly):
+- `timeUp`: **"Time's up: {name}"** — "Planned {planned}. Done, or need more time?" [Done] [+5 min] [+15 min] [Custom…] [Switch task]
+- `label`: **"What did you do for the last {elapsed}?"** — name + project. [Save]. In the review only: [Mark as Unknown].
+- `checkIn` (unlabelled): **"What have you been doing for the last {elapsed}?"** [Log & continue] [Log & start fresh]
+- `checkIn` (labelled): **"Still on {name}?"** [Yes, still on it] [Log & start fresh] [Change label]
+- `away`: **"You were away {duration}"** ({start}–{end}) [Break] [Meeting / call] [Offline work…] [Not working] [I was working]
+- `recovery`: **"Spyder wasn't running from {start} to {end}"**, with the same buttons as `away`.
+- `breakEnd`: **"Break's over ({planned})"** [Back to work] [+5 min]
+
+**Ring:** a 3-note chime (WebAudio oscillator, ~1 s) played by the widget renderer when it receives a `ring` event.
+
+**Dashboard pages:**
+- **Today:** stat header (work time, productive time / goal ring, day score, streak, distractions), timeline (§10), sessions table, apps/sites table (`key · h:mm · pct%` plus a category chip that changes category in one click by creating a user rule), category donut, flags list, off-hours note.
+  - Uses Recharts PieChart (donut). The timeline is custom SVG.
+- **Week:** stacked bars per day by category (Recharts BarChart), goal-hit markers, top 10 sites, estimate accuracy (planned vs actual table).
+- **Month:** calendar heatmap of productive hours (custom SVG grid), trend lines (LineChart) for productive time and score, KPI line charts.
+- **Review:** label leftover sessions and pending away periods (the [Complete review] button stays disabled until there are none), a day summary, "Today's wins" and "How I'll improve" bullet editors (Enter adds, drag to reorder), KPI number inputs. [Complete review] writes the `reviews` snapshot.
+- **Rules:** tables for rules and title patterns (add/edit/delete), an Uncategorized inbox, projects editor, KPI definitions.
+- **Settings:** schedule grid (7 rows: enabled, start, end), today override, every key in §5, hotkey warning, data folder path, [Export…].
+
+## 13. Phases
+Each phase lists **Build**, **Verify** (everything must pass) and **Commit**. Shared e2e helper (`tests/e2e/helpers.ts`):
+- `launch({now, scale, dataDir})` builds the env (`SPYDER_DEBUG=1`, `SPYDER_DATA_DIR=<fresh tmp dir>`, `SPYDER_NOW`, `SPYDER_CLOCK_SCALE`) and launches `out/main/index.js`.
+- It returns `{app, widget, prompt, dashboard, debug}`. Windows are found by URL hash.
+- Default `now`: `'2026-11-24T11:00:00'` (a Tuesday, inside work hours).
+
+### Phase 0: Setup and design reference
+**Already done:** folder moved to `C:\Users\rexon\spyder`, `git init`, plan committed, ADRs, `docs/product-decisions.md`, `CONTEXT.md`.
+
+**Build:**
+- `.gitignore` (node_modules, out, dist, release, coverage, tests/e2e/__shots__, *.db, *.db-wal, *.db-shm, resources/UrlHelper.exe) and `.gitattributes`.
+- **Rize UI research:** find real images of Rize's **desktop widget / floating timer**, session timer, dashboard, timeline and reports. Sources:
+  - rize.io pages (homepage, /features/*): scrape the `<img>` and `srcset` URLs
+  - docs.rize.io articles (desktop-widget, sessions, focus)
+  - the Product Hunt gallery (producthunt.com/products/rizeio)
+  - Microsoft Store and Mac App Store listings
+  - review blogs and YouTube thumbnails (`img.youtube.com/vi/<id>/maxresdefault.jpg`)
+- Download them with `curl -L` into `design/reference/`, then **open each one with Read** and note what it shows in `design/reference/INDEX.md`.
+- If no clear image of the widget is found, ask the user for their screenshot. They have a low-res one.
+- Write `design/DESIGN.md`:
+  - color tokens (background, surface, text, muted, accent, red/overtime, category colors: productive, neutral, distracting, uncategorized, break, away)
+  - font and type scale; radii; spacing; shadows
+  - **widget anatomy** (collapsed and expanded, with pixel sizes)
+  - prompt window layout
+  - dashboard layout (sidebar width, card grid)
+  - chart styling
+  - Rule: **no Rize logo, name or brand marks** (P23)
 
 **Verify:**
-- `npm run typecheck && npm run lint && npm test` are all green.
-- `npm run test:e2e` launches the app, asserts both windows exist and the tray was created, and saves screenshots. View them.
-- `npm run db:dump` shows all tables in `%APPDATA%\Spyder\spyder.db` (use a temp `SPYDER_DATA_DIR` in tests).
-- Launching a second instance focuses the first.
+- `design/reference/` has at least 3 images, at least one showing the widget or timer clearly (or the user's screenshot). Each has been viewed and described in INDEX.md.
+- DESIGN.md covers the widget, prompt, start popover, the 6 dashboard pages and charts.
+- **Show the user** a short design summary (tokens and widget sketch as text) and get a go-ahead with AskUserQuestion.
+
+**Commit:** `chore: phase 0 — setup and design reference`
+
+### Phase 1: Scaffold
+**Build:**
+- package.json with the dependencies from §2 and these scripts:
+  - `dev`: `electron-vite dev`
+  - `build`: `electron-vite build`
+  - `typecheck`: `tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json`
+  - `lint`: `eslint .`
+  - `test`: `vitest run`
+  - `test:cov`: `vitest run --coverage`
+  - `test:e2e`: `npm run build && playwright test`
+  - `db:dump`: `tsx scripts/db-dump.ts`
+  - `seed`: `tsx scripts/seed.ts`
+  - `build:helper`: `powershell -ExecutionPolicy Bypass -File scripts/build-helper.ps1`
+  - `icon`: `powershell -ExecutionPolicy Bypass -File scripts/make-icon.ps1`
+  - `dist`: `npm run build:helper && npm run build && electron-builder --win nsis`
+- `electron.vite.config.ts`: main, preload and renderer (React and Tailwind plugins), with the externals from §3.
+- Tailwind v4: `@import "tailwindcss";` plus an `@theme` block with the DESIGN.md tokens.
+- `src/main/main.ts`: setName, AppUserModelId, single-instance lock (a second launch focuses the widget), data dir, DB open + migrate + seedDefaults, create the widget and a hidden dashboard, tray, hotkey.
+- `src/core/clock.ts` (§11).
+- `src/main/debug.ts` (empty hooks registered only when `SPYDER_DEBUG=1`), plus `debug.state()` and `debug.trayInfo()`.
+- `scripts/make-icon.ps1`: System.Drawing, a 256×256 PNG (accent circle with a white "S") → `resources/icon.png`. Use the PNG for the tray, and let electron-builder produce the .ico.
+- `scripts/db-dump.ts`: prints the row count for each table, plus the last 20 rows of sessions, segments, away_periods and activity (path from `SPYDER_DATA_DIR` or `%APPDATA%\Spyder`).
+- `playwright.config.ts` (testDir `tests/e2e`, workers 1, timeout 60 s).
+- `vitest.config.ts` (include `src/core/**/*.test.ts`, coverage on `src/core`).
+
+**Verify:**
+- `npm run typecheck`, `npm run lint` and `npm test` all pass. Add one trivial clock test so Vitest has something to run.
+- In the Electron main process, `require('node:sqlite')` works. Log `process.versions.node` at startup and check it's ≥ 22.13. If not, apply the ADR-0003 fallback and record it.
+- `tests/e2e/smoke.spec.ts`:
+  - widget and dashboard windows exist
+  - `debug.trayInfo()` reports a tray
+  - every table from §6 exists in the temp DB
+  - default schedule, settings, rules and title patterns are seeded
+  - screenshots `smoke-widget.png` and `smoke-dashboard.png` are saved and **viewed**
+- Launching the app a second time (`npm run dev` twice) leaves one instance.
 
 **Commit:** `feat: phase 1 — scaffold`
 
-## Phase 2: Core engine (pure logic)
-- `schedule.ts`: per-weekday hours, today override, `isWorkTime`, `workdayPercent`, next boundary.
-- `sessionEngine.ts`: a reducer/state machine for every rule in the product spec (session types, direction, overtime and re-nag, check-ins, 24h cap, auto open session, away cut and classification including "I was working", crash recovery from heartbeat, behavior at the work-hours boundary). It emits **effects** (`ring`, `showPrompt`, `persist`, `nudge`) instead of doing I/O.
+### Phase 2: Core engine (pure logic)
+**Build:** `schedule.ts` (`window`, `inWork`, `workdayPct`, `nextBoundary`), `sessionEngine.ts` (§7, every rule E1–E19), `widgetView`, `nudge.ts` (§8), `format.ts` (h:mm, mm:ss, durations).
 
-**Verify:**
-- Vitest scenarios with a fake clock, each asserting the stored sessions and emitted effects:
-  - planned countdown and count-up end with a ring; ignoring it gives overtime with a re-nag at +5 and +10; extend +15
-  - timed session ends with the label prompt
-  - open session check-ins at 30 and 60 min; log & continue vs log & start fresh
-  - "Done" labelling starts a fresh timer
-  - 24h cap
-  - auto open session at work start and on launch mid-day
-  - idle at 5 min cuts at last input; return prompt; each of the 5 classifications; "I was working" merges back
-  - suspend spanning the end of work hours
-  - crash with a 40-min heartbeat gap gives the prompt
-  - no prompts outside hours
-  - workday % at start, middle, end, before start, after end, on a day off
-- Coverage of `src/core` is at least 90% (`vitest --coverage`).
+**Verify:** `npm run test:cov` with these Vitest scenarios. Each one drives `reduce` with explicit `ctx.now` values and asserts the state, DB effects and prompts.
+1. A planned 30-min countdown "Replying to emails": ring at 30:00 plus `timeUp`. No answer → re-nag (ring) at +5 and +10 min. Overtime is shown. EXTEND 900 clears the prompt. DONE stores `overtime_sec`.
+2. A planned count-up: the display counts up, and it still rings at the planned time.
+3. Timed 10 min → `label` prompt. Answering it labels the session, and an open session follows.
+4. An open session gets `checkIn` at 30 and 60 min. `continue` keeps the same session id. `fresh` closes it and starts a new one. `still` only resets the timer.
+5. DONE on an unlabelled open session queues `label` and immediately starts a new open session.
+6. START while the current session is unlabelled → `needs_label`. After LABEL, START succeeds and the old session ends as `switched`.
+7. PAUSE → a break runs. RESUME continues the same session, and the countdown remaining equals the remaining time before the pause.
+8. A TICK at 10:00 (off hours → working) auto-starts an open session. BOOT at 11:00 with no heartbeat starts one.
+9. Idle: AWAY_BEGIN at 11:20 and AWAY_END at 12:32 → an away period of 72 min, the segment is cut at 11:20, the `away` prompt is queued, and the session resumes at 12:32. Each of the 5 classifications is stored. `working` adds a segment, and `elapsed_sec` grows by 72 min.
+10. A lock of 30 s (under `shortAwayIgnoreSec`) records no away period.
+11. AWAY_BEGIN during a break is ignored (P18).
+12. Suspend from 16:30 to 18:00 (day ends 17:00): away is recorded as `[16:30, 17:00]`, the session closes at 16:30, mode is off_hours, and `openReview` is emitted.
+13. TICK at 17:00 while working: the session is cut at 17:00 (`work_hours_end`) and `openReview` is emitted once. KEEP_WORKING sets the override to 17:30 and an open session starts.
+14. BOOT with a heartbeat from 40 min ago in working mode → a `recovery` prompt for `[hb, now]`. A heartbeat from 30 s ago → seamless resume.
+15. Prompt queue: an away prompt jumps ahead of a check-in, and duplicate check-ins are not queued.
+16. An open session capped at 24 h.
+17. `workdayPct` at 10:00 → 0, at 13:30 → 50, at 17:00 → 100, at 09:00 → 0, at 18:00 → 100, on a day off → 0.
+18. Nudge: 5 min of distracting → nudge. Another 5 min → a second nudge. A 30 s switch away doesn't reset it. A 60 s switch away does. Not in a work session → never.
+
+Coverage of `src/core` must be at least **90 %** lines and branches.
 
 **Commit:** `feat: phase 2 — session engine`
 
-## Phase 3: Widget, tray and prompts
-- Wire the engine to the main process (tick loop and persistence to `sessions` and `heartbeat`).
-- Widget UI per DESIGN.md: collapsed and expanded states, drag with saved position, dismiss to tray, hotkey, red overtime state, workday-% bar.
-- A start-session popover (planned / timed / open / break, name autocomplete, project picker, direction toggle). Prompt windows for the end of a timer, check-ins and away periods. The chime sound.
-- Real `powerMonitor` idle polling and suspend/resume/lock/unlock feeding the engine.
+### Phase 3: Widget, tray, prompts and live engine
+**Build:**
+- `engineHost.ts`: holds the state, TICK every 1 s (real) using clock time, applies effects to the DB via `repo.ts`, pushes `onWidget`/`onPrompt`, heartbeat every 15 s, BOOT on startup.
+- `idle.ts`:
+  - poll `getSystemIdleTime()` every 5 s; when it reaches the threshold → `AWAY_BEGIN{atMs: now − idle×1000, reason:'idle'}`
+  - input resumes → `AWAY_END`
+  - `suspend`, `lock-screen` → AWAY_BEGIN; `resume`, `unlock-screen` → AWAY_END
+- Widget UI, prompt window, start popover, ring, tray menu, hotkey and position persistence (§12), styled per DESIGN.md.
 
-**Verify (Playwright with `SPYDER_CLOCK_SCALE=600`, `SPYDER_DEBUG=1`):**
-- Start a planned 30-min "Replying to emails" countdown. The prompt appears in about 3 s; ignore it, and overtime turns red and the prompt re-appears; click +15 and the timer continues.
-- Timed 10 min gives the label prompt, and submitting saves it.
-- An open session gets the check-in prompt.
-- `debug:simulateSuspend` then a resume 72 "minutes" later gives the away prompt showing "1h 12m"; choose Break and check the DB row.
-- Kill and relaunch the app gives the recovery prompt.
-- Drag the widget, relaunch, and the position is kept. Dismiss and press the hotkey, and the widget is back.
-- Screenshot every state and **view each one** against DESIGN.md.
-- Manual check by the user, noted in the log: a real 1-min timer rings audibly.
+**Verify:** e2e `widget.spec.ts` with `scale: 600` (one real second = 10 clock minutes). Use debug hooks where real time would be too slow:
+1. Start planned "Replying to emails", 30 min, countdown. Within about 4 s the `timeUp` prompt is visible. Wait 1 s more and the widget shows red `+` overtime (screenshot). `debug.advance(300)` → ring count increased (expose a ring counter in `debug.state()`). Click +15 → the prompt closes and the timer counts down again.
+2. Timed 10 min → `label` prompt → enter "Inbox zero" → the DB session has that name and the kind is timed.
+3. Leave an open session for 30 clock-min → `checkIn` prompt (screenshot) → [Log & continue] with "Planning".
+4. `debug.simulateSuspend()`, `debug.advance(4320)`, `debug.simulateResume()` → the away prompt shows "You were away 1h 12m" (screenshot) → [Break] → the `away_periods` row has classification `break`.
+5. Kill the app process, relaunch with the same data dir and `SPYDER_NOW` 40 min later → `recovery` prompt.
+6. Drag the widget (move via `app.evaluate` with `BrowserWindow.setPosition`) and relaunch → same position. `hideWidget()` → hidden. Trigger the hotkey handler via a debug hook → visible.
+7. Screenshots of: the collapsed widget, the expanded widget, overtime, distracted (`debug.injectActivity` youtube.com in a session for 5 clock-min), each prompt type, and the start popover. **View every one** against DESIGN.md.
+8. **Manual, by the user** (ask them, then log the answer): with `npm run dev`, a real 1-min planned session rings audibly and the prompt appears.
 
 **Commit:** `feat: phase 3 — widget and prompts`
 
-## Phase 4: Activity tracking and categorization
-- `foreground.ts`: x-win in a child probe (as in OpenTime), sampling every 2 s, with a fallback if it fails.
-- `UrlHelper.cs`: .NET Framework 4.x UIA reader for Chrome's omnibox (stdin/stdout line protocol, cache, timeouts, restart cap as in OpenTime), built by `build-helper.ps1` with the built-in csc.exe.
-- `firefoxTitle.ts` plus the title-suffix map. Detecting private windows.
-- Merging samples into `activity` rows. Default rules seed. Categorization. The distraction nudge (5 continuous minutes on Distracting during a work session leads to the widget turning red and a toast).
+### Phase 4: Activity tracking and categorization
+**Build:** §9 in full. That means `foreground.ts` + `foregroundProbe.ts`, `UrlHelper.cs` + `build-helper.ps1`, `chromeUrl.ts`, `core/url.ts`, `firefoxTitle.ts` + `core/titlePatterns.ts`, `core/merge.ts`, `core/categorize.ts`, tracker loop, batching, the nudge wired to toasts, and flags.
 
 **Verify:**
-- Unit tests: rule matching precedence (title keyword > domain > app), title-map parsing (including YouTube, Gmail, GitHub and Reddit titles), merge logic, the nudge timer (5 min continuous, reset on switch, only during a work session).
-- Integration script `scripts/capture-check.ts`:
-  - opens Notepad, Chrome to `https://example.com` and Firefox to `https://www.youtube.com`, focusing each for 10 s (via PowerShell `Start-Process` and AppActivate)
-  - `db:dump` shows the rows `notepad.exe`, `chrome.exe example.com` and `firefox.exe youtube.com` (from the title) with durations of about 10 s
-- The helper answers in under 150 ms (p95) in Chrome.
-- Using `debug:injectActivity` with youtube.com for 5 scaled minutes during a session shows the nudge in a screenshot.
-- `scripts/soak.ts` runs for 10 min: CPU under 2% average while idle, memory stable.
+- Unit tests:
+  - URL parsing (with and without scheme, `www.`, search text, `chrome://`)
+  - Firefox title parsing: YouTube, Gmail, GitHub (prefix and contains), Reddit `: r/`, X `/ X`, private window, bare "Mozilla Firefox", unknown title
+  - categorize precedence (title > domain > app; user beats default; longest wins; subdomain match `m.youtube.com`)
+  - merge (same key extends, a gap > 2×interval+1 s splits, a title change splits, rows < 1 s dropped)
+- `npm run build:helper` produces `resources/UrlHelper.exe`. Running it with `ping` returns `{"ok":true}`.
+- `scripts/capture-check.ts` (runs against the dev app with `SPYDER_DEBUG=1`):
+  - open Notepad, then Chrome at `https://example.com` (`Start-Process chrome https://example.com`), then Firefox at `https://www.youtube.com`
+  - focus each for 10 s (PowerShell `(New-Object -ComObject WScript.Shell).AppActivate(<pid>)`), then `debug.flush()`
+  - `db:dump` shows activity rows `notepad.exe`, `chrome.exe` with domain `example.com`, and `firefox.exe` with domain `youtube.com`, each 8–12 s long
+- Helper latency: 50 `fg` calls with Chrome in front → p95 < 150 ms. Log the numbers.
+- A screenshot of the nudge toast and red widget, from real capture or `injectActivity`.
+- `scripts/soak.ts`: run the app for 10 min with the user idle → average CPU < 2 % and working-set growth < 30 MB (sampled via `Get-Process`). Log the numbers.
 
 **Commit:** `feat: phase 4 — activity tracking`
 
-## Phase 5: Daily report and end-of-day review
-- Dashboard shell with Rize-like sidebar navigation (Today / Week / Month / Review / Rules / Settings).
-- Daily view per the product spec: stat header, timeline, session list with planned vs actual, top apps/sites (absolute time and %), category donut, distraction flags, Uncategorized items taggable in one click.
-- Review view: label leftover time, the "Today's wins" and "How I'll improve" bullet panels, KPI inputs. It auto-opens at the end of work hours.
+### Phase 5: Daily report and end-of-day review
+**Build:** `core/aggregate.ts` (§10), the dashboard shell, Today page, Review page (§12), and `scripts/seed.ts --days N` (realistic days: planned, timed and open sessions, breaks, one away period of each classification, Chrome and Firefox activity including YouTube, one overtime, one distraction flag, wins/improve/KPI values).
 
 **Verify:**
-- `npm run seed -- --days 1` creates a realistic fake day.
-- Unit tests on `aggregate.ts`: app/site percentages sum to 100 (±0.1); productive time, score and goal math are correct for hand-computed fixtures.
-- An e2e check opens Today and compares every displayed number against SQL in `db-dump`. It also adds a win, an improvement and a KPI value, then reloads and they persist.
-- `debug:setNow` to the end of work hours opens the review.
-- Screenshots viewed and checked against DESIGN.md.
+- Aggregate unit tests on a hand-built fixture day with the expected numbers written in the test: workSec, breakSec, distractingSec, productiveSec, score, goalMet; app percentages sum to 100 ± 0.1; midnight-crossing split; off-hours activity excluded from the work-hours scope.
+- e2e `today.spec.ts`: `seed --days 1` into the temp dir, open Today, read every number on the stat header and the top 5 app rows from the DOM, and assert they equal `aggregate()` computed in the test from the same DB.
+- Change a category via the chip → the Distracting total changes and a user rule exists.
+- e2e `review.spec.ts`:
+  - `debug.setNow` to 17:00:05 → the dashboard opens on Review
+  - [Complete review] is disabled while an unlabelled session exists; label it → enabled
+  - add a win, an improvement and a KPI value → reload → they persist
+  - completing writes the `reviews` row
+- Screenshots of Today and Review are **viewed**.
 
 **Commit:** `feat: phase 5 — daily report and review`
 
-## Phase 6: Weekly and monthly views, goals, streaks, rules and settings
-- Weekly and monthly views (stacked bars, heatmap, trends, KPI charts, estimate accuracy), streak logic, and goal settings.
-- Rules editor (apps, domains, title keywords, title-suffix map), projects editor.
-- Settings: schedule per weekday plus today override, idle threshold, check-in interval, nudge threshold, default direction, hotkey, autostart toggle, goal.
+### Phase 6: Weekly and monthly views, streaks, rules and settings
+**Build:** Week and Month pages, `streaks.ts`, Rules page (rules, title patterns, Uncategorized inbox, projects, KPIs), Settings page (all of §5, schedule, override, hotkey warning). Settings changes apply live (engine `SCHEDULE_CHANGED`, tracker reads its settings each tick).
 
 **Verify:**
-- `seed --days 60` gives realistic weekly and monthly data.
-- Streak unit tests: gaps, days off don't break the streak, today in progress.
-- Changing a rule recategorizes historical reports.
-- Every setting persists and takes effect without a restart (e2e for idle threshold, check-in interval and schedule).
-- Screenshots viewed.
+- Streak unit tests: 5 met days → 5; a weekend in between doesn't break it; a missed Wednesday breaks it; today not yet met → it isn't counted and nothing breaks.
+- `seed --days 60` → the Week and Month pages render (screenshots viewed). The week bars' totals equal `daySummary` sums.
+- Adding the title pattern `contains "Hacker News" → news.ycombinator.com` re-labels existing Firefox rows in reports.
+- e2e: change idle threshold to 1 min → `simulateIdle` 70 s ago triggers away. Change check-in to 10 min → the prompt comes at 10 clock-min. Disable today in the schedule → the widget shows Off hours.
 
-**Commit:** `feat: phase 6 — trends, goals, settings`
+**Commit:** `feat: phase 6 — trends, rules, settings`
 
-## Phase 7: Export
-- An export dialog (date-range presets) that writes the `.xlsx` with all sheets, formatted headers, durations in both minutes and h:mm, and frozen header rows. Optional CSV folder output.
+### Phase 7: Export
+**Build:** `export.ts` with exceljs. Sheets: **Sessions** (date, start, end, kind, name, project, planned min, actual min, overtime min, end reason) · **Segments** · **Activity** (date, start, end, app, exe, domain, title, category, minutes) · **App-Site summary** (key, category, minutes, h:mm, %) · **Daily summary** (date, scheduled, work, productive, break, distracting, score, goal met, streak) · **Away** · **Reviews** (date, wins, improvements joined with " • ") · **KPIs** (date × KPI columns).
+- Bold, frozen header rows; sensible column widths; dates as real Excel dates; durations in both minutes (number) and h:mm (text).
+- CSV: one file per sheet, UTF-8 with BOM, RFC 4180 quoting, and cells starting with `= + - @` prefixed with `'`.
+- The dialog has presets: Today, This week, This month, Last 30 days, Custom.
 
 **Verify:**
-- A test re-opens the xlsx with exceljs and asserts: sheet names, headers, row counts equal the DB counts for the range, the daily summary totals match `aggregate.ts`.
-- The CSV parses back identically; a value like `=cmd` is escaped; Unicode titles survive.
-- Open the xlsx in Excel (or LibreOffice) to confirm it renders. The user does this manually and it's noted in the log.
+- An integration test seeds 14 days, exports to a temp folder, re-opens the xlsx with exceljs and asserts: all 8 sheet names, the header rows, and Sessions/Activity row counts equal to the DB counts in range. Each day's Daily summary minutes must equal `daySummary`.
+- The CSVs parse back to the same rows. A session named `=cmd|' /C calc'!A0` is escaped. An emoji or non-Latin title survives the round trip.
+- **Manual, by the user:** open the xlsx in Excel and confirm it looks neat. Log the answer.
 
 **Commit:** `feat: phase 7 — export`
 
-## Phase 8: Packaging and acceptance
-- electron-builder NSIS installer, app icon, `NOTICE` with OpenTime attribution, autostart at login (`app.setLoginItemSettings`), `UrlHelper.exe` bundled in resources, production build without the debug hooks.
+### Phase 8: Packaging and acceptance
+**Build:**
+- electron-builder config: appId `com.spyder.app`, productName `Spyder`, NSIS one-click per-user, icon, `extraResources` with UrlHelper.exe, `asarUnpack` `**/*.node`.
+- `NOTICE` with the OpenTime (Apache-2.0) attribution.
+- `app.setLoginItemSettings({openAtLogin: settings.autostart})`.
+- Debug hooks are excluded unless `SPYDER_DEBUG=1`. Verify `debug.*` is undefined in the packaged app.
 
 **Verify:**
-- `npm run build && npm run dist` produces the installer. Install it silently, launch it, and the widget appears.
-- The autostart entry is present (check the registry `HKCU\...\Run`).
-- Uninstall cleanly; user data is kept.
-- The full Vitest and e2e suites are green against the packaged app.
-- **User acceptance checklist** (manual, over one real workday):
+- `npm run dist` → an installer in `release/`. Silent install (`/S`), launch the installed exe, and the widget appears.
+- `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` has a Spyder entry.
+- Uninstall (`/S`) leaves `%APPDATA%\Spyder\spyder.db` in place.
+- The full `npm test` and `npm run test:e2e` pass. The smoke e2e also runs against the installed exe.
+- **User acceptance (manual, one real workday; ask the user and log results):**
   - real sleep/wake gives the away prompt
-  - YouTube in Chrome and Firefox is tracked correctly
-  - the end-of-day review opens
-  - the export opens in Excel
-  - the widget feels right
+  - YouTube in Chrome and in Firefox shows correct minutes
+  - the 5-min nudge fires
+  - the review opens at 17:00
+  - the export opens neatly in Excel
+  - the widget looks and feels right
 
 **Commit:** `chore: phase 8 — packaging`
 
----
-
-## Progress log
-_(the implementing agent appends: date · phase · verification results · deviations/decisions)_
+## 14. Progress log
+_(append one entry per phase: date · phase · verification results with numbers · deviations, and which decisions were added to docs/product-decisions.md or docs/adr/)_
