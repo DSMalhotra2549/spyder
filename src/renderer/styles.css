@@ -58,6 +58,7 @@
   }
   body.transparent {
     background: transparent;
+    overflow: hidden;
   }
 }
 
@@ -83,4 +84,20 @@
 }
 @utility no-drag {
   -webkit-app-region: no-drag;
+}
+
+/* Distracted: one 2 s red pulse on the border when it starts (DESIGN.md §2). */
+@keyframes distract-pulse {
+  0%,
+  100% {
+    box-shadow: var(--shadow-float);
+  }
+  50% {
+    box-shadow:
+      var(--shadow-float),
+      0 0 0 4px rgba(240, 68, 82, 0.35);
+  }
+}
+.distracted {
+  animation: distract-pulse 2s ease-out 1;
 }

@@ -13,6 +13,7 @@ export interface AppCtx {
   quitting: boolean;
   widget: BrowserWindow | null;
   dashboard: BrowserWindow | null;
+  prompt: BrowserWindow | null;
   tray: Tray | null;
   hotkeyOk: boolean;
 }

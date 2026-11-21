@@ -24,6 +24,18 @@ describe('clock', () => {
     expect(c.now()).toBe(200);
   });
 
+  it('setScale changes speed without jumping', () => {
+    let real = 0;
+    const c = createClock({ origin: 1000, scale: 600, realNow: () => real });
+    real = 10;
+    expect(c.now()).toBe(7000);
+    c.setScale(1);
+    expect(c.scale).toBe(1);
+    expect(c.now()).toBe(7000);
+    real = 20;
+    expect(c.now()).toBe(7010);
+  });
+
   it('parses local ISO strings', () => {
     expect(parseLocalIso('2026-11-24T11:00:00')).toBe(new Date(2026, 10, 24, 11, 0, 0).getTime());
     expect(parseLocalIso('2026-11-24')).toBe(new Date(2026, 10, 24).getTime());

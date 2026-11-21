@@ -3,6 +3,8 @@ export interface Clock {
   now(): number;
   setNow(ms: number): void;
   advance(sec: number): void;
+  /** Changes speed from now on without jumping (debug only). */
+  setScale(scale: number): void;
   readonly scale: number;
 }
 
@@ -16,14 +18,22 @@ export interface ClockOptions {
 }
 
 export function createClock(opts: ClockOptions): Clock {
-  const realOrigin = opts.realNow();
-  const origin = opts.origin ?? realOrigin;
-  const scale = opts.scale && opts.scale > 0 ? opts.scale : 1;
+  let realOrigin = opts.realNow();
+  let origin = opts.origin ?? realOrigin;
+  let scale = opts.scale && opts.scale > 0 ? opts.scale : 1;
   let offset = 0;
   const base = () => origin + (opts.realNow() - realOrigin) * scale;
   return {
-    scale,
+    get scale() {
+      return scale;
+    },
     now: () => Math.round(base() + offset),
+    setScale(next) {
+      origin = base() + offset;
+      realOrigin = opts.realNow();
+      offset = 0;
+      scale = next > 0 ? next : 1;
+    },
     setNow(ms) {
       offset = ms - base();
     },

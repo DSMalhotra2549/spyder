@@ -7,16 +7,20 @@ import { Db } from './db/db';
 import { migrate } from './db/migrate';
 import { MIGRATIONS } from './db/migrations';
 import { seedDefaults } from './db/seedDefaults';
-import { registerDebug } from './debug';
+import { addDebugHook, addDebugState, registerDebug } from './debug';
+import { EngineHost, type ActivitySample } from './engineHost';
 import { registerHotkey } from './hotkey';
+import { startIdle } from './idle';
 import { registerIpc } from './ipc';
 import { loadSettings } from './settings';
 import { createTray } from './tray';
-import { createDashboard, createWidget, openDashboard, showWidget } from './windows';
+import { createDashboard, createPrompt, createWidget, showWidget } from './windows';
 
 // Must happen before whenReady (plan §3).
 app.setName('Spyder');
 app.setAppUserModelId('com.spyder.app');
+// The widget plays the ring chime without a user gesture (plan §12).
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 const dataDir = process.env.SPYDER_DATA_DIR ?? join(app.getPath('appData'), 'Spyder');
 mkdirSync(dataDir, { recursive: true });
@@ -49,6 +53,7 @@ async function boot(): Promise<void> {
     quitting: false,
     widget: null,
     dashboard: null,
+    prompt: null,
     tray: null,
     hotkeyOk: false,
   };
@@ -60,8 +65,10 @@ async function boot(): Promise<void> {
   app.on('window-all-closed', () => {
     // Stay alive in the tray; only Quit exits.
   });
+  const host = new EngineHost(ctx);
   app.on('will-quit', () => {
     try {
+      host.stop();
       db.close();
     } catch {
       // already closed
@@ -69,15 +76,23 @@ async function boot(): Promise<void> {
   });
 
   await app.whenReady();
-  registerIpc(ctx);
+  registerIpc(ctx, host);
   registerDebug(ctx);
+  addDebugState('host', () => host.debugState());
+  addDebugHook('injectActivity', (s: ActivitySample) => host.feedSample(s));
+  addDebugHook('setScale', (scale: number) => ctx.clock.setScale(scale));
+  addDebugHook('tick', () => host.dispatch({ type: 'TICK' }));
+  addDebugHook('flush', () => host.saveHeartbeat());
   ctx.widget = createWidget(ctx);
   ctx.dashboard = createDashboard(ctx);
+  ctx.prompt = createPrompt(ctx);
   ctx.tray = createTray(ctx, {
-    startSession: () => openDashboard(ctx), // replaced by the start popover in Phase 3
-    togglePause: () => undefined,
-    pauseLabel: () => 'Pause',
+    startSession: () => host.openStart(),
+    togglePause: () => host.togglePause(),
+    pauseLabel: () => (host.state.paused ? 'Resume' : 'Pause'),
   });
+  startIdle(ctx, host);
+  host.boot();
   if (!registerHotkey(ctx)) console.warn(`[spyder] hotkey ${ctx.settings.hotkey} is taken`);
   if (!Notification.isSupported()) console.warn('[spyder] notifications not supported');
 }

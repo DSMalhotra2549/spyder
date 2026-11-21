@@ -22,7 +22,7 @@ export interface Launched {
   dataDir: string;
   widget: Page;
   dashboard: Page;
-  prompt: () => Promise<Page | undefined>;
+  prompt: Page;
   debug: DebugApi;
   db: () => DatabaseSync;
   close: () => Promise<void>;
@@ -48,6 +48,7 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
     SPYDER_DATA_DIR: dataDir,
     SPYDER_NOW: opts.now ?? '2026-11-24T11:00:00',
     SPYDER_CLOCK_SCALE: String(opts.scale ?? 1),
+    SPYDER_FAKE_IDLE: '1',
     ...opts.env,
   };
   delete env.ELECTRON_RENDERER_URL;
@@ -55,6 +56,7 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
   const app = await electron.launch({ args: [join(ROOT, 'out/main/index.js')], env, cwd: ROOT });
   const widget = await windowByHash(app, 'widget');
   const dashboard = await windowByHash(app, 'dashboard');
+  const prompt = await windowByHash(app, 'prompt');
   await widget.waitForLoadState('domcontentloaded');
   await widget.waitForFunction(() => !!window.spyder?.debug);
 
@@ -74,7 +76,7 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
     dataDir,
     widget,
     dashboard,
-    prompt: async () => app.windows().find((p) => p.url().includes('#/prompt')),
+    prompt,
     debug,
     db: () => (handle ??= new DatabaseSync(join(dataDir, 'spyder.db'))),
     close: async () => {

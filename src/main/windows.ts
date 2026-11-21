@@ -6,15 +6,25 @@ import { saveSettings } from './settings';
 
 /** Window sizes per design/DESIGN.md §2 (content + 8 px shadow margin). */
 export const WIDGET_SIZE = {
-  full: { collapsed: { width: 336, height: 80 }, expanded: { width: 336, height: 196 } },
-  compact: { collapsed: { width: 192, height: 56 }, expanded: { width: 336, height: 172 } },
+  full: { collapsed: { width: 336, height: 80 }, expanded: { width: 336, height: 196 }, hover: { width: 336, height: 80 } },
+  compact: {
+    collapsed: { width: 192, height: 56 },
+    expanded: { width: 336, height: 172 },
+    hover: { width: 256, height: 176 },
+  },
 } as const;
+export type WidgetLayout = 'collapsed' | 'expanded' | 'hover';
+
+/** Prompt card is 420 wide plus an 8 px shadow margin each side (DESIGN.md §3). */
+export const PROMPT_WIDTH = 436;
 
 const webPreferences = () => ({
   preload: join(__dirname, '../preload/index.js'),
   contextIsolation: true,
   nodeIntegration: false,
   sandbox: false,
+  // The widget plays the ring and the prompt must update while unfocused.
+  backgroundThrottling: false,
 });
 
 function load(win: BrowserWindow, hash: string): void {
@@ -64,7 +74,8 @@ export function createWidget(ctx: AppCtx): BrowserWindow {
   });
   win.setAlwaysOnTop(true, 'floating');
   let t: NodeJS.Timeout | undefined;
-  win.on('moved', () => {
+  // 'move' (debounced) rather than 'moved': it also fires for programmatic moves.
+  win.on('move', () => {
     clearTimeout(t);
     t = setTimeout(() => {
       if (win.isDestroyed()) return;
@@ -82,6 +93,88 @@ export function createWidget(ctx: AppCtx): BrowserWindow {
   });
   load(win, '/widget');
   return win;
+}
+
+let widgetLayout: WidgetLayout = 'collapsed';
+
+/** Resizes the widget for its current style and layout, keeping the top-left corner fixed. */
+export function setWidgetLayout(ctx: AppCtx, layout: WidgetLayout = widgetLayout): void {
+  widgetLayout = layout;
+  const w = ctx.widget;
+  if (!w || w.isDestroyed()) return;
+  const size = WIDGET_SIZE[ctx.settings.widgetStyle][layout];
+  const [x, y] = w.getPosition();
+  w.setBounds({ x, y, ...size });
+}
+
+export function createPrompt(ctx: AppCtx): BrowserWindow {
+  const win = new BrowserWindow({
+    width: PROMPT_WIDTH,
+    height: 220,
+    show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    title: 'Spyder',
+    webPreferences: webPreferences(),
+  });
+  win.setAlwaysOnTop(true, 'floating');
+  // Prompts never auto-dismiss (P22): closing only hides, and the engine shows it again if needed.
+  win.on('close', (e) => {
+    if (!ctx.quitting) e.preventDefault();
+  });
+  load(win, '/prompt');
+  return win;
+}
+
+/** Below the widget if it fits, else centred on the widget's display (plan §12). */
+function promptPosition(ctx: AppCtx, height: number): { x: number; y: number } {
+  const w = ctx.widget;
+  const disp = w && w.isVisible() ? screen.getDisplayMatching(w.getBounds()) : screen.getPrimaryDisplay();
+  const a = disp.workArea;
+  if (w && w.isVisible()) {
+    const b = w.getBounds();
+    const x = Math.min(Math.max(a.x, b.x), a.x + a.width - PROMPT_WIDTH);
+    const y = b.y + b.height - 4;
+    if (y + height <= a.y + a.height) return { x, y };
+  }
+  return { x: Math.round(a.x + (a.width - PROMPT_WIDTH) / 2), y: Math.round(a.y + (a.height - height) / 2) };
+}
+
+export function showPrompt(ctx: AppCtx): void {
+  const p = ctx.prompt;
+  if (!p || p.isDestroyed()) return;
+  const [, h] = p.getSize();
+  const pos = promptPosition(ctx, h);
+  p.setPosition(pos.x, pos.y);
+  p.show();
+  p.setAlwaysOnTop(true, 'floating');
+  p.focus();
+}
+
+export function hidePrompt(ctx: AppCtx): void {
+  const p = ctx.prompt;
+  if (p && !p.isDestroyed() && p.isVisible()) p.hide();
+}
+
+export function resizePrompt(ctx: AppCtx, height: number): void {
+  const p = ctx.prompt;
+  if (!p || p.isDestroyed()) return;
+  const h = Math.max(80, Math.min(720, Math.ceil(height)));
+  const b = p.getBounds();
+  if (b.height === h) return;
+  p.setBounds({ x: b.x, y: b.y, width: PROMPT_WIDTH, height: h });
+  if (p.isVisible()) {
+    const pos = promptPosition(ctx, h);
+    p.setPosition(pos.x, pos.y);
+  }
 }
 
 export function createDashboard(ctx: AppCtx, route = 'today'): BrowserWindow {

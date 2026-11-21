@@ -12,14 +12,20 @@ const on = (channel: string) => (cb: (v: unknown) => void) => {
   return () => ipcRenderer.removeListener(`spyder:${channel}`, fn);
 };
 
-const debugNames = ['state', 'setNow', 'advance', 'simulateIdle', 'simulateSuspend', 'simulateResume',
-  'simulateLock', 'simulateUnlock', 'injectActivity', 'trayInfo', 'flush', 'triggerHotkey'] as const;
+const methods = [
+  'getSettings', 'setSettings', 'getWidget', 'start', 'done', 'extend', 'pause', 'resume', 'label', 'keepWorking',
+  'getPrompt', 'answer', 'openStart', 'closeStart', 'nameSuggestions', 'listProjects', 'saveProject',
+  'hideWidget', 'openDashboard', 'widgetLayout', 'resizePrompt',
+] as const;
 
-const api: SpyderApi = {
-  getSettings: invoke('getSettings'),
-  setSettings: invoke('setSettings'),
-  hideWidget: invoke('hideWidget'),
-  openDashboard: invoke('openDashboard'),
+const debugNames = ['state', 'setNow', 'advance', 'setScale', 'tick', 'simulateIdle', 'simulateSuspend',
+  'simulateResume', 'simulateLock', 'simulateUnlock', 'injectActivity', 'trayInfo', 'flush', 'triggerHotkey'] as const;
+
+const api = {
+  ...Object.fromEntries(methods.map((m) => [m, invoke(m)])),
+  onWidget: on('widget'),
+  onRing: on('ring'),
+  onPrompt: on('prompt'),
   onNavigate: on('navigate'),
   debug:
     process.env.SPYDER_DEBUG === '1'
@@ -27,6 +33,6 @@ const api: SpyderApi = {
           debugNames.map((n) => [n, (...args: unknown[]) => ipcRenderer.invoke('spyder:debug', n, ...args)]),
         )
       : undefined,
-} as SpyderApi;
+} as unknown as SpyderApi;
 
 contextBridge.exposeInMainWorld('spyder', api);
