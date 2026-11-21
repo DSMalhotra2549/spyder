@@ -680,3 +680,19 @@ _(append one entry per phase: date · phase · verification results with numbers
   - "Capture unavailable" is exposed in `debug.state().tracker`. The Settings banner comes with the Settings page in Phase 6.
   - Default title patterns are only seeded into an empty table, so an existing dev DB doesn't get P35's pattern.
   - From the Bash tool, the Store version of Notepad won't launch. Run `capture-check` from PowerShell.
+
+**2026-11-22 · Phase 5 · done.**
+- Core: `aggregate.ts` (`daySummary` per §10, everything clipped to the local day, open segments counted to now), `streaks.ts` (moved up from Phase 6 because the Today header shows the streak), `review.ts` (view-model types, `leftovers`). Main: `report.ts` (day loader shared with the e2e tests, `dayVM`, `reviewVM`, KPIs, review items, `completeReview` with a leftover guard), `repo.saveRule`, `EngineHost.classifyAway`. Renderer: dashboard shell (icons, Review badge, footer status + Show widget, `#/dashboard/<page>/<date>`), Today (5 stats, SVG timeline with tooltips, sessions table, Recharts donut, apps & sites with category chips, flags, off-hours note), Review (leftovers with label / Mark as Unknown / away classification, day summary + compact timeline, wins/improve editors with Enter-adds and drag reorder, KPI inputs + quick add, Complete review). `scripts/seed.ts --days N --to YYYY-MM-DD`.
+- Verify: typecheck ✓, lint ✓, unit 118/118 ✓ (core lines 99.0 %, branches 94.1 %), e2e 15/15 ✓.
+  - Aggregate fixture (hand-computed): work 18 300 s, break 2 700, distracting 1 200, productive 17 100, score 0.6786, goal not met at 5 h / met at 17 100 s; app % sums to 100 in both scopes; midnight split both ways; off-hours 3 000 s excluded from the work-hours scope.
+  - `today.spec.ts`: `seed --days 1` → all 9 stat-header texts and the top 5 app rows equal `dayVM()` from the same DB. Chip github.com → Distracting: the distracting total rose and a user `domain` rule exists.
+  - `review.spec.ts`: `setNow(17:00:05)` → dashboard shown on Review; Complete disabled with the unlabelled session, enabled after labelling; win, improvement and KPI value persist across a reload; Complete writes `reviews` (work 6 h, scheduled 7 h, goal met).
+  - Screenshots viewed: today, today-bottom, today-after-rule, review-leftovers, review, smoke-dashboard. Fixed from them: cramped stat cards, clipped donut legend and hour labels, a dot on the empty goal ring.
+- Bugs found and fixed: Enter + the following blur saved a new win twice (saves now run in order and share the item id); removing an empty row on blur moved the layout under the click that caused the blur (empty rows now stay until deleted); a "navigate" IPC sent before the renderer subscribed was lost on a slow first load (the dashboard is now navigated by setting its hash, after load if needed).
+- Deviations / decisions:
+  - **P36** (mixed-category rows, which rule a chip creates), **P37** (what counts as a leftover; re-completing updates the snapshot).
+  - Extra IPC: `classifyAway`, `showWidget`; `getDay`/`getReview` take an optional date (default today). The `onNavigate` channel was removed.
+  - The widget's productive figure now uses `aggregate.ts` (P25), recomputed at most every 10 clock-seconds; `repo.workSecBetween` removed.
+  - The category chip offers Productive / Neutral / Distracting (DESIGN.md said 4 options; "Uncategorized" isn't a rule).
+  - KPIs can be added inline on Review; the full KPI editor comes with the Rules page in Phase 6.
+  - Streak shown is the current streak as of today, whatever date is viewed.

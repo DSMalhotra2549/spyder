@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -88,3 +89,14 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
 }
 
 export const shot = (page: Page, name: string) => page.screenshot({ path: join(SHOTS, `${name}.png`) });
+
+/** `npm run seed` into a data dir (scripts/seed.ts). */
+export function seed(dataDir: string, days: number, to: string): void {
+  const r = spawnSync('npx', ['tsx', 'scripts/seed.ts', '--days', String(days), '--to', to], {
+    cwd: ROOT,
+    env: { ...process.env, SPYDER_DATA_DIR: dataDir },
+    encoding: 'utf8',
+    shell: true,
+  });
+  if (r.status !== 0) throw new Error(`seed failed: ${r.stderr}${r.stdout}`);
+}

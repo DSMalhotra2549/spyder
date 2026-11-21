@@ -218,7 +218,12 @@ export function toggleWidget(ctx: AppCtx): void {
 export function openDashboard(ctx: AppCtx, route?: string): void {
   const d = ctx.dashboard;
   if (!d || d.isDestroyed()) return;
-  if (route) d.webContents.send('spyder:navigate', route);
+  if (route) {
+    // Set the hash directly: a message could arrive before the renderer subscribes (slow first load).
+    const go = () => void d.webContents.executeJavaScript(`location.hash = ${JSON.stringify(`/dashboard/${route}`)}`);
+    if (d.webContents.isLoading()) d.webContents.once('did-finish-load', go);
+    else go();
+  }
   d.show();
   d.focus();
 }

@@ -4,15 +4,16 @@ import { randomUUID } from 'node:crypto';
 import { categorize, type ActivityCategory, type ActivityKey, type Rule } from '../core/categorize';
 import { initialNudge, nudgeMessage, stepNudge, type NudgeState } from '../core/nudge';
 import { promptView, type SessionInfo } from '../core/promptView';
-import { dateKey, mergeOverride, minutesOfDay, startOfDay, workWindow, type DayOverride } from '../core/schedule';
+import { dateKey, mergeOverride, minutesOfDay, workWindow, type DayOverride } from '../core/schedule';
 import { elapsedSec, initialState, inWorkSession, reduce, visiblePrompt, widgetView } from '../core/sessionEngine';
 import type { ScheduleRow } from '../core/settings';
 import { fmtClock } from '../core/format';
-import type { Answer, Ctx, Effect, EngineError, EngineEvent, EngineState, Kind, StartInput } from '../core/types';
+import type { Answer, AwayClassification, Ctx, Effect, EngineError, EngineEvent, EngineState, Kind, StartInput } from '../core/types';
 import type { PromptWindowState, WidgetPayload } from '../preload/api';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
 import { toast } from './notify';
+import { summaryFor } from './report';
 import { setTrayTooltip } from './tray';
 import { hidePrompt, openDashboard, showPrompt } from './windows';
 
@@ -129,6 +130,37 @@ export class EngineHost {
     return this.dispatch({ type: 'ANSWER', promptId, answer: a }) ?? { ok: true };
   }
 
+  /**
+   * Review: classify a pending away period. Uses its prompt when it is still queued; otherwise
+   * (an earlier day, or the prompt was lost) applies the same DB effects directly.
+   */
+  classifyAway(awayId: string, classification: AwayClassification, label: string | null): { ok: true } | EngineError {
+    const p = this.state.prompts.find((q) => q.awayId === awayId);
+    if (p) return this.answer(p.id, { classification, label });
+    const row = repo.awayRow(this.app.db, awayId);
+    if (!row) return { error: 'invalid', message: 'Unknown away period' };
+    const clean = label?.trim() || null;
+    if (classification === 'offline_work' && !clean) return { error: 'invalid', message: 'Offline work needs a label' };
+    const now = this.app.clock.now();
+    const fx: DbEffect[] = [];
+    if (classification === 'working') {
+      let sessionId = row.interrupted_session_id;
+      if (!sessionId) {
+        sessionId = randomUUID();
+        fx.push({
+          db: 'insertSession',
+          row: { id: sessionId, kind: 'open', name: null, projectId: null, plannedSec: null, direction: null, status: 'done', startedMs: row.start_ms, createdMs: now },
+        });
+        fx.push({ db: 'updateSession', row: { id: sessionId, endedMs: row.end_ms, overtimeSec: 0, endReason: 'done' } });
+      }
+      fx.push({ db: 'insertSegment', row: { id: randomUUID(), sessionId, startMs: row.start_ms, endMs: row.end_ms, source: 'away_working' } });
+    }
+    fx.push({ db: 'updateAway', row: { id: awayId, classification, label: clean, classifiedMs: now } });
+    repo.applyDbEffects(this.app.db, fx);
+    this.push();
+    return { ok: true };
+  }
+
   openStart(tab: Kind = 'planned'): void {
     this.startTab = tab;
     this.startOpen = true;
@@ -164,6 +196,7 @@ export class EngineHost {
 
   reloadRules(): void {
     this.rules = repo.loadRules(this.app.db);
+    this.productiveCache.atMs = Number.NaN;
   }
 
   // ---- view models -----------------------------------------------------------------
@@ -175,10 +208,22 @@ export class EngineHost {
     return row ? { name: row.name, elapsedSec: row.elapsed_sec, plannedSec: row.planned_sec } : null;
   }
 
+  private productiveCache = { atMs: Number.NaN, sec: 0 };
+
+  /** P25 productive time today (aggregate.ts), recomputed at most every 10 clock-seconds. */
+  private productiveToday(now: number): number {
+    const c = this.productiveCache;
+    if (!(Math.abs(now - c.atMs) < 10_000) || dateKey(now) !== dateKey(c.atMs)) {
+      c.atMs = now;
+      c.sec = summaryFor(this.app.db, dateKey(now), now, this.app.settings).productiveSec;
+    }
+    return c.sec;
+  }
+
   widget(): WidgetPayload {
     const ctx = this.ctx();
     const vm = widgetView(this.state, ctx, {
-      productiveTodaySec: repo.workSecBetween(this.app.db, startOfDay(ctx.now), ctx.now),
+      productiveTodaySec: this.productiveToday(ctx.now),
       goalSec: this.app.settings.goalSec,
       isDistracted: this.distracted && inWorkSession(this.state),
     });
@@ -203,8 +248,9 @@ export class EngineHost {
     const wj = JSON.stringify(w);
     if (wj !== this.lastWidget) {
       this.lastWidget = wj;
-      const win = this.app.widget;
-      if (win && !win.isDestroyed()) win.webContents.send('spyder:widget', w);
+      for (const win of [this.app.widget, this.app.dashboard]) {
+        if (win && !win.isDestroyed()) win.webContents.send('spyder:widget', w);
+      }
       const timer = w.mode === 'away' ? 'Away' : w.mode === 'off_hours' ? '' : `${w.isOvertime ? '+' : ''}${fmtClock(w.timerSec)}`;
       setTrayTooltip(this.app, `Spyder — ${w.title} ${timer}`.trim());
     }

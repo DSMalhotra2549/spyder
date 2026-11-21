@@ -142,17 +142,6 @@ export function sessionRow(db: Db, id: string): { name: string | null; elapsed_s
   return db.get('SELECT name, elapsed_sec, planned_sec FROM sessions WHERE id = ?', id);
 }
 
-/** Σ non-break segment time inside [dayStart, now] (open segments count up to now). */
-export function workSecBetween(db: Db, fromMs: number, toMs: number): number {
-  const r = db.get<{ s: number | null }>(
-    `SELECT SUM(MAX(0, MIN(COALESCE(g.end_ms, ?), ?) - MAX(g.start_ms, ?))) / 1000.0 AS s
-       FROM segments g JOIN sessions s ON s.id = g.session_id
-      WHERE s.kind != 'break' AND g.start_ms < ? AND COALESCE(g.end_ms, ?) > ?`,
-    toMs, toMs, fromMs, toMs, toMs, fromMs,
-  );
-  return r?.s ?? 0;
-}
-
 export function nameSuggestions(db: Db, prefix: string): string[] {
   return db
     .all<{ name: string }>(
@@ -199,6 +188,22 @@ export function loadRules(db: Db): Rule[] {
       'SELECT match_type, pattern, category, is_default FROM rules',
     )
     .map((r) => ({ matchType: r.match_type, pattern: r.pattern, category: r.category, isDefault: !!r.is_default }));
+}
+
+/** Upserts a user rule (is_default = 0); a user rule beats any default (§9.4). */
+export function saveRule(db: Db, r: { matchType: Rule['matchType']; pattern: string; category: Rule['category'] }, nowMs: number): void {
+  db.run(
+    `INSERT INTO rules (id, match_type, pattern, category, is_default, created_ms) VALUES (?, ?, ?, ?, 0, ?)
+     ON CONFLICT(match_type, pattern, is_default) DO UPDATE SET category = excluded.category`,
+    randomUUID(), r.matchType, r.pattern.trim().toLowerCase(), r.category, nowMs,
+  );
+}
+
+export function awayRow(
+  db: Db,
+  id: string,
+): { start_ms: number; end_ms: number; interrupted_session_id: string | null } | undefined {
+  return db.get('SELECT start_ms, end_ms, interrupted_session_id FROM away_periods WHERE id = ?', id);
 }
 
 export function insertFlag(

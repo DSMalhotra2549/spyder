@@ -1,13 +1,15 @@
 // IPC contract (plan §11). Channels are `spyder:<method>`. Later phases add the remaining data handlers.
 import { ipcMain } from 'electron';
+import type { Rule } from '../core/categorize';
 import type { Settings } from '../core/settings';
-import type { Answer, EngineError, Kind, StartInput } from '../core/types';
+import type { Answer, AwayClassification, EngineError, Kind, StartInput } from '../core/types';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
 import type { EngineHost } from './engineHost';
 import { registerHotkey } from './hotkey';
+import * as report from './report';
 import { loadSettings, saveSettings } from './settings';
-import { hideWidget, openDashboard, resizePrompt, setWidgetLayout, type WidgetLayout } from './windows';
+import { hideWidget, openDashboard, resizePrompt, setWidgetLayout, showWidget, type WidgetLayout } from './windows';
 
 const result = (err: EngineError | null) => err ?? { ok: true as const };
 
@@ -48,9 +50,25 @@ export function registerIpc(ctx: AppCtx, host: EngineHost): void {
   h('nameSuggestions', (prefix: string) => repo.nameSuggestions(ctx.db, prefix));
   h('listProjects', () => repo.listProjects(ctx.db));
   h('saveProject', (p: { id?: string; name: string; color?: string }) => repo.saveProject(ctx.db, p, ctx.clock.now()));
+  h('getDay', (date?: string) => report.dayVM(ctx.db, date, ctx.clock.now(), ctx.settings));
+  h('saveRule', (r: { matchType: Rule['matchType']; pattern: string; category: Rule['category'] }) => {
+    repo.saveRule(ctx.db, r, ctx.clock.now());
+    host.reloadRules();
+  });
+
+  // Review
+  h('getReview', (date?: string) => report.reviewVM(ctx.db, date, ctx.clock.now(), ctx.settings));
+  h('saveReviewItem', (it: Parameters<typeof report.saveReviewItem>[1]) => report.saveReviewItem(ctx.db, it, ctx.clock.now()));
+  h('deleteReviewItem', (id: string) => report.deleteReviewItem(ctx.db, id));
+  h('completeReview', (date: string) => report.completeReview(ctx.db, date, ctx.clock.now(), ctx.settings));
+  h('listKpis', () => report.listKpis(ctx.db));
+  h('saveKpi', (k: Parameters<typeof report.saveKpi>[1]) => report.saveKpi(ctx.db, k));
+  h('setKpiValue', (date: string, kpiId: string, value: number | null) => report.setKpiValue(ctx.db, date, kpiId, value));
+  h('classifyAway', (awayId: string, c: AwayClassification, label: string | null) => host.classifyAway(awayId, c, label));
 
   // Windows
   h('hideWidget', () => hideWidget(ctx));
+  h('showWidget', () => showWidget(ctx));
   h('openDashboard', (route?: string) => openDashboard(ctx, route));
   h('widgetLayout', (layout: WidgetLayout) => setWidgetLayout(ctx, layout));
   h('resizePrompt', (height: number) => resizePrompt(ctx, height));

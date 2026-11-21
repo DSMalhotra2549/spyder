@@ -23,9 +23,8 @@ export function Router() {
   useEffect(() => {
     document.body.className = root === 'dashboard' ? 'dashboard' : 'transparent';
   }, [root]);
-  useEffect(() => window.spyder?.onNavigate((r) => navigate(`dashboard/${r}`)), []);
   if (root === 'widget') return <Widget />;
   if (root === 'prompt') return <PromptWindow />;
-  if (root === 'dashboard') return <Dashboard page={rest[0] ?? 'today'} />;
+  if (root === 'dashboard') return <Dashboard page={rest[0] ?? 'today'} date={rest[1]} />;
   return null;
 }

@@ -16,6 +16,8 @@ const methods = [
   'getSettings', 'setSettings', 'getWidget', 'start', 'done', 'extend', 'pause', 'resume', 'label', 'keepWorking',
   'getPrompt', 'answer', 'openStart', 'closeStart', 'nameSuggestions', 'listProjects', 'saveProject',
   'hideWidget', 'openDashboard', 'widgetLayout', 'resizePrompt',
+  'getDay', 'saveRule', 'getReview', 'saveReviewItem', 'deleteReviewItem', 'completeReview', 'listKpis', 'saveKpi',
+  'setKpiValue', 'classifyAway', 'showWidget',
 ] as const;
 
 const debugNames = ['state', 'setNow', 'advance', 'setScale', 'tick', 'simulateIdle', 'simulateSuspend',
@@ -26,7 +28,6 @@ const api = {
   onWidget: on('widget'),
   onRing: on('ring'),
   onPrompt: on('prompt'),
-  onNavigate: on('navigate'),
   debug:
     process.env.SPYDER_DEBUG === '1'
       ? Object.fromEntries(

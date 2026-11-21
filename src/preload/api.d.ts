@@ -2,7 +2,11 @@
 import type { PromptVM } from '../core/promptView';
 import type { WidgetVM } from '../core/sessionEngine';
 import type { Settings } from '../core/settings';
-import type { Answer, EngineError, Kind, StartInput } from '../core/types';
+import type { Category, MatchType } from '../core/defaults';
+import type { Answer, AwayClassification, EngineError, Kind, StartInput } from '../core/types';
+import type { DayVM, Kpi, ReviewItem, ReviewVM } from '../core/review';
+
+export type { DayVM, Kpi, ReviewItem, ReviewVM };
 
 export type SettingsVM = Settings & { hotkeyOk: boolean; dataDir: string };
 
@@ -76,11 +80,23 @@ export interface SpyderApi {
   listProjects(): Promise<Project[]>;
   saveProject(p: { id?: string; name: string; color?: string }): Promise<Project>;
 
+  getDay(date?: string): Promise<DayVM>;
+  saveRule(r: { matchType: MatchType; pattern: string; category: Category }): Promise<void>;
+
+  getReview(date?: string): Promise<ReviewVM>;
+  saveReviewItem(it: Omit<ReviewItem, 'id'> & { id?: string }): Promise<ReviewItem>;
+  deleteReviewItem(id: string): Promise<void>;
+  completeReview(date: string): Promise<Ok | { error: 'leftovers'; count: number }>;
+  listKpis(): Promise<Kpi[]>;
+  saveKpi(k: { id?: string; name: string; unit?: string | null; archived?: boolean }): Promise<Kpi>;
+  setKpiValue(date: string, kpiId: string, value: number | null): Promise<void>;
+  classifyAway(awayId: string, classification: AwayClassification, label: string | null): Promise<Ok | EngineError>;
+
   hideWidget(): Promise<void>;
+  showWidget(): Promise<void>;
   openDashboard(route?: string): Promise<void>;
   widgetLayout(layout: 'collapsed' | 'expanded' | 'hover'): Promise<void>;
   resizePrompt(height: number): Promise<void>;
-  onNavigate(cb: (route: string) => void): () => void;
   debug?: DebugApi;
 }
 
