@@ -57,6 +57,7 @@ const tp = (match: PatternMatch, pattern: string, domain: string): DefaultTitleP
 
 export const DEFAULT_TITLE_PATTERNS: DefaultTitlePattern[] = [
   tp('suffix', '- YouTube', 'youtube.com'),
+  tp('suffix', 'YouTube', 'youtube.com'), // home page: "YouTube" / "(2) YouTube" (P35)
   tp('suffix', '- Gmail', 'mail.google.com'),
   tp('suffix', '- Google Docs', 'docs.google.com'),
   tp('suffix', '- Google Sheets', 'docs.google.com'),

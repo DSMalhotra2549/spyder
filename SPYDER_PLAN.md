@@ -663,3 +663,20 @@ _(append one entry per phase: date · phase · verification results with numbers
   - Widget position is saved on `move` (debounced 500 ms), not `moved`: on Windows `moved` doesn't fire for programmatic moves.
   - Full pill caption is two caps lines (`62% OF DAY` / `2:14 / 5:00 PRODUCTIVE`); one line didn't fit 320 px. Keep working +30 is in the expanded panel (and the compact hover card) instead of a hover chip inside the pill, which sat under the click target.
   - Widget "productive today" is work-session time today for now; subtracting distracting time (P25) comes with `aggregate.ts` in Phase 5.
+
+**2026-11-22 · Phase 4 · done.**
+- Core: `url.ts` (omnibox → domain, typing reuse per hwnd+title), `titlePatterns.ts` (Firefox suffix strip, private, new tab, longest pattern), `merge.ts` (key exe/domain/title/private, 2×interval+1 s gap, end = min(last+interval, next), < 1 s dropped). Main: `capture/foregroundProbe.ts` (utility process, separate Vite entry), `foreground.ts` (1/2/4/8/16 s backoff, 5 restarts per 10 min), `chromeUrl.ts` (one request in flight, 800 ms timeout, late replies dropped), `firefoxTitle.ts`, `tracker.ts` (samples every `sampleIntervalSec` of real time, skips and flushes on away/idle capped at the last input, 30 s batches, flush on quit, feeds the nudge). `src/native/UrlHelper.cs` + `scripts/build-helper.ps1`.
+- Verify: typecheck ✓, lint ✓, unit 106/106 ✓ (core lines 99.0 %, branches 93.9 %), e2e 13/13 ✓. `npm run build:helper` → `resources/UrlHelper.exe`, `ping` → `{"ok":true}` ✓.
+- `scripts/capture-check.ts` (hands-off run): notepad.exe 12.05 s, chrome.exe example.com 10.0 s, firefox.exe youtube.com 10.2 s. Notepad was 0.05 s over because it was already in front ~2 s before its focus window. The script now counts from the start of the focus loop (not re-run). Earlier runs failed only because the user was working in Zed during them.
+- Helper latency, 50 `fg` calls with Chrome in front: p50 0.3 ms, p95 0.6 ms, max 171 ms (first call finds the omnibox; then it's cached) ✓.
+- `scripts/soak.ts`, 10.3 min, real capture, 322 samples: average CPU 0.07 % of the machine (1.42 % of one core) ✓. Working set 522 → 104 MB ✓, but Windows trimmed it at ~3 and ~9 min; between trims it went 77 → 133 MB and then dropped. Not a clear leak, but not strong proof either.
+- Probe crash: `debug.killProbe` → restarted within the 1 s backoff, sampling resumed ✓.
+- Nudge: red widget captured on the real desktop (`scripts/nudge-shot.ts`, cropped to the widget) and in `widget-full-distracted.png` ✓. The toast didn't pop up on screen, but the **user confirmed it is in the notification centre** (2026-11-22). Windows also logged it under `com.spyder.app`. The pop-up was probably suppressed by Do Not Disturb or full-screen rules. Check again with the installed app in Phase 8.
+- Deviations / decisions:
+  - **P35:** title suffix `YouTube` → youtube.com (the home page's title is just "YouTube").
+  - The probe reads `w.title` / `w.info` instead of `toObject()`: 5× cheaper, because `toObject()` also loads the icon.
+  - Dev/test helper path is `out/main/../../resources/UrlHelper.exe`. `app.getAppPath()` is wrong when launched as `electron out/main/index.js`.
+  - `SPYDER_CAPTURE=0` (set by the e2e helper) turns the real tracker off so the foreground window can't disturb tests. New debug hook `killProbe`. `debug.flush` now also flushes the tracker.
+  - "Capture unavailable" is exposed in `debug.state().tracker`. The Settings banner comes with the Settings page in Phase 6.
+  - Default title patterns are only seeded into an empty table, so an existing dev DB doesn't get P35's pattern.
+  - From the Bash tool, the Store version of Notepad won't launch. Run `capture-check` from PowerShell.

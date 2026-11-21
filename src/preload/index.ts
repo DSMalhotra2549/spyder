@@ -19,7 +19,7 @@ const methods = [
 ] as const;
 
 const debugNames = ['state', 'setNow', 'advance', 'setScale', 'tick', 'simulateIdle', 'simulateSuspend',
-  'simulateResume', 'simulateLock', 'simulateUnlock', 'injectActivity', 'trayInfo', 'flush', 'triggerHotkey'] as const;
+  'simulateResume', 'simulateLock', 'simulateUnlock', 'injectActivity', 'trayInfo', 'flush', 'killProbe', 'triggerHotkey'] as const;
 
 const api = {
   ...Object.fromEntries(methods.map((m) => [m, invoke(m)])),

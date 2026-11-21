@@ -2,6 +2,7 @@ import { app, Notification } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClock, parseLocalIso } from '../core/clock';
+import { Tracker } from './capture/tracker';
 import type { AppCtx } from './context';
 import { Db } from './db/db';
 import { migrate } from './db/migrate';
@@ -66,8 +67,10 @@ async function boot(): Promise<void> {
     // Stay alive in the tray; only Quit exits.
   });
   const host = new EngineHost(ctx);
+  let tracker: Tracker | null = null;
   app.on('will-quit', () => {
     try {
+      tracker?.stop();
       host.stop();
       db.close();
     } catch {
@@ -82,7 +85,6 @@ async function boot(): Promise<void> {
   addDebugHook('injectActivity', (s: ActivitySample) => host.feedSample(s));
   addDebugHook('setScale', (scale: number) => ctx.clock.setScale(scale));
   addDebugHook('tick', () => host.dispatch({ type: 'TICK' }));
-  addDebugHook('flush', () => host.saveHeartbeat());
   ctx.widget = createWidget(ctx);
   ctx.dashboard = createDashboard(ctx);
   ctx.prompt = createPrompt(ctx);
@@ -91,8 +93,18 @@ async function boot(): Promise<void> {
     togglePause: () => host.togglePause(),
     pauseLabel: () => (host.state.paused ? 'Resume' : 'Pause'),
   });
-  startIdle(ctx, host);
+  const idleSec = startIdle(ctx, host);
   host.boot();
+  // SPYDER_CAPTURE=0 (e2e) keeps the real foreground window out of scripted scenarios.
+  tracker = new Tracker(ctx, host, idleSec);
+  if (process.env.SPYDER_CAPTURE !== '0') tracker.start();
+  const t = tracker;
+  addDebugState('tracker', () => t.debugState());
+  addDebugHook('flush', () => {
+    t.flush();
+    host.saveHeartbeat();
+  });
+  addDebugHook('killProbe', () => t.fg.kill());
   if (!registerHotkey(ctx)) console.warn(`[spyder] hotkey ${ctx.settings.hotkey} is taken`);
   if (!Notification.isSupported()) console.warn('[spyder] notifications not supported');
 }

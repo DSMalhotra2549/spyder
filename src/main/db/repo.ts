@@ -1,7 +1,9 @@
 // SQL for the engine host and data IPC. All rows use epoch ms (plan §3).
 import { randomUUID } from 'node:crypto';
 import type { Rule } from '../../core/categorize';
+import type { ActivityRow } from '../../core/merge';
 import type { DayOverride } from '../../core/schedule';
+import type { TitlePattern } from '../../core/titlePatterns';
 import type { ScheduleRow } from '../../core/settings';
 import type { Effect, EngineState, Heartbeat } from '../../core/types';
 import type { Db, SqlValue } from './db';
@@ -207,4 +209,21 @@ export function insertFlag(
     'INSERT INTO distraction_flags (id, ts_ms, session_id, target, continuous_sec) VALUES (?, ?, ?, ?, ?)',
     randomUUID(), f.tsMs, f.sessionId, f.target, f.continuousSec,
   );
+}
+
+// ---- activity capture (plan §9) ----------------------------------------------------
+export function insertActivity(db: Db, rows: ActivityRow[]): void {
+  if (!rows.length) return;
+  db.transaction(() => {
+    for (const r of rows) {
+      db.run(
+        'INSERT INTO activity (start_ms, end_ms, exe, app_name, title, domain, browser, is_private) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        r.startMs, r.endMs, r.exe, r.appName, r.title, r.domain, r.browser, r.isPrivate ? 1 : 0,
+      );
+    }
+  });
+}
+
+export function loadTitlePatterns(db: Db): TitlePattern[] {
+  return db.all<TitlePattern>('SELECT match, pattern, domain FROM title_patterns');
 }

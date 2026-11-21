@@ -47,6 +47,7 @@ export interface DebugApi {
   }): Promise<string>;
   trayInfo(): Promise<{ exists: boolean; tooltip: string; menu: string[] }>;
   flush(): Promise<void>;
+  killProbe(): Promise<void>;
   triggerHotkey(): Promise<void>;
 }
 

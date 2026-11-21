@@ -7,7 +7,10 @@ import type { EngineHost } from './engineHost';
 
 const POLL_MS = 5000;
 
-export function startIdle(app: AppCtx, host: EngineHost): void {
+/** Seconds since the last input (simulated, faked or real). */
+export type IdleSource = () => number;
+
+export function startIdle(app: AppCtx, host: EngineHost): IdleSource {
   /** debug.simulateIdle: clock time of the last input, or null for the real source. */
   let simulatedLastInput: number | null = null;
   // E2E runs set this so the real machine's idleness can't interfere with scripted scenarios.
@@ -50,4 +53,5 @@ export function startIdle(app: AppCtx, host: EngineHost): void {
   addDebugHook('simulateResume', end);
   addDebugHook('simulateLock', () => begin('lock'));
   addDebugHook('simulateUnlock', end);
+  return idleSec;
 }

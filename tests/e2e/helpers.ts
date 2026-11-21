@@ -49,6 +49,7 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
     SPYDER_NOW: opts.now ?? '2026-11-24T11:00:00',
     SPYDER_CLOCK_SCALE: String(opts.scale ?? 1),
     SPYDER_FAKE_IDLE: '1',
+    SPYDER_CAPTURE: '0',
     ...opts.env,
   };
   delete env.ELECTRON_RENDERER_URL;

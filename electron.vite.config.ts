@@ -8,7 +8,10 @@ export default defineConfig({
     build: {
       externalizeDeps: true,
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/main/main.ts') },
+        input: {
+          index: resolve(__dirname, 'src/main/main.ts'),
+          foregroundProbe: resolve(__dirname, 'src/main/capture/foregroundProbe.ts'),
+        },
         external: ['node:sqlite', '@miniben90/x-win'],
       },
     },
