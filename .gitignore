@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+release/
+coverage/
+tests/e2e/__shots__/
+*.db
+*.db-wal
+*.db-shm
+resources/UrlHelper.exe

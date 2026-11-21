@@ -92,6 +92,7 @@ tests/e2e/           *.spec.ts, helpers.ts, __shots__/
 | appPercentScope | "work_hours" | P26 ("work_hours" \| "all_day") |
 | keepWorkingStepMin | 30 | P20 |
 | widgetPos | null | `{x,y}`, saved on move |
+| widgetStyle | "full" | P31 (`"full"` \| `"compact"`) |
 
 Default schedule (P10): weekday 1–5 (Mon–Fri) enabled 600–1020 (10:00–17:00), with 0 and 6 disabled. `weekday` uses JS `Date.getDay()` numbering (0 = Sunday).
 
@@ -393,7 +394,9 @@ Visuals (colors, type, spacing, exact widget anatomy) come from `design/DESIGN.m
 - today's productive time / goal
 - the whole widget is tinted red when `isDistracted`
 
-Expanded (click): Start · Done · +5 · +15 · Pause/Resume · Break · Open dashboard · Hide (×).
+Expanded (click): Start · Done · +5 · +15 · Pause/Resume · Break · Open dashboard · Style toggle (Full/Compact, P31) · Hide (×).
+
+**Compact style** (P31): timer + caps caption + workday ring only; the title, workday % and productive/goal appear in a hover card. Every collapsed-widget item above must still be reachable.
 
 **Start-session popover** (opens in the prompt window):
 - Tabs: Planned / Timed / Open / Break.
@@ -627,3 +630,9 @@ Coverage of `src/core` must be at least **90 %** lines and branches.
 
 ## 14. Progress log
 _(append one entry per phase: date · phase · verification results with numbers · deviations, and which decisions were added to docs/product-decisions.md or docs/adr/)_
+
+**2026-11-21 · Phase 0 · done.**
+- `.gitignore`, `.gitattributes` added.
+- Design references: 5 images in `design/reference/` (sources: rize.io homepage app shot, rize.io S3 changelog/OG assets, Webflow CDN feature images), each viewed and described in `INDEX.md`. The **widget is clearly shown** in `rize-widget_meeting_dark.png` (official states sheet). No usable images from docs.rize.io (redirects/no imgs); feature subpages like `/features/desktop-widget` 404 on the current site. Did not need the user's screenshot.
+- `design/DESIGN.md` written: tokens, type, widget (full + compact), prompt, start popover, 6 dashboard pages, charts, tray.
+- User design review: asked to **build both widget styles, switchable any time** → added **P31** and the `widgetStyle` setting (§5, §12).
