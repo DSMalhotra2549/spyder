@@ -636,3 +636,12 @@ _(append one entry per phase: date · phase · verification results with numbers
 - Design references: 5 images in `design/reference/` (sources: rize.io homepage app shot, rize.io S3 changelog/OG assets, Webflow CDN feature images), each viewed and described in `INDEX.md`. The **widget is clearly shown** in `rize-widget_meeting_dark.png` (official states sheet). No usable images from docs.rize.io (redirects/no imgs); feature subpages like `/features/desktop-widget` 404 on the current site. Did not need the user's screenshot.
 - `design/DESIGN.md` written: tokens, type, widget (full + compact), prompt, start popover, 6 dashboard pages, charts, tray.
 - User design review: asked to **build both widget styles, switchable any time** → added **P31** and the `widgetStyle` setting (§5, §12).
+
+**2026-11-21 · Phase 1 · done.**
+- Resolved versions: electron 45.4.1 (Node 24.22.3), electron-vite 6.0.0, vite 8.3.8, @vitejs/plugin-react 6.3.0, typescript 6.0.3, react 19.3.1, zustand 5.1.0, date-fns 4.4.0, recharts 3.11.0, exceljs 4.4.0, @miniben90/x-win 3.7.0, tailwindcss 4.3.5, vitest 4.1.12, @playwright/test 1.65.1, eslint 10.15.0, typescript-eslint 8.73.0, eslint-plugin-react-hooks 7.1.1, electron-builder 26.18.0, tsx 4.23.15.
+- Deviation: `@types/node` pinned to `^24` (npm resolved 14.x, which broke vite's peer range); 24 matches Electron's Node.
+- `node:sqlite` works in the Electron main process (Node 24.22.3 ≥ 22.13) → no ADR-0003 fallback.
+- Playwright `_electron.launch()` attaches to Electron 45 fine → CDP fallback not needed.
+- typecheck ✓, lint ✓ (core purity enforced by `no-restricted-imports` + `Date.now` ban in eslint), `npm test` 3/3 ✓, smoke e2e 5/5 ✓ (windows, tray menu, 17 tables, seeded schedule/settings/78 rules/25 title patterns); screenshots `smoke-widget.png`, `smoke-dashboard.png` viewed.
+- Single instance: second launch with the same data dir exits (code 0, ~1 s) without booting. Checked with the built app (`electron out/main/index.js` ×2); `npm run dev` uses the same lock.
+- Notes: `userData` is set to `<dataDir>/electron` so test instances are isolated from the real app. Migrations are loaded via Vite `?raw` in the app and `loadMigrationsFromDisk()` for tsx scripts.

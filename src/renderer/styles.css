@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+
+/* Tokens from design/DESIGN.md §1 */
+@theme {
+  --color-bg: #0e0e12;
+  --color-surface: #16161b;
+  --color-surface-2: #1e1e25;
+  --color-border: #2a2a33;
+  --color-border-strong: #3a3a46;
+  --color-text: #ededf2;
+  --color-muted: #8e8e9c;
+  --color-faint: #5c5c6a;
+  --color-accent: #7b61ff;
+  --color-accent-hover: #8e78ff;
+  --color-red: #f04452;
+  --color-orange: #f59e0b;
+  --color-green: #22c55e;
+
+  --color-planned: #22d3ee;
+  --color-timed: #2dd4bf;
+  --color-open: #ededf2;
+  --color-break: #5b7fe0;
+  --color-away: #e3a6f2;
+
+  --color-productive: #2dd4bf;
+  --color-neutral: #7c8293;
+  --color-distracting: #f04452;
+  --color-uncategorized: #4a4a57;
+
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+
+  --radius-pill: 9999px;
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --radius-chip: 6px;
+  --radius-bar: 3px;
+
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  body.dashboard {
+    background: var(--color-bg);
+  }
+  body.transparent {
+    background: transparent;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+@utility caps {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+@utility section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+@utility drag {
+  -webkit-app-region: drag;
+}
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
