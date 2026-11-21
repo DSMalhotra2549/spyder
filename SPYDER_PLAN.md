@@ -645,3 +645,9 @@ _(append one entry per phase: date · phase · verification results with numbers
 - typecheck ✓, lint ✓ (core purity enforced by `no-restricted-imports` + `Date.now` ban in eslint), `npm test` 3/3 ✓, smoke e2e 5/5 ✓ (windows, tray menu, 17 tables, seeded schedule/settings/78 rules/25 title patterns); screenshots `smoke-widget.png`, `smoke-dashboard.png` viewed.
 - Single instance: second launch with the same data dir exits (code 0, ~1 s) without booting. Checked with the built app (`electron out/main/index.js` ×2); `npm run dev` uses the same lock.
 - Notes: `userData` is set to `<dataDir>/electron` so test instances are isolated from the real app. Migrations are loaded via Vite `?raw` in the app and `loadMigrationsFromDisk()` for tsx scripts.
+
+**2026-11-21 · Phase 2 · done.**
+- `src/core`: `types.ts`, `schedule.ts` (window/inWork/workdayPct/nextBoundary + `mergeOverride`), `sessionEngine.ts` (E1–E19, `widgetView`, `visiblePrompt`, `inWorkSession`), `nudge.ts`, `format.ts`; test harness `engine.testkit.ts` (excluded from coverage).
+- `npm run test:cov`: 65 tests pass (all 18 plan scenarios + edge cases). Coverage of src/core: lines 97.86 %, branches 95.62 %, statements 97.14 %, functions 96.38 %.
+- Spec interpretations (recorded): **P32** (overrides extend, never shrink), **P33** (away across the day end closes the old session, no cross-day resume), **P34** (labelling a timed session after time-up ends it, which scenario 3 needs).
+- Other engine details: prompt dedupe key is (type, sessionId, awayId) so two separate away periods both queue; prompts carry `awayStartMs/awayEndMs`; `saveHeartbeat` is also emitted on every mode change (so a crash in away/off-hours restores correctly); START rejects with `needs_label` if the *paused* session is unlabelled too; host must recompute `sessions.elapsed_sec` from segments on `insertSegment` for sessions no longer in engine state.
