@@ -5,8 +5,12 @@ import { fmtClock } from '../../core/format';
 import type { WidgetPayload } from '../../preload/api';
 import { navigate } from '../router';
 import { Btn } from '../ui/controls';
+import { Month } from './Month';
 import { Review } from './Review';
+import { Rules } from './Rules';
+import { Settings } from './Settings';
 import { Today } from './Today';
+import { Week } from './Week';
 import { TopBar, useLoader } from './parts';
 
 const icon = (d: string) => (
@@ -74,13 +78,18 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
           <Today date={date} onDate={onDate} />
         ) : page === 'review' ? (
           <Review date={date} onDate={onDate} onChanged={() => void reloadBadge()} />
+        ) : (page === 'week' || page === 'month') && !(date ?? rv?.today) ? (
+          <TopBar title={LABELS[page]} />
+        ) : page === 'week' ? (
+          <Week date={(date ?? rv?.today)!} onDate={onDate} />
+        ) : page === 'month' ? (
+          <Month date={(date ?? rv?.today)!} onDate={onDate} />
+        ) : page === 'rules' ? (
+          <Rules />
+        ) : page === 'settings' ? (
+          <Settings />
         ) : (
-          <>
-            <TopBar title={LABELS[page] ?? 'Spyder'} />
-            <section className="p-6">
-              <div className="rounded-card border border-border bg-surface p-4 text-muted">Nothing here yet.</div>
-            </section>
-          </>
+          <TopBar title={LABELS[page] ?? 'Spyder'} />
         )}
       </main>
     </div>

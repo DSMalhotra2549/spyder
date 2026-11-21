@@ -5,8 +5,35 @@ import type { Settings } from '../core/settings';
 import type { Category, MatchType } from '../core/defaults';
 import type { Answer, AwayClassification, EngineError, Kind, StartInput } from '../core/types';
 import type { DayVM, Kpi, ReviewItem, ReviewVM } from '../core/review';
+import type { AppRow } from '../core/aggregate';
+import type { ScheduleRow } from '../core/settings';
+import type { PatternMatch } from '../core/defaults';
+import type { RangeVM } from '../core/trends';
 
-export type { DayVM, Kpi, ReviewItem, ReviewVM };
+export type { AppRow, DayVM, Kpi, RangeVM, ReviewItem, ReviewVM, ScheduleRow };
+
+export interface RuleVM {
+  id: string;
+  matchType: MatchType;
+  pattern: string;
+  category: Category;
+  isDefault: boolean;
+}
+
+export interface TitlePatternVM {
+  id: string;
+  match: PatternMatch;
+  pattern: string;
+  domain: string;
+  isDefault: boolean;
+}
+
+export interface OverrideVM {
+  date: string;
+  enabled: boolean;
+  startMin: number;
+  endMin: number;
+}
 
 export type SettingsVM = Settings & { hotkeyOk: boolean; dataDir: string };
 
@@ -78,10 +105,22 @@ export interface SpyderApi {
 
   nameSuggestions(prefix: string): Promise<string[]>;
   listProjects(): Promise<Project[]>;
-  saveProject(p: { id?: string; name: string; color?: string }): Promise<Project>;
+  saveProject(p: { id?: string; name: string; color?: string; archived?: boolean }): Promise<Project>;
 
   getDay(date?: string): Promise<DayVM>;
-  saveRule(r: { matchType: MatchType; pattern: string; category: Category }): Promise<void>;
+  getRange(from: string, to: string): Promise<RangeVM>;
+  listUncategorized(date?: string): Promise<AppRow[]>;
+  listRules(): Promise<RuleVM[]>;
+  saveRule(r: { id?: string; matchType: MatchType; pattern: string; category: Category }): Promise<void>;
+  deleteRule(id: string): Promise<void>;
+  listTitlePatterns(): Promise<TitlePatternVM[]>;
+  saveTitlePattern(p: { id?: string; match: PatternMatch; pattern: string; domain: string }): Promise<void>;
+  deleteTitlePattern(id: string): Promise<void>;
+
+  getSchedule(): Promise<{ rows: ScheduleRow[]; overrides: Record<string, OverrideVM> }>;
+  setSchedule(rows: ScheduleRow[]): Promise<void>;
+  setDayOverride(date: string, o: Omit<OverrideVM, 'date'> | null): Promise<void>;
+  openDataFolder(): Promise<string>;
 
   getReview(date?: string): Promise<ReviewVM>;
   saveReviewItem(it: Omit<ReviewItem, 'id'> & { id?: string }): Promise<ReviewItem>;

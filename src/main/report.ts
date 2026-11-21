@@ -6,10 +6,26 @@ import { leftovers, type DayVM, type Kpi, type ReviewItem, type ReviewVM } from 
 import { addDays, dateKey, dayStartFromKey, workWindow } from '../core/schedule';
 import type { Settings } from '../core/settings';
 import { streak } from '../core/streaks';
+import { relabelFirefox } from '../core/titlePatterns';
+import type { AppRow } from '../core/aggregate';
+import { dayLite, type RangeVM } from '../core/trends';
 import type { Db } from './db/db';
 import * as repo from './db/repo';
 
 const DAY_MS = 86_400_000;
+
+function rawActivity(db: Db, d0: number, d1: number): DayData['activity'] {
+  return db
+    .all<{ start_ms: number; end_ms: number; exe: string; app_name: string; title: string | null; domain: string | null; browser: DayData['activity'][number]['browser']; is_private: number }>(
+      // The lower start bound lets the index work; activity rows are far shorter than a day.
+      'SELECT start_ms, end_ms, exe, app_name, title, domain, browser, is_private FROM activity WHERE start_ms >= ? AND start_ms < ? AND end_ms > ? ORDER BY start_ms',
+      d0 - DAY_MS, d1, d0,
+    )
+    .map((r) => ({
+      startMs: r.start_ms, endMs: r.end_ms, exe: r.exe, appName: r.app_name, title: r.title, domain: r.domain,
+      browser: r.browser, isPrivate: !!r.is_private,
+    }));
+}
 
 export function loadDayData(db: Db, date: string, nowMs: number): DayData {
   const d0 = dayStartFromKey(date);
@@ -46,16 +62,7 @@ export function loadDayData(db: Db, date: string, nowMs: number): DayData {
       d1, d0,
     )
     .map((r) => ({ id: r.id, startMs: r.start_ms, endMs: r.end_ms, reason: r.reason, classification: r.classification, label: r.label }));
-  const activity = db
-    .all<{ start_ms: number; end_ms: number; exe: string; app_name: string; title: string | null; domain: string | null; browser: DayData['activity'][number]['browser']; is_private: number }>(
-      // The lower start bound lets the index work; activity rows are far shorter than a day.
-      'SELECT start_ms, end_ms, exe, app_name, title, domain, browser, is_private FROM activity WHERE start_ms >= ? AND start_ms < ? AND end_ms > ? ORDER BY start_ms',
-      d0 - DAY_MS, d1, d0,
-    )
-    .map((r) => ({
-      startMs: r.start_ms, endMs: r.end_ms, exe: r.exe, appName: r.app_name, title: r.title, domain: r.domain,
-      browser: r.browser, isPrivate: !!r.is_private,
-    }));
+  const activity = relabelFirefox(rawActivity(db, d0, d1), repo.loadTitlePatterns(db));
   const flags = db
     .all<{ ts_ms: number; target: string; continuous_sec: number; session_id: string | null }>(
       'SELECT ts_ms, target, continuous_sec, session_id FROM distraction_flags WHERE ts_ms >= ? AND ts_ms < ?',
@@ -85,6 +92,32 @@ export function dayVM(db: Db, date: string | undefined, nowMs: number, settings:
   const today = dateKey(nowMs);
   const d = date ?? today;
   return { date: d, today, nowMs, summary: summaryFor(db, d, nowMs, settings), streak: currentStreak(db, nowMs, settings) };
+}
+
+/** Week / Month pages: one DayLite per date in [from, to] (inclusive). */
+export function rangeVM(db: Db, from: string, to: string, nowMs: number, settings: Settings): RangeVM {
+  const today = dateKey(nowMs);
+  const days = [];
+  for (let ms = dayStartFromKey(from); dateKey(ms) <= to && days.length < 62; ms = addDays(ms, 1)) {
+    days.push(dayLite(summaryFor(db, dateKey(ms), nowMs, settings), today));
+  }
+  return {
+    from,
+    to,
+    today,
+    days,
+    streak: currentStreak(db, nowMs, settings),
+    kpis: listKpis(db).filter((k) => !k.archived).map(({ id, name, unit }) => ({ id, name, unit })),
+    kpiValues: db
+      .all<{ date: string; kpi_id: string; value: number }>('SELECT date, kpi_id, value FROM kpi_values WHERE date >= ? AND date <= ? ORDER BY date', from, to)
+      .map((r) => ({ date: r.date, kpiId: r.kpi_id, value: r.value })),
+  };
+}
+
+/** Rules page inbox: today's apps and sites (whole day) that no rule covers. */
+export function listUncategorized(db: Db, date: string | undefined, nowMs: number, settings: Settings): AppRow[] {
+  const s = summaryFor(db, date ?? dateKey(nowMs), nowMs, { ...settings, appPercentScope: 'all_day' });
+  return s.apps.filter((a) => a.category === 'uncategorized' && a.ruleTarget);
 }
 
 // ---- review (P24) -------------------------------------------------------------------

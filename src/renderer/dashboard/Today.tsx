@@ -1,6 +1,7 @@
 // Today page (plan §12, design/DESIGN.md §4 Today).
 import clsx from 'clsx';
 import { Pie, PieChart } from 'recharts';
+import type { AppRow } from '../../core/aggregate';
 import type { ActivityCategory } from '../../core/categorize';
 import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
@@ -64,7 +65,7 @@ function TodayBody({ vm, reload }: { vm: DayVM; reload: () => Promise<void> }) {
 
       <div className="mt-4 grid grid-cols-12 gap-4">
         <Card title="Apps & sites" right={s.scope === 'work_hours' ? 'work hours' : 'all day'} className="col-span-7">
-          <AppsTable vm={vm} reload={reload} />
+          <AppsList rows={s.apps} reload={reload} />
         </Card>
         <Card title="Distraction flags" right={`${s.flags.length}`} className="col-span-5">
           {s.flags.length === 0 ? (
@@ -144,8 +145,8 @@ function SessionsTable({ vm }: { vm: DayVM }) {
   );
 }
 
-function AppsTable({ vm, reload }: { vm: DayVM; reload: () => Promise<void> }) {
-  const rows = vm.summary.apps;
+/** Ranked apps & sites with a category chip per row (also used by Week's top 10). */
+export function AppsList({ rows, reload, compact }: { rows: AppRow[]; reload: () => Promise<void>; compact?: boolean }) {
   if (!rows.length) return <Empty>No activity recorded</Empty>;
   return (
     <ol>
@@ -162,12 +163,13 @@ function AppsTable({ vm, reload }: { vm: DayVM; reload: () => Promise<void> }) {
             <span data-k="key" className="relative min-w-0 flex-1 truncate">
               {t.key}
             </span>
-            <span data-k="time" className="relative w-14 text-right tabular">
+            <span data-k="time" className={clsx('relative text-right tabular', compact ? 'w-11' : 'w-14')}>
               {t.time}
             </span>
-            <span data-k="pct" className="relative w-14 text-right text-muted tabular">
+            <span data-k="pct" className={clsx('relative text-right text-muted tabular', compact ? 'w-12' : 'w-14')}>
               {t.pct}
             </span>
+            {!compact && (
             <div className="relative w-[124px] flex justify-end">
               <CategoryChip
                 category={a.category}
@@ -181,6 +183,7 @@ function AppsTable({ vm, reload }: { vm: DayVM; reload: () => Promise<void> }) {
                 }
               />
             </div>
+            )}
           </li>
         );
       })}

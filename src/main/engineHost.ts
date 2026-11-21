@@ -49,6 +49,13 @@ export class EngineHost {
     this.overrides = repo.loadOverrides(this.app.db);
   }
 
+  /** Settings page changed the schedule or an override: reload and let the engine react (E19). */
+  scheduleChanged(): void {
+    this.reloadSchedule();
+    this.productiveCache.atMs = Number.NaN;
+    this.dispatch({ type: 'SCHEDULE_CHANGED' });
+  }
+
   ctx(): Ctx {
     return {
       now: this.app.clock.now(),

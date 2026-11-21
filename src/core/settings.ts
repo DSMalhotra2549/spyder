@@ -50,3 +50,43 @@ export const DEFAULT_SCHEDULE: ScheduleRow[] = [0, 1, 2, 3, 4, 5, 6].map((weekda
   startMin: 600,
   endMin: 1020,
 }));
+
+/** Lower bounds for the numeric settings (seconds unless named otherwise). */
+const MIN: Partial<Record<keyof Settings, number>> = {
+  goalSec: 60,
+  idleThresholdSec: 60,
+  checkInIntervalSec: 60,
+  nagIntervalSec: 60,
+  nudgeAfterSec: 30,
+  nudgeRepeatSec: 30,
+  nudgeResetSec: 5,
+  shortAwayIgnoreSec: 0,
+  sampleIntervalSec: 1,
+  keepWorkingStepMin: 5,
+};
+
+const ENUMS: Partial<Record<keyof Settings, readonly unknown[]>> = {
+  defaultDirection: ['up', 'down'],
+  appPercentScope: ['work_hours', 'all_day'],
+  widgetStyle: ['full', 'compact'],
+};
+
+/** Drops unknown keys and invalid values from a settings change; numbers below their minimum are raised to it. */
+export function cleanSettings(partial: Record<string, unknown>): Partial<Settings> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(partial)) {
+    if (!(k in DEFAULT_SETTINGS)) continue;
+    const key = k as keyof Settings;
+    const def = DEFAULT_SETTINGS[key];
+    if (key in MIN) {
+      if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.max(MIN[key]!, Math.round(v));
+    } else if (key in ENUMS) {
+      if (ENUMS[key]!.includes(v)) out[k] = v;
+    } else if (key === 'widgetPos') {
+      if (v === null || (typeof v === 'object' && typeof (v as { x: unknown }).x === 'number' && typeof (v as { y: unknown }).y === 'number')) out[k] = v;
+    } else if (key === 'hotkey') {
+      if (typeof v === 'string' && v.trim()) out[k] = v.trim();
+    } else if (typeof v === typeof def) out[k] = v;
+  }
+  return out as Partial<Settings>;
+}

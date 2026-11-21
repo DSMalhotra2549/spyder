@@ -18,6 +18,8 @@ const methods = [
   'hideWidget', 'openDashboard', 'widgetLayout', 'resizePrompt',
   'getDay', 'saveRule', 'getReview', 'saveReviewItem', 'deleteReviewItem', 'completeReview', 'listKpis', 'saveKpi',
   'setKpiValue', 'classifyAway', 'showWidget',
+  'getRange', 'listUncategorized', 'listRules', 'deleteRule', 'listTitlePatterns', 'saveTitlePattern', 'deleteTitlePattern',
+  'getSchedule', 'setSchedule', 'setDayOverride', 'openDataFolder',
 ] as const;
 
 const debugNames = ['state', 'setNow', 'advance', 'setScale', 'tick', 'simulateIdle', 'simulateSuspend',

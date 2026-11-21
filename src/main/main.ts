@@ -79,7 +79,7 @@ async function boot(): Promise<void> {
   });
 
   await app.whenReady();
-  registerIpc(ctx, host);
+  registerIpc(ctx, host, { titlePatternsChanged: () => tracker?.firefox.reload() });
   registerDebug(ctx);
   addDebugState('host', () => host.debugState());
   addDebugHook('injectActivity', (s: ActivitySample) => host.feedSample(s));

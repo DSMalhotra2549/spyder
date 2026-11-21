@@ -39,3 +39,18 @@ export function parseFirefoxTitle(windowTitle: string, patterns: TitlePattern[])
   const page = m[1].trim();
   return { title: page || null, domain: page ? matchTitle(page, patterns) : null, isPrivate: false };
 }
+
+/**
+ * Re-runs the title patterns over stored Firefox rows that have no domain yet, so a pattern added
+ * later re-labels past activity in reports (P39). Rows that already have a domain are kept.
+ */
+export function relabelFirefox<T extends { browser: string | null; domain: string | null; title: string | null; isPrivate: boolean }>(
+  rows: T[],
+  patterns: TitlePattern[],
+): T[] {
+  return rows.map((r) => {
+    if (r.browser !== 'firefox' || r.domain || r.isPrivate || !r.title) return r;
+    const domain = matchTitle(r.title, patterns);
+    return domain ? { ...r, domain } : r;
+  });
+}

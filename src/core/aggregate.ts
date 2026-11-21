@@ -106,6 +106,8 @@ export interface DaySummary {
   notWorkingSec: number;
   awayPendingSec: number;
   distractingSec: number;
+  /** Work time split by the category of the activity it overlaps (no activity → none of these). */
+  workByCategory: Record<ActivityCategory, number>;
   productiveSec: number;
   score: number | null;
   goalSec: number;
@@ -176,14 +178,11 @@ export function daySummary(
     .map((a) => ({ a, s: Math.max(a.startMs, d0), e: Math.min(a.endMs, d1), cat: categorize(a, rules) }))
     .filter((x) => x.e > x.s);
 
-  let distractMs = 0;
-  for (const x of acts) {
-    if (x.cat !== 'distracting') continue;
-    for (const g of work) distractMs += overlap(x.s, x.e, g.s, g.e);
-  }
+  const workCatMs: Record<ActivityCategory, number> = { productive: 0, neutral: 0, distracting: 0, uncategorized: 0 };
+  for (const x of acts) for (const g of work) workCatMs[x.cat] += overlap(x.s, x.e, g.s, g.e);
 
   const workSec = sec(workMs);
-  const distractingSec = sec(distractMs);
+  const distractingSec = sec(workCatMs.distracting);
   const productiveSec = workSec - distractingSec;
   const scheduledSec = win ? sec(Math.min(win.endMs, d1) - Math.max(win.startMs, d0)) : 0;
 
@@ -253,6 +252,12 @@ export function daySummary(
     notWorkingSec: sec(awayMs((c) => c === 'not_working')),
     awayPendingSec: sec(awayMs((c) => c === null)),
     distractingSec,
+    workByCategory: {
+      productive: sec(workCatMs.productive),
+      neutral: sec(workCatMs.neutral),
+      distracting: distractingSec,
+      uncategorized: sec(workCatMs.uncategorized),
+    },
     productiveSec,
     score: scheduledSec > 0 ? productiveSec / scheduledSec : null,
     goalSec: settings.goalSec,

@@ -5,6 +5,26 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ActivityCategory } from '../../core/categorize';
 import type { Category } from '../../core/defaults';
 import { addDays, dateKey, dayStartFromKey } from '../../core/schedule';
+import { addMonths, weekDates } from '../../core/trends';
+
+export type Period = 'day' | 'week' | 'month';
+
+const stepDate = (date: string, unit: Period, n: number) =>
+  unit === 'month' ? addMonths(date, n) : dateKey(addDays(dayStartFromKey(date), unit === 'week' ? 7 * n : n));
+
+function periodLabel(date: string, unit: Period): string {
+  const d = dayStartFromKey(date);
+  if (unit === 'month') return format(d, 'MMMM yyyy');
+  if (unit === 'week') {
+    const w = weekDates(date);
+    return `${format(dayStartFromKey(w[0]), 'MMM d')} – ${format(dayStartFromKey(w[6]), 'MMM d yyyy')}`;
+  }
+  return format(d, 'EEE, MMM d yyyy');
+}
+
+/** First day of the period containing `date` (for "is the next period in the future?"). */
+const periodStart = (date: string, unit: Period) =>
+  unit === 'month' ? `${date.slice(0, 7)}-01` : unit === 'week' ? weekDates(date)[0] : date;
 
 export const CAT_COLOR: Record<ActivityCategory, string> = {
   productive: 'var(--color-productive)',
@@ -58,31 +78,35 @@ export function TopBar({
   today,
   onDate,
   actions,
+  unit = 'day',
 }: {
   title: string;
   date?: string;
   today?: string;
   onDate?: (d: string) => void;
   actions?: ReactNode;
+  unit?: Period;
 }) {
-  const step = (n: number) => date && onDate?.(dateKey(addDays(dayStartFromKey(date), n)));
+  const step = (n: number) => date && onDate?.(stepDate(date, unit, n));
+  const nextStart = date ? periodStart(stepDate(date, unit, 1), unit) : '';
+  const isCurrent = !!today && !!date && periodStart(date, unit) === periodStart(today, unit);
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border px-6">
       <h1 className="text-xl font-semibold">{title}</h1>
       {date && (
         <div className="flex items-center gap-1.5">
-          <NavBtn label="Previous day" onClick={() => step(-1)}>
+          <NavBtn label={`Previous ${unit}`} onClick={() => step(-1)}>
             ‹
           </NavBtn>
-          <NavBtn label="Next day" onClick={() => step(1)} disabled={!!today && date >= today}>
+          <NavBtn label={`Next ${unit}`} onClick={() => step(1)} disabled={!!today && nextStart > today}>
             ›
           </NavBtn>
           <span data-testid="date-label" className="ml-1.5 text-[13px] text-muted tabular">
-            {format(dayStartFromKey(date), 'EEE, MMM d yyyy')}
+            {periodLabel(date, unit)}
           </span>
-          {today && date !== today && (
+          {today && !isCurrent && (
             <button className="ml-2 text-[12px] text-accent hover:underline" onClick={() => onDate?.(today)}>
-              Back to today
+              {unit === 'day' ? 'Back to today' : `This ${unit}`}
             </button>
           )}
         </div>
@@ -273,4 +297,77 @@ export function CategoryChip({
 
 export const Empty = ({ children }: { children: ReactNode }) => (
   <div className="py-6 text-center text-[12px] text-faint">{children}</div>
+);
+
+/** 32 × 18 switch (design/DESIGN.md §4 Settings). */
+export function Toggle({
+  on,
+  onChange,
+  label,
+  testId,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      title={label}
+      data-testid={testId}
+      onClick={() => onChange(!on)}
+      className={clsx(
+        'relative h-[18px] w-8 shrink-0 rounded-pill transition-colors',
+        on ? 'bg-accent' : 'bg-border-strong',
+      )}
+    >
+      <span
+        className={clsx(
+          'absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white transition-all',
+          on ? 'left-[16px]' : 'left-[2px]',
+        )}
+      />
+    </button>
+  );
+}
+
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  testId,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+  testId?: string;
+}) {
+  return (
+    <div data-testid={testId} className="inline-flex rounded-control border border-border bg-surface-2 p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          data-value={o.value}
+          onClick={() => onChange(o.value)}
+          className={clsx(
+            'h-7 rounded-chip px-3 text-[12px] font-semibold',
+            o.value === value ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text',
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export const DefaultChip = () => (
+  <span className="rounded-pill border border-border px-1.5 text-[10px] leading-[16px] font-semibold text-faint uppercase">
+    default
+  </span>
 );

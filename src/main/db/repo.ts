@@ -129,6 +129,22 @@ export function loadOverrides(db: Db): Map<string, DayOverride> {
   );
 }
 
+export function saveSchedule(db: Db, rows: ScheduleRow[]): void {
+  db.transaction(() => {
+    for (const r of rows) {
+      db.run(
+        `INSERT INTO schedule (weekday, enabled, start_min, end_min) VALUES (?, ?, ?, ?)
+         ON CONFLICT(weekday) DO UPDATE SET enabled = excluded.enabled, start_min = excluded.start_min, end_min = excluded.end_min`,
+        r.weekday, r.enabled ? 1 : 0, r.startMin, r.endMin,
+      );
+    }
+  });
+}
+
+export function deleteOverride(db: Db, date: string): void {
+  db.run('DELETE FROM day_overrides WHERE date = ?', date);
+}
+
 export function upsertOverride(db: Db, o: DayOverride): void {
   db.run(
     `INSERT INTO day_overrides (date, enabled, start_min, end_min) VALUES (?, ?, ?, ?)
@@ -190,13 +206,67 @@ export function loadRules(db: Db): Rule[] {
     .map((r) => ({ matchType: r.match_type, pattern: r.pattern, category: r.category, isDefault: !!r.is_default }));
 }
 
-/** Upserts a user rule (is_default = 0); a user rule beats any default (§9.4). */
-export function saveRule(db: Db, r: { matchType: Rule['matchType']; pattern: string; category: Rule['category'] }, nowMs: number): void {
-  db.run(
+export interface RuleRow extends Rule {
+  id: string;
+}
+
+export function listRules(db: Db): RuleRow[] {
+  return db
+    .all<{ id: string; match_type: Rule['matchType']; pattern: string; category: Rule['category']; is_default: number }>(
+      'SELECT id, match_type, pattern, category, is_default FROM rules ORDER BY is_default, match_type, pattern',
+    )
+    .map((r) => ({ id: r.id, matchType: r.match_type, pattern: r.pattern, category: r.category, isDefault: !!r.is_default }));
+}
+
+/**
+ * Upserts a user rule (is_default = 0); a user rule beats any default (§9.4). With `id` (editing a
+ * user rule) the old row is replaced. Default rows are never changed; a category change on one
+ * creates a user rule with the same pattern.
+ */
+export function saveRule(
+  db: Db,
+  r: { id?: string; matchType: Rule['matchType']; pattern: string; category: Rule['category'] },
+  nowMs: number,
+): void {
+  if (!r.pattern.trim()) return;
+  db.transaction(() => {
+    if (r.id) db.run('DELETE FROM rules WHERE id = ? AND is_default = 0', r.id);
+    db.run(
     `INSERT INTO rules (id, match_type, pattern, category, is_default, created_ms) VALUES (?, ?, ?, ?, 0, ?)
      ON CONFLICT(match_type, pattern, is_default) DO UPDATE SET category = excluded.category`,
     randomUUID(), r.matchType, r.pattern.trim().toLowerCase(), r.category, nowMs,
-  );
+    );
+  });
+}
+
+export function deleteRule(db: Db, id: string): void {
+  db.run('DELETE FROM rules WHERE id = ? AND is_default = 0', id);
+}
+
+export interface TitlePatternRow extends TitlePattern {
+  id: string;
+  isDefault: boolean;
+}
+
+export function listTitlePatternRows(db: Db): TitlePatternRow[] {
+  return db
+    .all<{ id: string; match: TitlePattern['match']; pattern: string; domain: string; is_default: number }>(
+      'SELECT id, match, pattern, domain, is_default FROM title_patterns ORDER BY is_default, domain, pattern',
+    )
+    .map((r) => ({ id: r.id, match: r.match, pattern: r.pattern, domain: r.domain, isDefault: !!r.is_default }));
+}
+
+/** Adds or edits a user title pattern. Default patterns are read-only. */
+export function saveTitlePattern(db: Db, p: { id?: string; match: TitlePattern['match']; pattern: string; domain: string }): void {
+  const pattern = p.pattern.trim();
+  const domain = p.domain.trim().toLowerCase().replace(/^www\./, '');
+  if (!pattern || !domain) return;
+  if (p.id) db.run('UPDATE title_patterns SET match = ?, pattern = ?, domain = ? WHERE id = ? AND is_default = 0', p.match, pattern, domain, p.id);
+  else db.run('INSERT INTO title_patterns (id, match, pattern, domain, is_default) VALUES (?, ?, ?, ?, 0)', randomUUID(), p.match, pattern, domain);
+}
+
+export function deleteTitlePattern(db: Db, id: string): void {
+  db.run('DELETE FROM title_patterns WHERE id = ? AND is_default = 0', id);
 }
 
 export function awayRow(

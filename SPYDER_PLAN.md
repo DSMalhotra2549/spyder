@@ -696,3 +696,14 @@ _(append one entry per phase: date · phase · verification results with numbers
   - The category chip offers Productive / Neutral / Distracting (DESIGN.md said 4 options; "Uncategorized" isn't a rule).
   - KPIs can be added inline on Review; the full KPI editor comes with the Rules page in Phase 6.
   - Streak shown is the current streak as of today, whatever date is viewed.
+
+**2026-11-22 · Phase 6 · done.**
+- Build: Week page (stat row, stacked bars per day with day totals and goal-hit markers, top 10 sites/apps, estimate accuracy), Month page (calendar heatmap, productive-time and score trend lines, one line chart per KPI), Rules page (rules with filter, title patterns, Uncategorized inbox, projects, KPIs), Settings page (schedule grid, today-only override, every §5 key, hotkey warning, data folder, Export placeholder). New IPC: `getRange`, `listUncategorized`, `listRules`, `deleteRule`, `listTitlePatterns`, `saveTitlePattern`, `deleteTitlePattern`, `getSchedule`, `setSchedule`, `setDayOverride`, `openDataFolder`. Core: `trends.ts`, `relabelFirefox`, `cleanSettings`, `DaySummary.workByCategory`.
+- Verify:
+  - Typecheck and lint clean. Unit tests 125/125; core coverage 98.9 % lines, 94.1 % branches. Streak tests include 5 met days, a weekend in between, a missed Wednesday and today not yet met.
+  - E2E 18/18; the 4 dashboard specs also passed 3× repeated.
+  - `trends.spec.ts`: `seed --days 60` → each week bar total equals work + break + not-working + pending from `daySummary`; goal markers, stat row and estimate rows match; Month has 30 cells and the goal-met cells equal the met days; 2 KPI charts.
+  - `rules.spec.ts`: adding `contains "Hacker News" → news.ycombinator.com` re-labels the existing Firefox rows (the domain's time grows by exactly their 20 min; no "Firefox: … Hacker News" rows left); the inbox files the site as Distracting; default-rule override and delete; project archive; KPI add.
+  - `settings.spec.ts`: check-in 10 min → no prompt at 9 min, prompt at 10; idle threshold 1 min → `simulateIdle` 70 s ago → away; Tuesday switched off → Off hours in the widget (and the review opens); a today-only override → working again.
+  - Screenshots viewed: week, week-previous, month, month-bottom, rules, rules-patterns, rules-inbox, rules-projects, rules-kpis, settings, settings-bottom, settings-after, today-bottom. Fixed from them: clipped heatmap column, truncated top-10 names, legend wrapping into the card title, clipped AM/PM in time inputs, wrapping labels, a squashed data-folder row.
+- Deviations / decisions: **P38** (week bar stacks), **P39** (title patterns at read time; defaults read-only), **P40** (settings validation; switching today off opens the review). The goal marker sits above the bar together with the day total. No capture-unavailable banner yet. The Export button is disabled until Phase 7. `streaks.ts` itself arrived in Phase 5.

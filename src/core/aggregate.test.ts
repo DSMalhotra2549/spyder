@@ -80,6 +80,8 @@ describe('daySummary', () => {
     expect(d.awayPendingSec).toBe(600);
     expect(d.distractingSec).toBe(20 * 60); // 11:00–11:10 in B and 23:50–24:00 in E; the break one doesn't count
     expect(d.productiveSec).toBe(285 * 60);
+    // Work ∩ activity: VS Code 70 (in B) + 20 (in E) + Notepad 40 productive; Firefox blog + private 20 neutral; YouTube 20.
+    expect(d.workByCategory).toEqual({ productive: 130 * 60, neutral: 20 * 60, distracting: 20 * 60, uncategorized: 0 });
     expect(d.score).toBeCloseTo(17_100 / 25_200, 10);
     expect(d.goalMet).toBe(false);
     expect(daySummary('2026-11-24', fixture(), rules, { ...S, goalSec: 17_100 }).goalMet).toBe(true);
@@ -181,6 +183,12 @@ describe('streak', () => {
   });
   it('a missed weekday breaks it', () => {
     expect(streak('2026-11-24', days({ '2026-11-24': true, '2026-11-20': true }))).toBe(1);
+  });
+  it('a missed Wednesday breaks it', () => {
+    // Mon 23, Tue 24 met; Wed 18 missed; Thu 19, Fri 20 met.
+    const met = { '2026-11-24': true, '2026-11-23': true, '2026-11-20': true, '2026-11-19': true };
+    expect(streak('2026-11-24', days(met))).toBe(4);
+    expect(streak('2026-11-24', days({ ...met, '2026-11-18': true, '2026-11-17': true }))).toBe(6);
   });
   it('today not yet met is skipped', () => {
     expect(streak('2026-11-24', days({ '2026-11-23': true, '2026-11-20': true }))).toBe(2);
