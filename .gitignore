@@ -8,3 +8,4 @@ tests/e2e/__shots__/
 *.db-wal
 *.db-shm
 resources/UrlHelper.exe
+test-results/

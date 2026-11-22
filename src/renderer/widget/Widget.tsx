@@ -357,29 +357,39 @@ function Caps({ lines, className }: { lines: [string, string]; className?: strin
 }
 
 /**
- * Bar (P43, P46): sharp corners, no panel. Each cell opens the dashboard on Today; the gaps and
- * the ⋮⋮ handle drag; – hides the bar.
+ * Bar (P43, P46, P49): sharp corners, no panel. The left button opens the dashboard on Today; the
+ * cells do nothing on click; everything but the buttons drags; – hides the bar.
  */
 function Bar({ w }: { w: WidgetPayload }) {
   const off = w.mode === 'off_hours';
   const away = w.mode === 'away';
   const red = w.isOvertime || w.isDistracted;
   const met = w.productiveTodaySec >= w.goalSec;
-  const openToday = () => void window.spyder.openDashboard('today');
-  // Fixed slots (P43 spacing): the slot is drag area, only the content inside is the click target.
-  const cell = 'no-drag flex min-w-0 cursor-pointer items-center gap-2 outline-none';
+  // Cells are content-sized and spread evenly (P49); they're inert and drag like the gaps.
+  const cell = 'flex min-w-0 items-center gap-2';
   return (
     <div
       data-testid="pill"
       data-style="bar"
       className={clsx(
-        'drag relative flex h-[34px] w-[468px] items-stretch overflow-hidden border',
+        'drag relative flex h-[34px] w-[512px] items-stretch overflow-hidden border',
         red ? 'border-red' : 'border-border-strong',
         w.isDistracted ? 'distracted bg-[color-mix(in_srgb,#f04452_14%,var(--color-surface))]' : 'bg-surface',
       )}
     >
-      <div className="flex w-[160px] shrink-0 items-center justify-center px-2">
-        <button type="button" data-testid="pill-body" onClick={openToday} className={clsx(cell, 'relative')}>
+      <button
+        type="button"
+        aria-label="Open dashboard"
+        title="Open dashboard"
+        onClick={() => void window.spyder.openDashboard('today')}
+        className="no-drag flex w-8 shrink-0 cursor-pointer items-center justify-center border-r border-border-strong bg-surface-2/60 text-muted outline-none hover:text-text"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+          {[0, 7].flatMap((x) => [0, 7].map((y) => <rect key={`${x}${y}`} x={x} y={y} width="5" height="5" rx="1" fill="currentColor" />))}
+        </svg>
+      </button>
+      <div className="flex min-w-0 flex-1 items-center justify-around px-1">
+        <div data-testid="pill-body" className={clsx(cell, 'relative')}>
           {off || away ? (
             <span className="text-[15px] font-semibold whitespace-nowrap text-muted">{off ? 'Off hours' : 'Away'}</span>
           ) : (
@@ -394,11 +404,12 @@ function Bar({ w }: { w: WidgetPayload }) {
             </span>
           )}
           {w.label !== null ? (
+            // Same type as the other captions (caps, 9/700, tracking) but wraps onto both lines (P47, P49).
             <span
               data-testid="bar-label"
               title={w.label}
               className={clsx(
-                'line-clamp-2 min-w-0 text-left text-[12px] leading-[14px] font-semibold [overflow-wrap:anywhere]',
+                'caps line-clamp-2 max-w-[104px] min-w-0 text-left tracking-[.04em] [overflow-wrap:anywhere]',
                 red ? 'text-red' : w.isPaused ? 'text-break' : 'text-muted',
               )}
             >
@@ -410,23 +421,19 @@ function Bar({ w }: { w: WidgetPayload }) {
           {w.hasPrompt && (
             <span data-testid="prompt-dot" className="absolute top-0 -right-1 h-1.5 w-1.5 rounded-full bg-orange" />
           )}
-        </button>
-      </div>
-      <div className="flex flex-[1.25] items-center justify-center">
-        <button type="button" data-testid="bar-productive" onClick={openToday} className={cell}>
+        </div>
+        <div data-testid="bar-productive" className={cell}>
           <span className={clsx('tabular text-[19px] leading-none font-bold whitespace-nowrap', met ? 'text-green' : 'text-accent')}>
             {fmtBarMin(w.productiveTodaySec)}
           </span>
           <Caps lines={['Productive', 'today']} />
-        </button>
-      </div>
-      <div className="flex flex-1 items-center justify-center">
-        <button type="button" data-testid="bar-day" onClick={openToday} className={cell}>
+        </div>
+        <div data-testid="bar-day" className={cell}>
           <span className="tabular text-[19px] leading-none font-bold whitespace-nowrap">
             {w.isDayOff ? '–' : `${Math.round(w.workdayPct)}%`}
           </span>
           <Caps lines={['Percent', 'of day']} />
-        </button>
+        </div>
       </div>
       <button
         type="button"

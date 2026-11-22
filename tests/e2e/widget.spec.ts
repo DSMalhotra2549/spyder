@@ -281,12 +281,12 @@ test('7b. compact running and off-hours states', async () => {
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
 });
 
-test('7c. bar style (default): label, sharp corners, cells → Today, minimize, drag handle (P46)', async () => {
+test('7c. bar style (default): label, sharp corners, dashboard button, inert cells, minimize, drag handle (P46, P49)', async () => {
   s = await launch({ scale: 1 });
   const bar = s.widget.getByTestId('pill');
   const d = s.dashboard;
   await expect(bar).toHaveAttribute('data-style', 'bar');
-  await expect.poll(async () => (await widgetBounds(s!)).width).toBe(484);
+  await expect.poll(async () => (await widgetBounds(s!)).width).toBe(528); // 512 bar + margins (P49)
   expect(await bar.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('0px');
   // Tue 11:00, work 10–17 → 14% of day; an unlabelled open session auto-started.
   await expect(s.widget.getByTestId('bar-day')).toContainText('14%');
@@ -295,34 +295,48 @@ test('7c. bar style (default): label, sharp corners, cells → Today, minimize, 
   await expect(s.widget.getByTestId('bar-label')).toHaveCount(0);
   await shot(s.widget, 'widget-bar-open');
 
-  // Only the handle and the gaps drag; the cells and minimize don't.
-  const region = (id: string) =>
-    s!.widget.getByTestId(id).evaluate((el) => getComputedStyle(el).getPropertyValue('-webkit-app-region') || getComputedStyle(el).getPropertyValue('app-region'));
-  expect(await region('pill')).toBe('drag');
-  for (const id of ['pill-body', 'bar-productive', 'bar-day']) expect(await region(id)).toBe('no-drag');
+  // Everything drags except the two buttons; the cells are not click targets (P49).
+  const region = (el: Element) => getComputedStyle(el).getPropertyValue('-webkit-app-region') || getComputedStyle(el).getPropertyValue('app-region');
+  expect(await bar.evaluate(region)).toBe('drag');
+  for (const id of ['pill-body', 'bar-productive', 'bar-day']) expect(await s.widget.getByTestId(id).evaluate(region)).not.toBe('no-drag');
+  const dash = s.widget.getByRole('button', { name: 'Open dashboard' });
+  const mini = s.widget.getByRole('button', { name: 'Minimize' });
+  expect(await dash.evaluate(region)).toBe('no-drag');
+  expect(await mini.evaluate(region)).toBe('no-drag');
   await expect(s.widget.getByTestId('drag-handle')).toBeVisible();
-  await expect(s.widget.getByRole('button', { name: 'Open dashboard' })).toHaveCount(0);
+  // The dashboard button is the left-most thing in the bar.
+  expect((await dash.boundingBox())!.x).toBeLessThan((await s.widget.getByTestId('pill-body').boundingBox())!.x);
 
-  // Every cell opens the dashboard on Today; no panel opens.
+  // Clicking a cell does nothing.
   expect((await s.debug.state()).dashboardVisible).toBe(false);
-  for (const id of ['pill-body', 'bar-productive', 'bar-day']) {
-    await d.evaluate(() => (location.hash = '/dashboard/week'));
-    await s.widget.getByTestId(id).click();
-    await expect.poll(async () => (await s!.debug.state()).dashboardVisible).toBe(true);
-    await expect.poll(() => d.evaluate(() => location.hash)).toBe('#/dashboard/today');
-  }
+  for (const id of ['pill-body', 'bar-productive', 'bar-day']) await s.widget.getByTestId(id).click();
+  await s.widget.waitForTimeout(500);
+  expect((await s.debug.state()).dashboardVisible).toBe(false);
   await expect(s.widget.getByTestId('panel')).toHaveCount(0);
   expect((await widgetBounds(s)).height).toBe(50);
+
+  // The dashboard button opens Today.
+  await d.evaluate(() => (location.hash = '/dashboard/week'));
+  await dash.click();
+  await expect.poll(async () => (await s!.debug.state()).dashboardVisible).toBe(true);
+  await expect.poll(() => d.evaluate(() => location.hash)).toBe('#/dashboard/today');
 
   // A label replaces the caption and wraps onto two lines; … only past the second (P47).
   const id = (await host(s)).engine.current!.id;
   const label = s.widget.getByTestId('bar-label');
-  const lines = () => label.evaluate((el) => Math.round(el.clientHeight / 14));
+  const lines = () => label.evaluate((el) => Math.round(el.clientHeight / parseFloat(getComputedStyle(el).lineHeight)));
   const clipped = () => label.evaluate((el) => el.scrollHeight > el.clientHeight + 2); // 1 px of descender rounding
   await s.widget.evaluate((sid) => window.spyder.label(sid, 'Code review', null), id);
   await expect(label).toHaveText('Code review');
   await s.widget.evaluate((sid) => window.spyder.label(sid, 'Writing weekly report', null), id);
   await expect(label).toHaveText('Writing weekly report');
+  // Typeset exactly like the other captions (P49).
+  const type = (el: Element) => {
+    const c = getComputedStyle(el);
+    return [c.fontFamily, c.fontSize, c.fontWeight, c.textTransform, c.letterSpacing, c.lineHeight, c.color];
+  };
+  const other = s.widget.getByTestId('bar-productive').locator('.caps span').first();
+  expect(await label.evaluate(type)).toEqual(await other.evaluate(type));
   expect(await lines()).toBe(2);
   expect(await clipped()).toBe(false);
   await expect(bar).not.toContainText(/elapsed/i);
@@ -331,10 +345,19 @@ test('7c. bar style (default): label, sharp corners, cells → Today, minimize, 
   await expect.poll(lines).toBe(2);
   expect(await clipped()).toBe(true);
   await shot(s.widget, 'widget-bar-label-clamped');
-  // Cells keep their fixed slots (P43 spacing): timer slot 160 px, the rest split 1.25 : 1.
-  const slot = (tid: string) => s!.widget.getByTestId(tid).evaluate((el) => el.parentElement!.getBoundingClientRect().width);
-  expect(await slot('pill-body')).toBe(160);
-  expect(Math.round((await slot('bar-productive')) / (await slot('bar-day')) * 100)).toBe(125);
+  // Cells are content-sized and spread evenly (P49): equal gaps between, half-gaps at the ends,
+  // and even a full two-line label leaves clear space between cells.
+  const gaps = await s.widget.getByTestId('pill-body').evaluate((el) => {
+    const row = el.parentElement!;
+    const r = row.getBoundingClientRect();
+    const pad = parseFloat(getComputedStyle(row).paddingLeft);
+    const b = [...row.children].map((c) => c.getBoundingClientRect());
+    return [b[0].left - r.left - pad, b[1].left - b[0].right, b[2].left - b[1].right, r.right - pad - b[2].right];
+  });
+  expect(Math.abs(gaps[1] - gaps[2])).toBeLessThan(2);
+  expect(Math.abs(gaps[0] * 2 - gaps[1])).toBeLessThan(2);
+  expect(Math.abs(gaps[3] * 2 - gaps[1])).toBeLessThan(2);
+  expect(gaps[1]).toBeGreaterThanOrEqual(12);
   await s.widget.evaluate((sid) => window.spyder.label(sid, 'Writing weekly report', null), id);
 
   // Distracted: still the label, now red.

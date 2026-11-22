@@ -99,20 +99,21 @@ Closest to Rize's widget (`rize-widget_meeting_dark.png`). Window: collapsed 192
 - Workday ring 26 px (2.5 px stroke, centre number 9/700).
 - **Hover card** (after 300 ms hover): appears below the pill (above it if there's no room), 240 px, surface card: title 13/600, workday bar + `62% of day`, `2:14 / 5:00 productive`. The window grows to fit while it's shown. Distracted adds a red line `On youtube.com for 6 min`.
 
-### Bar (P43, P46, `widgetStyle = "bar"`, the default) — 468 × 34, sharp corners
-Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring, no rounded corners. Window 484 × 50. No hover card and no panel. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
+### Bar (P43, P46, P49, `widgetStyle = "bar"`, the default) — 512 × 34, sharp corners
+Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring, no rounded corners. Window 528 × 50. No hover card and no panel. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
 ```
-┌──────────────────────────────────────────────────────────────┬───┬──┐
-│  24:59 Writing weekly 0 min PRODUCTIVE       14% PERCENT        │ – │⋮⋮│
-│        report               TODAY                OF DAY         │   │  │
-└──────────────────────────────────────────────────────────────┴───┴──┘
+┌──┬───────────────────────────────────────────────────────────────┬───┬──┐
+│▦▦│   24:59 WRITING WEEKLY    0 min PRODUCTIVE    14% PERCENT       │ – │⋮⋮│
+│▦▦│         REPORT                  TODAY               OF DAY      │   │  │
+└──┴───────────────────────────────────────────────────────────────┴───┴──┘
 ```
-- Three cells, each centred in a fixed slot (P47): timer 160 px, then productive and percent split the rest 1.25 : 1, so the whitespace around them stays even. Each is a 19/700 tabular number + a label. **Clicking a cell (number or label) opens the dashboard on Today**; the slot around it is drag area.
-  1. **Session timer.** Label: the session name in 12/600, 14 px leading, wrapping onto two lines like the caps captions (about 12 characters per line), with `…` only past the second line (`line-clamp-2`); the full name is in the tooltip. The label shows in every working state, including distracted, overtime and paused (the paused session's name). States show by colour only: `text`/`muted` normally, `red` when overtime or distracted, `break` when paused. An unlabelled session keeps the two-line `caps` caption as Compact (`SESSION / ELAPSED`, `DISTRACTED / youtube.com`, …). `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`. The prompt dot sits at its top-right.
+- **Dashboard button** (32 px, left-most, `surface-2` tint, right border, 2×2 grid icon): opens the dashboard on Today. It's the only way in from the bar.
+- Three cells, each as wide as its content and spread evenly (`justify-around`, P49); even a full two-line label leaves ≥ 12 px between cells. Each is a 19/700 tabular number + a two-line `caps` label (muted). **Cells do nothing when clicked**; they drag like the gaps.
+  1. **Session timer.** Label: the session name typeset exactly like the other captions (`caps`: 9/700, uppercase, same tracking and leading), but wrapping across both lines instead of one word per line, max 104 px wide, with `…` only past the second line (`line-clamp-2`); the full name is in the tooltip. The label shows in every working state, including distracted, overtime and paused (the paused session's name). States show by colour only: `text`/`muted` normally, `red` when overtime or distracted, `break` when paused. An unlabelled session keeps the two-line caption as Compact (`SESSION / ELAPSED`, `DISTRACTED / youtube.com`, …). `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`. The prompt dot sits at its top-right.
   2. **Productive today** in `accent` (`23 min`, `2h 14m` from an hour); `green` once the goal is met.
   3. **Percent of day** (`14%`, `–` on a day off).
 - **Minimize** (32 px, left border, `–`): hides the bar; the tray or the hotkey brings it back. Not remembered across launches.
-- **Drag handle** (24 px, `surface-2` tint, ⋮⋮ grip, `cursor: move`) at the far right. The handle and the gaps between cells drag; the cells and minimize don't.
+- **Drag handle** (24 px, `surface-2` tint, ⋮⋮ grip, `cursor: move`) at the far right. Everything except the two buttons drags.
 - Red border for overtime/distracted, which also tints the fill red and pulses once, like the pills.
 - Session controls for the Bar live in the dashboard sidebar (see Dashboard shell).
 
