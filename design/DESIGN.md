@@ -100,7 +100,7 @@ Closest to Rize's widget (`rize-widget_meeting_dark.png`). Window: collapsed 192
 - **Hover card** (after 300 ms hover): appears below the pill (above it if there's no room), 240 px, surface card: title 13/600, workday bar + `62% of day`, `2:14 / 5:00 productive`. The window grows to fit while it's shown. Distracted adds a red line `On youtube.com for 6 min`.
 
 ### Bar (P43, `widgetStyle = "bar"`, the default) — 468 × 34, radius 7
-Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring. Window: collapsed 484 × 50, expanded 484 × 168. No hover card.
+Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring. Window: collapsed 484 × 50, expanded 484 × 168. No hover card. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
 ```
 ┌───────────────────────────────────────────────────────────────┬────┐
 │  24:59 PLANNED      0 min PRODUCTIVE       14% PERCENT          │ ☰  │

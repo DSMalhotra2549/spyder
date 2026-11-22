@@ -101,3 +101,17 @@
 .distracted {
   animation: distract-pulse 2s ease-out 1;
 }
+
+/* Bar: no drop shadow — its 8 px window margin would clip it into a visible box. */
+@keyframes distract-pulse-bar {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(240, 68, 82, 0.35);
+  }
+}
+[data-style='bar'].distracted {
+  animation-name: distract-pulse-bar;
+}

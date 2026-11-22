@@ -367,7 +367,7 @@ function Bar({ w, onToggle }: { w: WidgetPayload; onToggle: () => void }) {
       data-testid="pill"
       data-style="bar"
       className={clsx(
-        'drag relative flex h-[34px] w-[468px] items-stretch overflow-hidden rounded-[7px] border shadow-[var(--shadow-float)]',
+        'drag relative flex h-[34px] w-[468px] items-stretch overflow-hidden rounded-[7px] border',
         red ? 'border-red' : 'border-border-strong',
         w.isDistracted ? 'distracted bg-[color-mix(in_srgb,#f04452_14%,var(--color-surface))]' : 'bg-surface',
       )}
