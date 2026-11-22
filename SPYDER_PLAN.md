@@ -4,12 +4,12 @@ Spyder is a personal Windows app that holds the user accountable for their time.
 
 ## 0. Read these first (in this order)
 1. `CONTEXT.md`: the glossary. Use these terms exactly in code, UI and commits (Session, Segment, Away period, Check-in, Nudge, Review, ...).
-2. `docs/product-decisions.md`: every settled behavior decision (P1–P30) and why. **Don't re-ask these.**
+2. `docs/product-decisions.md`: every settled behavior decision (P1 onward) and why. **Don't re-ask these.**
 3. `docs/adr/`: architectural decisions (ADR-0001…0010) and why.
 4. This file: the exact spec and the phases.
 
 ## 1. Rules for the implementing agent
-1. **Work one phase at a time, in order.** A phase is done only when *every* item in its **Verify** list passes. Then append to the Progress log (§14) and commit with the given message. Local git only; never push.
+1. **Work one phase at a time, in order.** A phase is done only when *every* item in its **Verify** list passes. Then append to the Progress log (§14) and commit with the given message. The repo is on GitHub (`origin`); push only when the user asks.
 2. **View your own screenshots.** E2E tests save PNGs to `tests/e2e/__shots__/`. Open each one with the Read tool and compare it with `design/DESIGN.md`. Fix visual problems before moving on.
 3. **Never weaken, skip or delete a test to make it pass.** If a spec item seems wrong, ask the user.
 4. **If stuck:** after 3 failed attempts at the same problem, stop and ask the user (AskUserQuestion). Include the exact error output and what you tried.
@@ -92,7 +92,7 @@ tests/e2e/           *.spec.ts, helpers.ts, __shots__/
 | appPercentScope | "work_hours" | P26 ("work_hours" \| "all_day") |
 | keepWorkingStepMin | 30 | P20 |
 | widgetPos | null | `{x,y}`, saved on move |
-| widgetStyle | "full" | P31 (`"full"` \| `"compact"`) |
+| widgetStyle | "bar" | P31, P43 (`"bar"` \| `"full"` \| `"compact"`) |
 
 Default schedule (P10): weekday 1–5 (Mon–Fri) enabled 600–1020 (10:00–17:00), with 0 and 6 disabled. `weekday` uses JS `Date.getDay()` numbering (0 = Sunday).
 

@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+**Before any work in this repo, read `AGENTS.md`.** It covers the project map, the sources of truth and how to verify a change.
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.

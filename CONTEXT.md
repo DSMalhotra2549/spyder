@@ -18,6 +18,18 @@ _Avoid_: after hours, personal time
 The share of today's work hours that has already elapsed, from 0 to 100.
 _Avoid_: day progress, completion
 
+**Day off**:
+A weekday with no work hours in the schedule. It doesn't break a streak.
+_Avoid_: weekend, holiday
+
+**Day override**:
+Work hours set for today only, replacing the weekday schedule for that one day.
+_Avoid_: exception, custom hours
+
+**Keep working**:
+The user's explicit choice to extend today's work hours by a fixed step (30 minutes by default) after they've ended.
+_Avoid_: overtime (that's per session), extend day
+
 ### Sessions
 
 **Session**:
@@ -52,6 +64,18 @@ _Avoid_: tag, title
 A user-defined grouping that sessions can belong to (e.g. "Client A", "Admin").
 _Avoid_: client, category
 
+**Unknown**:
+The label given during a review to a session the user can't account for.
+_Avoid_: unlabelled (an unlabelled session has no label yet)
+
+**Pause**:
+Setting the current session aside by starting a break. **Resume** ends that break and continues the paused session.
+_Avoid_: stop, hold
+
+**Time up**:
+The moment a planned or timed session (or a break with a duration) reaches its planned duration.
+_Avoid_: timeout, expiry
+
 **Overtime**:
 Time a planned or timed session runs past its planned duration.
 _Avoid_: overrun, extra time
@@ -81,6 +105,14 @@ _Avoid_: label, type
 
 **Rule**:
 A user- or default-defined mapping from an app, domain or title keyword to a category.
+
+**Title pattern**:
+A mapping from a Firefox window title to the site it shows (e.g. a title ending in "- YouTube" means youtube.com).
+_Avoid_: title rule (rules assign categories; title patterns identify sites)
+
+**Private browsing**:
+Activity in a private browser window. It's recorded without a title or site and can't be categorized.
+_Avoid_: incognito
 
 **Distraction**:
 Time spent on Distracting apps/sites during a work session.
@@ -112,6 +144,10 @@ The number of consecutive scheduled workdays on which the daily goal was met.
 The end-of-day ritual: label leftover time, look at the day, and write wins and improvements.
 _Avoid_: report (the report is what the review looks at), journal
 
+**Leftover**:
+A finished session with no label, or an away period with no classification, that the review asks the user to resolve.
+_Avoid_: gap, untracked time
+
 **Win**:
 One entry under "Today's wins" in a review.
 
@@ -124,3 +160,17 @@ _Avoid_: metric, stat
 
 **Planned vs actual**:
 A planned session's intended duration compared with its real elapsed time.
+
+### Interface
+
+**Widget**:
+The small always-on-top window showing the running session's timer. It comes in three styles: **Bar** (the default flat strip), **Full** and **Compact** (pills).
+_Avoid_: overlay, HUD, timer window
+
+**Prompt**:
+A question Spyder puts to the user (time up, label, check-in, away, break over). Only one is shown at a time; the rest wait in a queue.
+_Avoid_: popup, dialog, notification
+
+**Dashboard**:
+The main window with the Today, Week, Month, Review, Rules and Settings pages.
+_Avoid_: app window, main screen
