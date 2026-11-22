@@ -109,7 +109,7 @@ test('1. planned countdown → timeUp → overtime → re-nag → +15', async ()
 });
 
 test('2. timed 10 min → label prompt → named in DB', async () => {
-  s = await launch({ scale: 600 });
+  s = await launch({ scale: 600, widgetStyle: 'full' });
   await startFromWidget(s, { tab: 'Timed', custom: 10 });
   await expect(title(s.prompt)).toHaveText(/^What did you do for the last 1\dm\?$/, { timeout: 5000 });
   await s.debug.setScale(1);
@@ -277,65 +277,95 @@ test('7b. compact running and off-hours states', async () => {
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
 });
 
-test('7c. bar style (default): metrics, states, no hover card, ☰ → dashboard', async () => {
+test('7c. bar style (default): label, sharp corners, cells → Today, minimize, drag handle (P46)', async () => {
   s = await launch({ scale: 1 });
   const bar = s.widget.getByTestId('pill');
+  const d = s.dashboard;
   await expect(bar).toHaveAttribute('data-style', 'bar');
   await expect.poll(async () => (await widgetBounds(s!)).width).toBe(484);
-  // Tue 11:00, work 10–17 → 14% of day; an open session auto-started.
+  expect(await bar.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('0px');
+  // Tue 11:00, work 10–17 → 14% of day; an unlabelled open session auto-started.
   await expect(s.widget.getByTestId('bar-day')).toContainText('14%');
   await expect(s.widget.getByTestId('bar-productive')).toContainText(/^\d+ min/);
   await expect(bar).toContainText(/session\s*elapsed/i);
+  await expect(s.widget.getByTestId('bar-label')).toHaveCount(0);
   await shot(s.widget, 'widget-bar-open');
 
-  await startFromWidget(s, { tab: 'Planned', name: 'Deep work', minutes: 25 });
-  await expect(bar).toContainText(/planned\s*remaining/i);
-  await shot(s.widget, 'widget-bar-planned');
+  // Only the handle and the gaps drag; the cells and minimize don't.
+  const region = (id: string) =>
+    s!.widget.getByTestId(id).evaluate((el) => getComputedStyle(el).getPropertyValue('-webkit-app-region') || getComputedStyle(el).getPropertyValue('app-region'));
+  expect(await region('pill')).toBe('drag');
+  for (const id of ['pill-body', 'bar-productive', 'bar-day']) expect(await region(id)).toBe('no-drag');
+  await expect(s.widget.getByTestId('drag-handle')).toBeVisible();
+  await expect(s.widget.getByRole('button', { name: 'Open dashboard' })).toHaveCount(0);
 
-  // No hover card: the window keeps its collapsed size.
-  await s.widget.getByTestId('pill-body').hover();
-  await s.widget.waitForTimeout(600);
-  await expect(s.widget.getByTestId('hover-card')).toHaveCount(0);
+  // Every cell opens the dashboard on Today; no panel opens.
+  expect((await s.debug.state()).dashboardVisible).toBe(false);
+  for (const id of ['pill-body', 'bar-productive', 'bar-day']) {
+    await d.evaluate(() => (location.hash = '/dashboard/week'));
+    await s.widget.getByTestId(id).click();
+    await expect.poll(async () => (await s!.debug.state()).dashboardVisible).toBe(true);
+    await expect.poll(() => d.evaluate(() => location.hash)).toBe('#/dashboard/today');
+  }
+  await expect(s.widget.getByTestId('panel')).toHaveCount(0);
   expect((await widgetBounds(s)).height).toBe(50);
 
-  // ☰ opens the dashboard.
-  expect((await s.debug.state()).dashboardVisible).toBe(false);
-  await s.widget.getByRole('button', { name: 'Open dashboard' }).click();
-  await expect.poll(async () => (await s!.debug.state()).dashboardVisible).toBe(true);
+  // A label replaces the caption: whole if it fits, else the first word + …
+  const id = (await host(s)).engine.current!.id;
+  await s.widget.evaluate((sid) => window.spyder.label(sid, 'Code review', null), id);
+  await expect(s.widget.getByTestId('bar-label')).toHaveText('Code review');
+  await s.widget.evaluate((sid) => window.spyder.label(sid, 'Writing weekly report', null), id);
+  await expect(s.widget.getByTestId('bar-label')).toHaveText('Writing…');
+  await expect(bar).not.toContainText(/elapsed/i);
+  await shot(s.widget, 'widget-bar-labelled');
 
-  // The timer opens the panel.
-  await s.widget.getByTestId('pill-body').click();
-  await expect(s.widget.getByTestId('panel')).toBeVisible();
-  await expect.poll(async () => (await widgetBounds(s!)).height).toBe(168);
-  await shot(s.widget, 'widget-bar-expanded');
-  await s.widget.keyboard.press('Escape');
-
-  // Distracted: red timer + caption with the site.
+  // Distracted: still the label, now red.
   const yt = { exe: 'chrome.exe', appName: 'Google Chrome', domain: 'youtube.com', title: 'Lofi - YouTube', browser: 'chrome' as const };
   await s.debug.injectActivity(yt);
   await s.debug.advance(300);
   await s.debug.injectActivity(yt);
-  await expect(bar).toContainText(/distracted\s*youtube\.com/i);
   await expect(s.widget.getByTestId('timer')).toHaveClass(/text-red/);
+  await expect(s.widget.getByTestId('bar-label')).toHaveClass(/text-red/);
+  await expect(s.widget.getByTestId('bar-label')).toHaveText('Writing…');
   await s.widget.waitForTimeout(2200);
   await shot(s.widget, 'widget-bar-distracted');
-
-  // Pause: break colour.
   await s.debug.injectActivity({ ...yt, exe: 'code.exe', appName: 'VS Code', domain: null, title: 'x', browser: null });
-  await s.widget.evaluate(() => window.spyder.pause());
-  await expect(s.widget.getByTestId('timer')).toHaveClass(/text-break/);
-  await shot(s.widget, 'widget-bar-paused');
-  await s.widget.evaluate(() => window.spyder.resume());
 
-  // Off hours.
+  // Sidebar controls: Pause · Break · Done → paused: Resume · Done.
+  const ctl = d.getByTestId('session-controls');
+  await expect(ctl.getByRole('button')).toHaveText(['Pause', 'Break', 'Done']);
+  await shot(d, 'sidebar-controls');
+  await ctl.getByRole('button', { name: 'Pause' }).click();
+  await expect(s.widget.getByTestId('timer')).toHaveClass(/text-break/);
+  await expect(s.widget.getByTestId('bar-label')).toHaveText('Writing…');
+  await expect(s.widget.getByTestId('bar-label')).toHaveClass(/text-break/);
+  await expect(ctl.getByRole('button')).toHaveText(['Resume', 'Done']);
+  await shot(s.widget, 'widget-bar-paused');
+  await ctl.getByRole('button', { name: 'Resume' }).click();
+  await expect(ctl.getByRole('button')).toHaveText(['Pause', 'Break', 'Done']);
+
+  // Break opens the start form on the Break tab; on a break the block offers End break.
+  await ctl.getByRole('button', { name: 'Break' }).click();
+  await expect.poll(async () => (await host(s!)).startOpen).toBe(true);
+  await expect(s.prompt.getByRole('tab', { name: 'Break' })).toHaveAttribute('aria-selected', 'true');
+  await s.prompt.getByRole('button', { name: 'Start ▶' }).click();
+  await expect.poll(async () => (await host(s!)).engine.current?.kind).toBe('break');
+  await expect(ctl.getByRole('button')).toHaveText(['End break']);
+  await ctl.getByRole('button', { name: 'End break' }).click();
+  await expect.poll(async () => (await host(s!)).engine.current?.kind ?? null).not.toBe('break');
+
+  // Minimize hides the bar; Show widget brings it back.
+  await s.widget.getByRole('button', { name: 'Minimize' }).click();
+  await expect.poll(async () => (await s!.debug.state()).widgetVisible).toBe(false);
+  await d.getByRole('button', { name: 'Show widget' }).click();
+  await expect.poll(async () => (await s!.debug.state()).widgetVisible).toBe(true);
+
+  // Off hours: the words stay; no session controls.
   await s.debug.setNow(new Date(2026, 10, 24, 17, 0, 5).getTime());
   await s.debug.tick();
   await expect(bar).toContainText('Off hours');
   await expect(bar).toContainText(/workday\s*done/i);
   await expect(s.widget.getByTestId('bar-day')).toContainText('100%');
+  await expect(ctl).toHaveCount(0);
   await shot(s.widget, 'widget-bar-offhours');
-
-  await s.widget.getByTestId('pill-body').click();
-  await s.widget.getByRole('button', { name: 'Switch to compact' }).click();
-  await expect(s.widget.getByTestId('pill')).toHaveAttribute('data-style', 'compact');
 });

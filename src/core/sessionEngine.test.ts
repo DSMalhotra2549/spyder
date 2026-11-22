@@ -668,6 +668,19 @@ describe('widgetView', () => {
     expect(at(T(12, 0, 0, 29))).toBe(0); // Sunday, day off
   });
 
+  it('label is the session name only while working (P46)', () => {
+    const s = bootOpen();
+    expect(s.view().label).toBeNull(); // unlabelled
+    s.send({ type: 'LABEL', sessionId: s.state.current!.id, name: 'Emails' });
+    expect(s.view().label).toBe('Emails');
+    s.send({ type: 'PAUSE' });
+    expect(s.view()).toMatchObject({ isPaused: true, label: 'Emails' });
+    s.send({ type: 'RESUME' });
+    expect(s.view().label).toBe('Emails');
+    s.send({ type: 'AWAY_BEGIN', atMs: T(11, 10), reason: 'idle' }, T(11, 10));
+    expect(s.view().label).toBeNull();
+  });
+
   it('passes through extras and away title', () => {
     const s = bootOpen();
     s.send({ type: 'LABEL', sessionId: s.state.current!.id, name: 'Emails' });

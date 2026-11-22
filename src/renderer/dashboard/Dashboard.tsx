@@ -103,6 +103,57 @@ const KIND_DOT: Record<string, string> = {
   break: 'var(--color-break)',
 };
 
+/** Session buttons that depend on the state (P46); none off hours or while away. */
+function SessionControls({ w }: { w: WidgetPayload }) {
+  if (w.mode !== 'working') return null;
+  const run = (fn: () => unknown) => () => void fn();
+  const b = 'flex-1 px-0';
+  let buttons: ReactNode;
+  if (w.isPaused) {
+    buttons = (
+      <>
+        <Btn variant="outline" className={b} onClick={run(() => window.spyder.resume())}>
+          Resume
+        </Btn>
+        <Btn className={b} onClick={run(() => window.spyder.done())}>
+          Done
+        </Btn>
+      </>
+    );
+  } else if (!w.kind) {
+    buttons = (
+      <Btn variant="primary" className={b} onClick={run(() => window.spyder.openStart())}>
+        Start session
+      </Btn>
+    );
+  } else if (w.kind === 'break') {
+    buttons = (
+      <Btn className={b} onClick={run(() => window.spyder.done())}>
+        End break
+      </Btn>
+    );
+  } else {
+    buttons = (
+      <>
+        <Btn className={b} onClick={run(() => window.spyder.pause())}>
+          Pause
+        </Btn>
+        <Btn className={b} onClick={run(() => window.spyder.openStart('break'))}>
+          Break
+        </Btn>
+        <Btn className={b} onClick={run(() => window.spyder.done())}>
+          Done
+        </Btn>
+      </>
+    );
+  }
+  return (
+    <div data-testid="session-controls" className="mb-2 flex gap-1.5">
+      {buttons}
+    </div>
+  );
+}
+
 /** Mini status like the widget: state dot, timer and a two-line caption. */
 function Footer() {
   const [w, setW] = useState<WidgetPayload | null>(null);
@@ -125,6 +176,7 @@ function Footer() {
         )}
         <span className="caps line-clamp-2 min-w-0 text-muted">{caption}</span>
       </div>
+      <SessionControls w={w} />
       <Btn variant="ghost" className="w-full" onClick={() => void window.spyder.showWidget()}>
         Show widget
       </Btn>

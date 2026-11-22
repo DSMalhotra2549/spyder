@@ -1,7 +1,7 @@
-// Floating widget (plan §12, design/DESIGN.md §2): Bar, Full and Compact styles (P31, P43), expanded panel, hover card.
+// Floating widget (plan §12, design/DESIGN.md §2): Bar, Full and Compact styles (P31, P43, P46), expanded panel, hover card.
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
-import { fmtClock, fmtDuration, fmtHM } from '../../core/format';
+import { barLabel, fmtClock, fmtDuration, fmtHM } from '../../core/format';
 import type { Kind } from '../../core/types';
 import type { WidgetPayload } from '../../preload/api';
 import { Btn } from '../ui/controls';
@@ -60,7 +60,7 @@ export function Widget() {
   return (
     <div className="flex flex-col items-start gap-2 p-2" onMouseLeave={leave}>
       {w.style === 'bar' ? (
-        <Bar w={w} onToggle={toggle} />
+        <Bar w={w} />
       ) : w.style === 'full' ? (
         <FullPill w={w} onToggle={toggle} />
       ) : (
@@ -356,69 +356,96 @@ function Caps({ lines, className }: { lines: [string, string]; className?: strin
   );
 }
 
-/** No hover card and no bottom strip (P43); ☰ opens the dashboard, the timer opens the panel. */
-function Bar({ w, onToggle }: { w: WidgetPayload; onToggle: () => void }) {
+/**
+ * Bar (P43, P46): sharp corners, no panel. Each cell opens the dashboard on Today; the gaps and
+ * the ⋮⋮ handle drag; – hides the bar.
+ */
+function Bar({ w }: { w: WidgetPayload }) {
   const off = w.mode === 'off_hours';
   const away = w.mode === 'away';
   const red = w.isOvertime || w.isDistracted;
   const met = w.productiveTodaySec >= w.goalSec;
+  const openToday = () => void window.spyder.openDashboard('today');
+  const cell = 'no-drag flex cursor-pointer items-center gap-2 px-1 outline-none';
   return (
     <div
       data-testid="pill"
       data-style="bar"
       className={clsx(
-        'drag relative flex h-[34px] w-[468px] items-stretch overflow-hidden rounded-[7px] border',
+        'drag relative flex h-[34px] w-[468px] items-stretch overflow-hidden border',
         red ? 'border-red' : 'border-border-strong',
         w.isDistracted ? 'distracted bg-[color-mix(in_srgb,#f04452_14%,var(--color-surface))]' : 'bg-surface',
       )}
     >
-      <button
-        type="button"
-        data-testid="pill-body"
-        onClick={onToggle}
-        className="no-drag flex w-[160px] shrink-0 cursor-default items-center justify-center gap-2 px-2 outline-none"
-      >
-        {off || away ? (
-          <span className="text-[15px] font-semibold whitespace-nowrap text-muted">{off ? 'Off hours' : 'Away'}</span>
-        ) : (
-          <span
-            data-testid="timer"
-            className={clsx(
-              'tabular text-[19px] leading-none font-bold whitespace-nowrap',
-              red ? 'text-red' : w.isPaused ? 'text-break' : 'text-text',
-            )}
-          >
-            {timerText(w)}
+      <div className="flex min-w-0 flex-1 items-center justify-around px-1">
+        <button type="button" data-testid="pill-body" onClick={openToday} className={clsx(cell, 'relative')}>
+          {off || away ? (
+            <span className="text-[15px] font-semibold whitespace-nowrap text-muted">{off ? 'Off hours' : 'Away'}</span>
+          ) : (
+            <span
+              data-testid="timer"
+              className={clsx(
+                'tabular text-[19px] leading-none font-bold whitespace-nowrap',
+                red ? 'text-red' : w.isPaused ? 'text-break' : 'text-text',
+              )}
+            >
+              {timerText(w)}
+            </span>
+          )}
+          {w.label !== null ? (
+            <span
+              data-testid="bar-label"
+              title={w.label}
+              className={clsx(
+                'max-w-[104px] truncate text-[13px] font-semibold whitespace-nowrap',
+                red ? 'text-red' : w.isPaused ? 'text-break' : 'text-muted',
+              )}
+            >
+              {barLabel(w.label)}
+            </span>
+          ) : (
+            <Caps lines={barCaption(w)} className={red ? 'text-red' : undefined} />
+          )}
+          {w.hasPrompt && (
+            <span data-testid="prompt-dot" className="absolute top-0 -right-1 h-1.5 w-1.5 rounded-full bg-orange" />
+          )}
+        </button>
+        <button type="button" data-testid="bar-productive" onClick={openToday} className={cell}>
+          <span className={clsx('tabular text-[19px] leading-none font-bold whitespace-nowrap', met ? 'text-green' : 'text-accent')}>
+            {fmtBarMin(w.productiveTodaySec)}
           </span>
-        )}
-        <Caps lines={barCaption(w)} className={red ? 'text-red' : undefined} />
-      </button>
-      <div className="flex flex-[1.25] items-center justify-center gap-2" data-testid="bar-productive">
-        <span className={clsx('tabular text-[19px] leading-none font-bold whitespace-nowrap', met ? 'text-green' : 'text-accent')}>
-          {fmtBarMin(w.productiveTodaySec)}
-        </span>
-        <Caps lines={['Productive', 'today']} />
-      </div>
-      <div className="flex flex-1 items-center justify-center gap-2" data-testid="bar-day">
-        <span className="tabular text-[19px] leading-none font-bold whitespace-nowrap">
-          {w.isDayOff ? '–' : `${Math.round(w.workdayPct)}%`}
-        </span>
-        <Caps lines={['Percent', 'of day']} />
+          <Caps lines={['Productive', 'today']} />
+        </button>
+        <button type="button" data-testid="bar-day" onClick={openToday} className={cell}>
+          <span className="tabular text-[19px] leading-none font-bold whitespace-nowrap">
+            {w.isDayOff ? '–' : `${Math.round(w.workdayPct)}%`}
+          </span>
+          <Caps lines={['Percent', 'of day']} />
+        </button>
       </div>
       <button
         type="button"
-        aria-label="Open dashboard"
-        title="Open dashboard"
-        onClick={() => void window.spyder.openDashboard()}
-        className="no-drag relative flex w-10 shrink-0 cursor-default items-center justify-center outline-none border-l border-border-strong bg-surface-2/60 text-muted"
+        aria-label="Minimize"
+        title="Minimize (tray or hotkey brings it back)"
+        onClick={() => void window.spyder.hideWidget()}
+        className="no-drag flex w-8 shrink-0 cursor-pointer items-center justify-center border-l border-border-strong text-muted outline-none hover:text-text"
       >
-        <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden>
-          <path d="M1 1.5h12M1 6h12M1 10.5h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <svg width="10" height="2" viewBox="0 0 10 2" aria-hidden>
+          <path d="M0 1h10" stroke="currentColor" strokeWidth="1.6" />
         </svg>
-        {w.hasPrompt && (
-          <span data-testid="prompt-dot" className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-orange" />
-        )}
       </button>
+      <div
+        data-testid="drag-handle"
+        title="Drag to move"
+        className="flex w-6 shrink-0 cursor-move items-center justify-center border-l border-border-strong bg-surface-2/60 text-faint"
+      >
+        <svg width="6" height="14" viewBox="0 0 6 14" aria-hidden>
+          {[1.5, 7, 12.5].flatMap((y) => [
+            <circle key={`a${y}`} cx="1.2" cy={y} r="1.1" fill="currentColor" />,
+            <circle key={`b${y}`} cx="4.8" cy={y} r="1.1" fill="currentColor" />,
+          ])}
+        </svg>
+      </div>
     </div>
   );
 }

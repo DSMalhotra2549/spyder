@@ -99,24 +99,25 @@ Closest to Rize's widget (`rize-widget_meeting_dark.png`). Window: collapsed 192
 - Workday ring 26 px (2.5 px stroke, centre number 9/700).
 - **Hover card** (after 300 ms hover): appears below the pill (above it if there's no room), 240 px, surface card: title 13/600, workday bar + `62% of day`, `2:14 / 5:00 productive`. The window grows to fit while it's shown. Distracted adds a red line `On youtube.com for 6 min`.
 
-### Bar (P43, `widgetStyle = "bar"`, the default) — 468 × 34, radius 7
-Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring. Window: collapsed 484 × 50, expanded 484 × 168. No hover card. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
+### Bar (P43, P46, `widgetStyle = "bar"`, the default) — 468 × 34, sharp corners
+Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring, no rounded corners. Window 484 × 50. No hover card and no panel. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
 ```
-┌───────────────────────────────────────────────────────────────┬────┐
-│  24:59 PLANNED      0 min PRODUCTIVE       14% PERCENT          │ ☰  │
-│        REMAINING          TODAY                OF DAY           │    │
-└───────────────────────────────────────────────────────────────┴────┘
+┌──────────────────────────────────────────────────────────────┬───┬──┐
+│  24:59 Writing…      0 min PRODUCTIVE       14% PERCENT        │ – │⋮⋮│
+│                            TODAY                OF DAY         │   │  │
+└──────────────────────────────────────────────────────────────┴───┴──┘
 ```
-- Three cells, each a 19/700 tabular number + a two-line `caps` label (muted):
-  1. **Session timer** (160 px, the click target that opens the panel). Caption as Compact. Colour: `text`; `red` when overtime or distracted (caption `DISTRACTED / youtube.com`); `break` when paused. `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`.
+- Three cells spread across the bar (`justify-around`), each a 19/700 tabular number + a label. **Clicking a cell (number or label) opens the dashboard on Today.**
+  1. **Session timer.** Label: the session name in 13/600 on one line, whole if it fits 12 characters, else the first word + `…` (`barLabel`). The label shows in every working state, including distracted, overtime and paused (the paused session's name). States show by colour only: `text`/`muted` normally, `red` when overtime or distracted, `break` when paused. An unlabelled session keeps the two-line `caps` caption as Compact (`SESSION / ELAPSED`, `DISTRACTED / youtube.com`, …). `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`. The prompt dot sits at its top-right.
   2. **Productive today** in `accent` (`23 min`, `2h 14m` from an hour); `green` once the goal is met.
   3. **Percent of day** (`14%`, `–` on a day off).
-- ☰ segment (40 px, `surface-2` tint, left border, no hover effect) opens the **dashboard**; the prompt dot sits at its top-right.
-- States show by colour only (no bottom strip): red border + red timer for overtime/distracted, which also tints the fill red and pulses once, like the pills.
-- The rest of the bar is the drag area.
+- **Minimize** (32 px, left border, `–`): hides the bar; the tray or the hotkey brings it back. Not remembered across launches.
+- **Drag handle** (24 px, `surface-2` tint, ⋮⋮ grip, `cursor: move`) at the far right. The handle and the gaps between cells drag; the cells and minimize don't.
+- Red border for overtime/distracted, which also tints the fill red and pulses once, like the pills.
+- Session controls for the Bar live in the dashboard sidebar (see Dashboard shell).
 
 ### Style toggle
-The expanded panel has a `⇄` 32 px ghost button (tooltip "Switch to …") next to `×`; it cycles compact → full → bar → compact. Settings → Widget has a three-option segmented control (Bar / Full / Compact). Switching applies live, keeps the top-left position.
+Full and Compact's expanded panel has a `⇄` 32 px ghost button (tooltip "Switch to …") next to `×`; it cycles compact → full → bar → compact (the Bar has no panel, so from the Bar use Settings). Settings → Widget has a three-option segmented control (Bar / Full / Compact). Switching applies live, keeps the top-left position.
 
 ### Expanded — panel below the pill, 320 × 112, radius card, gap 8
 Same surface/border/shadow. Two rows of buttons, 8 px gaps, 16 px padding:
@@ -172,7 +173,7 @@ Same surface/border/shadow. Two rows of buttons, 8 px gaps, 16 px padding:
 
 1200 × 800, min 960 × 640, framed window, background `bg`.
 - **Sidebar** 220 px, `surface` fill, right border. Top: 24 px Spyder mark + "Spyder" 15/600. Groups with `section` headings: **TODAY** (Today, Review), **TRENDS** (Week, Month), **SETUP** (Rules, Settings). Nav items 34 px tall, 18 px icons (inline SVG, 1.5 px stroke), radius control, active = `surface-2` fill + `text`, inactive `muted`. A badge (accent pill) on Review shows pending items.
-- **Sidebar footer:** mini status like Rize's bottom bar: state marker + timer + 2-line caps caption, and a `Show widget` ghost button.
+- **Sidebar footer:** mini status like Rize's bottom bar: state marker + timer + 2-line caps caption, then session controls (P46, a row of equal-width 32 px buttons): no session → `Start session` (primary, opens the start form); working → `Pause` · `Break` (start form on the Break tab) · `Done`; paused → `Resume` (outline) · `Done`; on a break → `End break`; none off hours or while away. Then a `Show widget` ghost button.
 - **Top bar** (56 px, bottom border): page title `h1`, date navigator `‹ › 📅 Tue, Nov 24 2026` (buttons 32 px, `surface-2`), right side page actions (`Export…` secondary; Review: `Complete review` primary).
 - **Content:** padding 24, 12-column grid, gap 16. Cards: `surface`, 1 px `border`, radius card, padding 16, header = `section` text + optional right-aligned muted total.
 

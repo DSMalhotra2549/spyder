@@ -646,6 +646,8 @@ export interface WidgetVM {
   mode: EngineState['mode'];
   kind: Active['kind'] | null;
   title: string;
+  /** The running session's name while working (P46); null when unlabelled, away or off hours. */
+  label: string | null;
   isUnlabelled: boolean;
   timerSec: number;
   elapsedSec: number;
@@ -683,6 +685,8 @@ export function widgetView(state: EngineState, ctx: Pick<Ctx, 'now' | 'window'>,
     mode: state.mode,
     kind: a?.kind ?? null,
     title,
+    // While paused the running block is the pause; the label stays the paused session's.
+    label: state.mode !== 'working' ? null : state.paused ? state.paused.name : (a?.name ?? null),
     isUnlabelled: state.mode !== 'off_hours' && !!a && a.kind !== 'break' && a.name === null,
     timerSec: Math.floor(countsDown ? (isOvertime ? overtime : Math.max(planned! - el, 0)) : el),
     elapsedSec: Math.floor(el),

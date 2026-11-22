@@ -15,6 +15,14 @@ export function fmtHM(sec: number): string {
   return `${Math.floor(m / 60)}:${pad(m % 60)}`;
 }
 
+/** Bar widget label (P46): whole if it fits `max` chars, else the first word + `…` (cut if still too long). */
+export function barLabel(label: string, max = 12): string {
+  const s = label.trim().replace(/\s+/g, ' ');
+  if (s.length <= max) return s;
+  const first = s.split(' ')[0];
+  return first.length < max ? `${first}…` : `${first.slice(0, max - 1)}…`;
+}
+
 /** Prose: `1h 12m`, `38m`, `2h`, `45s`. */
 export function fmtDuration(sec: number): string {
   const s = Math.max(0, Math.round(sec));
