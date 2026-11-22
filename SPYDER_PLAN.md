@@ -708,7 +708,7 @@ _(append one entry per phase: date · phase · verification results with numbers
   - Screenshots viewed: week, week-previous, month, month-bottom, rules, rules-patterns, rules-inbox, rules-projects, rules-kpis, settings, settings-bottom, settings-after, today-bottom. Fixed from them: clipped heatmap column, truncated top-10 names, legend wrapping into the card title, clipped AM/PM in time inputs, wrapping labels, a squashed data-folder row.
 - Deviations / decisions: **P38** (week bar stacks), **P39** (title patterns at read time; defaults read-only), **P40** (settings validation; switching today off opens the review). The goal marker sits above the bar together with the day total. No capture-unavailable banner yet. The Export button is disabled until Phase 7. `streaks.ts` itself arrived in Phase 5.
 
-**2026-11-22 · Phase 7 · built; the user's manual Excel check is pending.**
+**2026-11-22 · Phase 7 · done.**
 - Build: `src/main/export.ts` (exceljs). It builds 8 sheets: Sessions, Segments, Activity, App-Site summary, Daily summary, Away, Reviews and KPIs.
   - Header rows are bold, frozen and filterable, with set column widths.
   - Dates and times are real Excel dates. Durations appear as minutes (a number) and h:mm (text).
@@ -724,5 +724,5 @@ _(append one entry per phase: date · phase · verification results with numbers
     - Each of the 14 Daily summary rows matches `daySummary` in minutes and in goal met.
     - Every CSV parses back to the same rows. The formula name is escaped in CSV and kept verbatim in xlsx, and the non-Latin title survives in both.
   - Screenshots viewed: export-dialog, export-settings and week (Export… in the top bar). Fixed: the presets wrapping onto two lines.
-  - **Manual, by the user:** open the xlsx in Excel and confirm it looks neat. Pending.
+  - **Manual, by the user:** opened the sample xlsx in Excel — "yep it's fine".
 - Deviations / decisions: **P41** (export details).
