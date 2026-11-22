@@ -277,10 +277,7 @@ test('7b. compact running and off-hours states', async () => {
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
 });
 
-/** The pointer leaving the window (React reads a mouseout with no relatedTarget). */
-const unhover = (l: Launched) => l.widget.getByTestId('widget-root').dispatchEvent('mouseout', { relatedTarget: null });
-
-test('7c. bar style (default): metrics, states, hover card, panel', async () => {
+test('7c. bar style (default): metrics, states, no hover card, ☰ → dashboard', async () => {
   s = await launch({ scale: 1 });
   const bar = s.widget.getByTestId('pill');
   await expect(bar).toHaveAttribute('data-style', 'bar');
@@ -292,24 +289,26 @@ test('7c. bar style (default): metrics, states, hover card, panel', async () => 
   await shot(s.widget, 'widget-bar-open');
 
   await startFromWidget(s, { tab: 'Planned', name: 'Deep work', minutes: 25 });
-  await unhover(s);
   await expect(bar).toContainText(/planned\s*remaining/i);
-  await expect(s.widget.getByTestId('bar-strip')).toBeVisible();
   await shot(s.widget, 'widget-bar-planned');
 
-  // Hover card carries the session name.
+  // No hover card: the window keeps its collapsed size.
   await s.widget.getByTestId('pill-body').hover();
-  await expect(s.widget.getByTestId('hover-card')).toContainText('Deep work');
-  await shot(s.widget, 'widget-bar-hover');
-  await unhover(s);
+  await s.widget.waitForTimeout(600);
+  await expect(s.widget.getByTestId('hover-card')).toHaveCount(0);
+  expect((await widgetBounds(s)).height).toBe(50);
 
-  // ☰ opens the panel; ⇄ goes on to compact.
-  await s.widget.getByRole('button', { name: 'Menu' }).click();
+  // ☰ opens the dashboard.
+  expect((await s.debug.state()).dashboardVisible).toBe(false);
+  await s.widget.getByRole('button', { name: 'Open dashboard' }).click();
+  await expect.poll(async () => (await s!.debug.state()).dashboardVisible).toBe(true);
+
+  // The timer opens the panel.
+  await s.widget.getByTestId('pill-body').click();
   await expect(s.widget.getByTestId('panel')).toBeVisible();
   await expect.poll(async () => (await widgetBounds(s!)).height).toBe(168);
   await shot(s.widget, 'widget-bar-expanded');
   await s.widget.keyboard.press('Escape');
-  await unhover(s);
 
   // Distracted: red timer + caption with the site.
   const yt = { exe: 'chrome.exe', appName: 'Google Chrome', domain: 'youtube.com', title: 'Lofi - YouTube', browser: 'chrome' as const };
@@ -336,7 +335,7 @@ test('7c. bar style (default): metrics, states, hover card, panel', async () => 
   await expect(s.widget.getByTestId('bar-day')).toContainText('100%');
   await shot(s.widget, 'widget-bar-offhours');
 
-  await s.widget.getByRole('button', { name: 'Menu' }).click();
+  await s.widget.getByTestId('pill-body').click();
   await s.widget.getByRole('button', { name: 'Switch to compact' }).click();
   await expect(s.widget.getByTestId('pill')).toHaveAttribute('data-style', 'compact');
 });

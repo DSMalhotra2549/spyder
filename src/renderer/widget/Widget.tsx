@@ -30,7 +30,7 @@ export function Widget() {
   const [hovered, setHovered] = useState(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const style = w?.style;
-  const hover = hovered && !expanded && style !== 'full';
+  const hover = hovered && !expanded && style === 'compact';
 
   useEffect(() => window.spyder.onRing(playChime), []);
   useEffect(() => {
@@ -58,9 +58,9 @@ export function Widget() {
   if (!w) return null;
   const toggle = () => setExpanded((x) => !x);
   return (
-    <div data-testid="widget-root" className="flex flex-col items-start gap-2 p-2" onMouseLeave={leave}>
+    <div className="flex flex-col items-start gap-2 p-2" onMouseLeave={leave}>
       {w.style === 'bar' ? (
-        <Bar w={w} onToggle={toggle} onEnter={enter} />
+        <Bar w={w} onToggle={toggle} />
       ) : w.style === 'full' ? (
         <FullPill w={w} onToggle={toggle} />
       ) : (
@@ -347,14 +347,6 @@ function barCaption(w: WidgetPayload): [string, string] {
   return compactCaption(w);
 }
 
-/** Bottom strip: state colour; its length is the session's progress when it has a target. */
-function barStrip(w: WidgetPayload): { color: string; pct: number } | null {
-  if (w.isOvertime || w.isDistracted) return { color: 'var(--color-red)', pct: 100 };
-  if (w.mode !== 'working' || !w.kind) return null;
-  const pct = w.kind !== 'open' && w.progress !== null ? Math.min(100, w.progress * 100) : 100;
-  return { color: KIND_COLOR[w.kind], pct };
-}
-
 function Caps({ lines, className }: { lines: [string, string]; className?: string }) {
   return (
     <span className={clsx('caps max-w-[88px] min-w-0 text-left tracking-[.04em]', className ?? 'text-muted')}>
@@ -364,17 +356,16 @@ function Caps({ lines, className }: { lines: [string, string]; className?: strin
   );
 }
 
-function Bar({ w, onToggle, onEnter }: { w: WidgetPayload; onToggle: () => void; onEnter: () => void }) {
+/** No hover card and no bottom strip (P43); ☰ opens the dashboard, the timer opens the panel. */
+function Bar({ w, onToggle }: { w: WidgetPayload; onToggle: () => void }) {
   const off = w.mode === 'off_hours';
   const away = w.mode === 'away';
   const red = w.isOvertime || w.isDistracted;
   const met = w.productiveTodaySec >= w.goalSec;
-  const strip = barStrip(w);
   return (
     <div
       data-testid="pill"
       data-style="bar"
-      onMouseEnter={onEnter}
       className={clsx(
         'drag relative flex h-[34px] w-[468px] items-stretch overflow-hidden rounded-[7px] border shadow-[var(--shadow-float)]',
         red ? 'border-red' : 'border-border-strong',
@@ -416,10 +407,10 @@ function Bar({ w, onToggle, onEnter }: { w: WidgetPayload; onToggle: () => void;
       </div>
       <button
         type="button"
-        aria-label="Menu"
-        title="Menu"
-        onClick={onToggle}
-        className="no-drag relative flex w-10 shrink-0 cursor-default items-center justify-center outline-none border-l border-border-strong bg-surface-2/60 text-muted hover:text-text"
+        aria-label="Open dashboard"
+        title="Open dashboard"
+        onClick={() => void window.spyder.openDashboard()}
+        className="no-drag relative flex w-10 shrink-0 cursor-default items-center justify-center outline-none border-l border-border-strong bg-surface-2/60 text-muted"
       >
         <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden>
           <path d="M1 1.5h12M1 6h12M1 10.5h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -428,13 +419,6 @@ function Bar({ w, onToggle, onEnter }: { w: WidgetPayload; onToggle: () => void;
           <span data-testid="prompt-dot" className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-orange" />
         )}
       </button>
-      {strip && (
-        <div
-          data-testid="bar-strip"
-          className="pointer-events-none absolute bottom-0 left-0 h-[2px]"
-          style={{ width: `${strip.pct}%`, background: strip.color }}
-        />
-      )}
     </div>
   );
 }

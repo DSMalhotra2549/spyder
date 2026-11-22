@@ -100,19 +100,19 @@ Closest to Rize's widget (`rize-widget_meeting_dark.png`). Window: collapsed 192
 - **Hover card** (after 300 ms hover): appears below the pill (above it if there's no room), 240 px, surface card: title 13/600, workday bar + `62% of day`, `2:14 / 5:00 productive`. The window grows to fit while it's shown. Distracted adds a red line `On youtube.com for 6 min`.
 
 ### Bar (P43, `widgetStyle = "bar"`, the default) — 468 × 34, radius 7
-Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring. Window: collapsed 484 × 50, hover 484 × 184, expanded 484 × 168.
+Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring. Window: collapsed 484 × 50, expanded 484 × 168. No hover card.
 ```
 ┌───────────────────────────────────────────────────────────────┬────┐
 │  24:59 PLANNED      0 min PRODUCTIVE       14% PERCENT          │ ☰  │
 │        REMAINING          TODAY                OF DAY           │    │
-└▔▔▔▔▔▔▔ state strip (2 px) ▔▔▔▔▔▔▔─────────────────────────────┴────┘
+└───────────────────────────────────────────────────────────────┴────┘
 ```
 - Three cells, each a 19/700 tabular number + a two-line `caps` label (muted):
-  1. **Session timer** (160 px, the click target that opens the panel; hover card after 300 ms). Caption as Compact. Colour: `text`; `red` when overtime or distracted (caption `DISTRACTED / youtube.com`); `break` when paused. `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`.
+  1. **Session timer** (160 px, the click target that opens the panel). Caption as Compact. Colour: `text`; `red` when overtime or distracted (caption `DISTRACTED / youtube.com`); `break` when paused. `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`.
   2. **Productive today** in `accent` (`23 min`, `2h 14m` from an hour); `green` once the goal is met.
   3. **Percent of day** (`14%`, `–` on a day off).
-- ☰ segment (40 px, `surface-2` tint, left border) opens the same panel; the prompt dot sits at its top-right.
-- **State strip:** 2 px along the bottom edge in the session-kind colour, as long as the session's progress (full width for open sessions); red and full width for overtime/distracted; none when away or off hours. Distracted also tints the fill red and pulses once, like the pills.
+- ☰ segment (40 px, `surface-2` tint, left border, no hover effect) opens the **dashboard**; the prompt dot sits at its top-right.
+- States show by colour only (no bottom strip): red border + red timer for overtime/distracted, which also tints the fill red and pulses once, like the pills.
 - The rest of the bar is the drag area.
 
 ### Style toggle
