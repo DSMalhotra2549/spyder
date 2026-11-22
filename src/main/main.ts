@@ -14,6 +14,7 @@ import { EngineHost, type ActivitySample } from './engineHost';
 import { registerHotkey } from './hotkey';
 import { startIdle } from './idle';
 import { registerIpc } from './ipc';
+import { isAppUrl } from './paths';
 import { loadSettings } from './settings';
 import { applyTheme } from './theme';
 import { createTray } from './tray';
@@ -29,6 +30,15 @@ const dataDir = process.env.SPYDER_DATA_DIR ?? join(app.getPath('appData'), 'Spy
 mkdirSync(dataDir, { recursive: true });
 // Keep Chromium profile + single-instance lock inside the data dir so test instances are isolated.
 app.setPath('userData', join(dataDir, 'electron'));
+
+// Every window shows only Spyder's own page: no pop-ups, no navigating away, no web views.
+app.on('web-contents-created', (_e, wc) => {
+  wc.setWindowOpenHandler(() => ({ action: 'deny' }));
+  wc.on('will-navigate', (e, url) => {
+    if (!isAppUrl(url)) e.preventDefault();
+  });
+  wc.on('will-attach-webview', (e) => e.preventDefault());
+});
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();

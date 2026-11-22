@@ -18,6 +18,7 @@ import { dateKey } from '../core/schedule';
 import { loadSettings, saveSettings } from './settings';
 import { BlockEditor } from './blockEdit';
 import { applyTheme } from './theme';
+import { isAppUrl } from './paths';
 import { hideWidget, openDashboard, resizePrompt, showWidget } from './windows';
 
 const documentsDir = () => app.getPath('documents');
@@ -30,7 +31,12 @@ export interface IpcHooks {
 
 export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): void {
   const h = (method: string, fn: (...args: never[]) => unknown) =>
-    ipcMain.handle(`spyder:${method}`, (_e, ...args: unknown[]) => (fn as (...a: unknown[]) => unknown)(...args));
+    ipcMain.handle(`spyder:${method}`, (e, ...args: unknown[]) => {
+      if (!isAppUrl(e.senderFrame?.url)) throw new Error('IPC from a page that is not Spyder');
+      return (fn as (...a: unknown[]) => unknown)(...args);
+    });
+  /** Workbooks this run exported: the only paths showInFolder will reveal. */
+  const exported = new Set<string>();
 
   // Settings
   h('getSettings', () => ({ ...ctx.settings, hotkeyOk: ctx.hotkeyOk, dataDir: ctx.dataDir, today: dateKey(ctx.clock.now()) }));
@@ -80,9 +86,13 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     const p = parse(xlsxPath);
     const csvDir = (ctx.debug ? o.csvDir : undefined) ?? join(p.dir, `${p.name} (CSV)`);
     await exportRange(ctx.db, { from: o.from, to: o.to, xlsxPath, csvDir }, ctx.clock.now(), ctx.settings);
+    exported.add(xlsxPath);
     return { ok: true as const, xlsxPath, csvDir };
   });
-  h('showInFolder', (path: string) => shell.showItemInFolder(path));
+  h('showInFolder', (path: string) => {
+    if (!exported.has(path)) throw new Error('Only an exported workbook can be shown');
+    shell.showItemInFolder(path);
+  });
 
   // The block loop (P58–P62)
   h('getWidget', () => host.widget());

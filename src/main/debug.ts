@@ -2,6 +2,7 @@
 import { ipcMain } from 'electron';
 import type { AppCtx } from './context';
 import { hotkeyHandler } from './hotkey';
+import { isAppUrl } from './paths';
 import { trayInfo } from './tray';
 
 export type DebugHandler = (...args: never[]) => unknown;
@@ -39,7 +40,8 @@ export function registerDebug(ctx: AppCtx): void {
   addDebugHook('advance', (sec: number) => ctx.clock.advance(sec));
   addDebugHook('triggerHotkey', () => hotkeyHandler(ctx));
 
-  ipcMain.handle('spyder:debug', async (_e, name: string, ...args: unknown[]) => {
+  ipcMain.handle('spyder:debug', async (e, name: string, ...args: unknown[]) => {
+    if (!isAppUrl(e.senderFrame?.url)) throw new Error('IPC from a page that is not Spyder');
     const fn = hooks.get(name);
     if (!fn) throw new Error(`unknown debug hook: ${name}`);
     return (fn as (...a: unknown[]) => unknown)(...args);

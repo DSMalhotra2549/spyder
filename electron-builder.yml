@@ -17,6 +17,15 @@ extraResources:
     to: icon.png
   - from: NOTICE
     to: NOTICE
+# Electron fuses (flipped in the binary at package time). --inspect stays on: Playwright drives the
+# installed app through it, and P42 keeps the smoke e2e runnable against it (SPYDER_EXE).
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: true
+  enableCookieEncryption: true
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
 win:
   target: nsis
   icon: resources/icon.png
