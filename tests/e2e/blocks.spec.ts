@@ -1,11 +1,12 @@
 /// <reference lib="dom" />
-// Editing blocks from Today's block log (P64): joined answers, re-answer, answer many, delete → untracked
+// Editing blocks from Today's block log (P64, P66): joined answers, re-answer, answer many, tags, delete → untracked
 // → Undo, merge adjacent → Undo, the merge rules, the running block, the timeline picks a row.
 import { expect, test, type Page } from '@playwright/test';
 import { join } from 'node:path';
 import { Db } from '../../src/main/db/db';
 import { dayVM } from '../../src/main/report';
 import { loadSettings } from '../../src/main/settings';
+import { timeSplit } from '../../src/core/aggregate';
 import { dur, statTexts } from '../../src/renderer/dashboard/stats';
 import { freshDataDir, launch, seed, shot, type Launched } from './helpers';
 
@@ -151,4 +152,93 @@ test('the running block can’t be edited until it ends; an ended one can', asyn
   await expect(d.getByTestId('log-untracked')).toContainText('10:00–11:15');
   await d.getByTestId('toast-undo').click();
   await expect(d.getByTestId('log-untracked')).toContainText('10:00–11:00');
+});
+
+test('tags: Work/Break apart from the answer, per row and in bulk; merge needs one tag; work colour; the review pie (P66–P68)', async () => {
+  const dir = freshDataDir();
+  seed(dir, 1, DATE);
+  s = await launch({ dataDir: dir, now: `${DATE}T18:00:00` });
+  const d = s.dashboard;
+  const kindName = (name: string) => s!.db().prepare('SELECT kind, name FROM sessions WHERE name = ? AND deleted_ms IS NULL').all(name);
+  await d.evaluate(() => window.spyder.openDashboard('today'));
+  await d.getByTestId('block-log').waitFor();
+  await expect(rows(d, 'Code review').first().getByTestId('block-tag')).toHaveValue('work');
+  await expect(rows(d, 'Break').first().getByTestId('block-tag')).toHaveValue('break');
+
+  // A block keeps its answer when it becomes a break; it then merges with the break next to it.
+  const lastReview = rows(d, 'Code review').nth(2);
+  await lastReview.getByTestId('block-tag').selectOption('break');
+  await expect(d.getByTestId('toast')).toContainText('“Code review” is now a break');
+  await expect(rows(d, 'Code review').nth(2).getByTestId('block-tag')).toHaveValue('break');
+  expect(kindName('Code review').filter((r) => (r as { kind: string }).kind === 'break')).toHaveLength(1);
+  await rows(d, 'Code review').nth(1).getByTestId('block-check').click();
+  await rows(d, 'Code review').nth(2).getByTestId('block-check').click();
+  await d.getByTestId('merge-open').click();
+  await expect(d.getByTestId('merge-panel')).toContainText('A break can’t be merged with work blocks. Change their tags first.');
+  await d.getByRole('button', { name: 'Clear' }).click();
+  await rows(d, 'Code review').nth(2).getByTestId('block-check').click();
+  await rows(d, 'Break').nth(3).getByTestId('block-check').click();
+  await d.getByTestId('merge-open').click();
+  await expect(d.getByTestId('merge-panel')).toContainText('They become one 30m break');
+  await d.getByTestId('merge-panel').getByLabel('Answer').fill('took a nap');
+  await d.getByTestId('panel-save').click();
+  await expect(d.getByTestId('toast')).toContainText('Merged 2 blocks into “took a nap”');
+  expect(kindName('took a nap')).toEqual([{ kind: 'break', name: 'took a nap' }]);
+  await expect(rows(d, 'took a nap').getByTestId('block-dur')).toHaveText('30m');
+
+  // Re-answering a break with Save keeps it a break.
+  await rows(d, 'took a nap').getByTestId('block-answer').click();
+  await d.getByTestId('block-edit-row').getByLabel('Answer').fill('nap on the couch');
+  await d.getByTestId('edit-save').click();
+  expect(kindName('nap on the couch')).toEqual([{ kind: 'break', name: 'nap on the couch' }]);
+  await d.mouse.move(0, 0);
+  await shot(d, 'today-tags');
+
+  // Bulk: tick two blocks and tag them; Undo puts them back.
+  for (const r of await rows(d, 'Replying to emails').all()) await r.getByTestId('block-check').click();
+  await d.getByTestId('tag-selected').selectOption('break');
+  await expect(d.getByTestId('toast')).toContainText('Tagged 2 blocks Break');
+  expect(kindName('Replying to emails')).toEqual([
+    { kind: 'break', name: 'Replying to emails' },
+    { kind: 'break', name: 'Replying to emails' },
+  ]);
+  await d.getByTestId('toast-undo').click();
+  await expect.poll(() => kindName('Replying to emails').map((r) => (r as { kind: string }).kind)).toEqual(['open', 'open']);
+
+  // A plain Break that becomes work isn't accounted for any more.
+  await expect(d.getByTestId('block-log')).toContainText('2 not accounted for');
+  await rows(d, 'Break').first().getByTestId('block-tag').selectOption('work');
+  await expect(d.getByTestId('block-log')).toContainText('3 not accounted for');
+  await d.getByTestId('toast-undo').click();
+  await expect(d.getByTestId('block-log')).toContainText('2 not accounted for');
+
+  // P67: the work colour comes from Settings (green by default) and applies at once.
+  const workColor = () => d.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-work').trim().toLowerCase());
+  expect(await workColor()).toBe('#3fb27f');
+  await d.evaluate(() => window.spyder.openDashboard('settings'));
+  await d.getByTestId('set-workColor').fill('#e05a9b');
+  await expect.poll(workColor).toBe('#e05a9b');
+  await shot(d, 'settings-work-color');
+  await d.getByTestId('reset-workColor').click();
+  await expect.poll(workColor).toBe('#3fb27f');
+
+  // P68: the review shows where the day went.
+  await d.evaluate(() => window.spyder.openDashboard('review'));
+  const nowMs = (await s.debug.state()).now as number;
+  const parts = timeSplit((await expected(dir, nowMs)).summary);
+  const pie = d.getByTestId('time-split');
+  for (const p of parts) await expect(pie.getByTestId(`split-${p.key}`)).toContainText(dur(p.sec));
+  expect(parts.map((p) => p.key)).toEqual(['work', 'break', 'unanswered', 'untracked']);
+  await expect(pie.locator('[data-slice]')).toHaveCount(4);
+  await pie.locator('[data-slice=break]').hover();
+  await shot(d, 'review-pie');
+});
+
+test('the prompt’s Break keeps typed text as the break’s answer (P66)', async () => {
+  s = await launch({ scale: 1 });
+  await s.prompt.getByTestId('reminder-start').click();
+  await s.debug.advance(900);
+  await s.prompt.getByLabel('Answer').fill('took a nap');
+  await s.prompt.getByTestId('account-break').click();
+  await expect.poll(() => s!.db().prepare("SELECT kind, name FROM sessions WHERE status = 'done'").all()).toEqual([{ kind: 'break', name: 'took a nap' }]);
 });

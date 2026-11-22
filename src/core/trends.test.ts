@@ -104,6 +104,14 @@ describe('cleanSettings', () => {
     expect(Object.keys(cleanSettings({ ...DEFAULT_SETTINGS }))).toHaveLength(Object.keys(DEFAULT_SETTINGS).length);
   });
 
+  it('P67: the work colour is a #rrggbb hex, green by default', () => {
+    expect(DEFAULT_SETTINGS.workColor).toBe('#3fb27f');
+    expect(cleanSettings({ workColor: '#AB12cd' })).toEqual({ workColor: '#ab12cd' });
+    expect(cleanSettings({ workColor: 'red' })).toEqual({});
+    expect(cleanSettings({ workColor: '#abc' })).toEqual({});
+    expect(cleanSettings({ workColor: 42 })).toEqual({});
+  });
+
   it('P50: the widget style setting is gone', () => {
     expect(cleanSettings({ widgetStyle: 'compact', theme: 'sepia' })).toEqual({});
   });

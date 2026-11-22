@@ -25,7 +25,7 @@ Each one owns its own subject. Update the owner, and point to it from elsewhere.
 
 - `src/core/` imports nothing from Electron, `node:fs` or `node:sqlite`, and gets time only from `ctx.now` (ADR-0006, enforced by ESLint).
 - Activity rows store raw facts; categories and Firefox sites are computed at read time (ADR-0005, P39).
-- A block is a row in `sessions` (kind `open` or `break`; `name` NULL = not accounted for yet) and its time is the sum of its segments. The tables keep their old names (ADR-0011).
+- A block is a row in `sessions` and its time is the sum of its segments. `kind` holds its tag (`open` = Work, `break` = Break, P66). A work block's `name` NULL = not accounted for yet; a break's `name` is never NULL (`'Break'` = no answer of its own). The tables keep their old names (ADR-0011).
 - Prompt wording comes from `src/core/promptView.ts`, which follows P59 and P60 exactly.
 - No AI or LLM features of any kind (ADR-0009).
 - Windows stay sandboxed with context isolation, and pages can't open pop-ups or navigate away (`main.ts`). Register IPC handlers through `h` in `ipc.ts`, which refuses calls from any page that isn't Spyder's, never with a bare `ipcMain.handle` (`SECURITY.md`, `tests/e2e/security.spec.ts`).

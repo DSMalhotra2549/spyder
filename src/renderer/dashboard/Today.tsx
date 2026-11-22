@@ -5,11 +5,11 @@ import { dayLog, type AppRow, type LogEntry, type SessionLine } from '../../core
 import type { ActivityCategory } from '../../core/categorize';
 import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
-import type { EngineError } from '../../core/types';
+import type { EngineError, Tag } from '../../core/types';
 import type { EditResult, Ok } from '../../preload/api';
 import { AnswerInput, Btn } from '../ui/controls';
 import { ExportButton } from './Export';
-import { answerText, blockColor, Timeline } from './Timeline';
+import { answerText, blockColor, ownAnswer, Timeline } from './Timeline';
 import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, TopBar, useLoader } from './parts';
 import { appTexts, dur, statTexts } from './stats';
 import { showEditResult } from './toast';
@@ -138,7 +138,9 @@ const span = (a: number, b: number | null, running = false) => `${fmtTime(a)}–
 /** Blocks this close count as adjacent (matches the merge rule in main). */
 const ADJACENT_MS = 1000;
 const adjacent = (a: SessionLine, b: SessionLine) => a.endMs !== null && Math.abs(b.startMs - a.endMs) <= ADJACENT_MS;
-const sameAnswer = (a: SessionLine, b: SessionLine) => a.kind === b.kind && (a.kind === 'break' || (a.name !== null && a.name === b.name));
+const sameAnswer = (a: SessionLine, b: SessionLine) =>
+  a.kind === b.kind && (a.kind === 'break' || a.name !== null) && answerText(a) === answerText(b);
+const tagOf = (x: SessionLine): Tag => (x.kind === 'break' ? 'break' : 'work');
 
 /** Why the chosen blocks can't be merged, or null when they can. */
 function mergeProblem(chosen: SessionLine[]): string | null {
@@ -146,7 +148,7 @@ function mergeProblem(chosen: SessionLine[]): string | null {
   if (chosen.some((x) => x.running)) return 'The running block can’t be edited until it ends';
   for (let i = 1; i < chosen.length; i++) if (!adjacent(chosen[i - 1], chosen[i])) return 'Only blocks next to each other can be merged';
   const breaks = chosen.filter((x) => x.kind === 'break').length;
-  if (breaks && breaks !== chosen.length) return 'A break can’t be merged with work blocks';
+  if (breaks && breaks !== chosen.length) return 'A break can’t be merged with work blocks. Change their tags first.';
   return null;
 }
 
@@ -218,6 +220,12 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
         {chosen.length > 0 && (
           <div data-testid="selection-bar" className="ml-auto flex items-center gap-1.5">
             <span className="mr-1 text-[12px] text-muted tabular">{chosen.length} selected</span>
+            <TagSelect
+              testId="tag-selected"
+              label="Tag the selected blocks"
+              value={null}
+              onChange={(t) => void window.spyder.tagBlocks(chosen.map((x) => x.id), t).then(after)}
+            />
             <Btn size="sm" data-testid="answer-open" onClick={() => setPanel({ type: 'answer' })}>
               Answer…
             </Btn>
@@ -240,11 +248,11 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
           merge={panel.type === 'merge'}
           problem={panel.type === 'merge' ? problem : null}
           onCancel={() => setPanel(null)}
-          onSave={async (answer) =>
+          onSave={async (answer, tag) =>
             after(
               panel.type === 'merge'
                 ? await window.spyder.mergeBlocks(chosen.map((x) => x.id), answer)
-                : await window.spyder.answerBlocks(chosen.map((x) => ({ id: x.id, answer }))),
+                : await window.spyder.answerBlocks(chosen.map((x) => ({ id: x.id, answer, tag }))),
             )
           }
         />
@@ -281,6 +289,7 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
                 onPick={() => onPick(picked === e.id ? null : e.id)}
                 onEdit={() => setEditing(e.id)}
                 onDelete={() => void del([e.id])}
+                onTag={(t) => void window.spyder.tagBlocks([e.id], t).then(after)}
               />
             );
           })}
@@ -348,6 +357,7 @@ function BlockRow({
   onPick,
   onEdit,
   onDelete,
+  onTag,
 }: {
   x: SessionLine;
   joinedPrev: boolean;
@@ -359,6 +369,7 @@ function BlockRow({
   onPick: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onTag: (tag: Tag) => void;
 }) {
   const ref = useRef<HTMLLIElement>(null);
   useEffect(() => {
@@ -415,6 +426,7 @@ function BlockRow({
           </span>
         )}
       </span>
+      <TagSelect testId="block-tag" label={`Tag of ${text}`} value={tagOf(x)} disabled={x.running} onChange={onTag} />
       <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
         {dur(x.daySec)}
       </span>
@@ -438,13 +450,13 @@ function BlockRow({
   );
 }
 
-/** Re-answer one block inline (P64): text, or Break. Enter saves, Escape cancels. */
+/** Re-answer one block inline (P64, P66): Save keeps its tag, Break makes it a break. Enter saves, Escape cancels. */
 function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Promise<void> }) {
-  const [text, setText] = useState(x.kind === 'break' ? '' : (x.name ?? ''));
+  const [text, setText] = useState(ownAnswer(x) ?? '');
   const [error, setError] = useState<string | null>(null);
-  const save = async (answer: string | null) => {
-    if (answer !== null && !answer.trim()) return setError('Say what you did, or pick Break');
-    const r = await window.spyder.answerBlocks([{ id: x.id, answer }]);
+  const save = async (tag?: Tag) => {
+    if ((tag ?? tagOf(x)) === 'work' && !text.trim()) return setError('Say what you did, or pick Break');
+    const r = await window.spyder.answerBlocks([{ id: x.id, answer: text.trim() || null, tag }]);
     if ('error' in r) return setError(r.message);
     await onDone(true);
   };
@@ -459,12 +471,12 @@ function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Pr
       <div className="flex items-center gap-2">
         <span className="w-[92px] shrink-0 pl-7 text-[13px] text-muted tabular">{span(x.startMs, x.endMs)}</span>
         <div className="min-w-0 flex-1">
-          <AnswerInput value={text} onChange={setText} onEnter={() => void save(text)} autoFocus />
+          <AnswerInput value={text} onChange={setText} onEnter={() => void save()} autoFocus />
         </div>
-        <Btn variant="primary" data-testid="edit-save" onClick={() => void save(text)}>
+        <Btn variant="primary" data-testid="edit-save" onClick={() => void save()}>
           Save
         </Btn>
-        <Btn data-testid="edit-break" onClick={() => void save(null)}>
+        <Btn data-testid="edit-break" onClick={() => void save('break')}>
           Break
         </Btn>
         <Btn variant="ghost" onClick={() => void onDone(false)}>
@@ -490,7 +502,10 @@ function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
   );
 }
 
-/** One answer for the selected blocks, or merging adjacent ones into one longer block (P64). */
+/**
+ * One answer for the selected blocks (Save keeps each block's tag, Break makes them breaks), or merging adjacent
+ * blocks of one tag into one longer block (P64, P66). Only breaks may be left without an answer.
+ */
 function AnswerPanel({
   chosen,
   merge,
@@ -501,45 +516,41 @@ function AnswerPanel({
   chosen: SessionLine[];
   merge: boolean;
   problem: string | null;
-  onSave: (answer: string | null) => Promise<void>;
+  onSave: (answer: string | null, tag?: Tag) => Promise<void>;
   onCancel: () => void;
 }) {
   const allBreaks = chosen.every((x) => x.kind === 'break');
-  const names = new Set(chosen.map((x) => (x.kind === 'break' ? null : x.name)));
+  const names = new Set(chosen.map(ownAnswer));
   const common = names.size === 1 ? [...names][0] : null;
   const [text, setText] = useState(common ?? '');
   const [error, setError] = useState<string | null>(null);
   const total = chosen.reduce((t, x) => t + x.daySec, 0);
-  const save = async (answer: string | null) => {
-    if (answer !== null && !answer.trim()) return setError('Say what you did, or pick Break');
+  const save = async (tag?: Tag) => {
+    if (!text.trim() && !(tag === 'break' || allBreaks)) return setError('Say what you did, or pick Break');
     setError(null);
-    await onSave(answer);
+    await onSave(text.trim() || null, tag);
   };
   return (
     <div data-testid={merge ? 'merge-panel' : 'answer-panel'} className="mb-3 rounded-card border border-border-strong bg-surface p-4 shadow-pop">
       <div className="mb-1 section-title">{merge ? `Merge ${chosen.length} blocks` : `Answer ${chosen.length} ${chosen.length === 1 ? 'block' : 'blocks'}`}</div>
       <p className="mb-3 text-[12px] text-muted">
         {merge
-          ? `They become one ${dur(total)} block, ${span(chosen[0].startMs, chosen[chosen.length - 1].endMs)}, with one answer.`
+          ? `They become one ${dur(total)} ${allBreaks ? 'break' : 'block'}, ${span(chosen[0].startMs, chosen[chosen.length - 1].endMs)}, with one answer.`
           : 'Every selected block gets this answer.'}
       </p>
       {problem ? (
         <p className="mb-3 text-[12px] text-red">{problem}</p>
       ) : (
         <div className="mb-3 flex items-center gap-2">
-          {!(merge && allBreaks) && (
-            <div className="min-w-0 flex-1">
-              <AnswerInput value={text} onChange={setText} onEnter={() => void save(text)} autoFocus />
-            </div>
-          )}
-          {!(merge && allBreaks) && (
-            <Btn variant="primary" data-testid="panel-save" onClick={() => void save(text)}>
-              {merge ? 'Merge' : 'Save'}
-            </Btn>
-          )}
-          {(!merge || allBreaks) && (
-            <Btn variant={merge ? 'primary' : 'secondary'} data-testid="panel-break" onClick={() => void save(null)}>
-              {merge ? 'Merge breaks' : 'Break'}
+          <div className="min-w-0 flex-1">
+            <AnswerInput value={text} onChange={setText} onEnter={() => void save()} autoFocus />
+          </div>
+          <Btn variant="primary" data-testid="panel-save" onClick={() => void save()}>
+            {merge ? 'Merge' : 'Save'}
+          </Btn>
+          {!merge && (
+            <Btn data-testid="panel-break" onClick={() => void save('break')}>
+              Break
             </Btn>
           )}
         </div>
@@ -554,6 +565,56 @@ function AnswerPanel({
   );
 }
 
+/** P66: a block's tag, Work or Break. With `value` null it's a "Tag…" picker for the selected blocks. */
+function TagSelect({
+  testId,
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  testId: string;
+  label: string;
+  value: Tag | null;
+  disabled?: boolean;
+  onChange: (t: Tag) => void;
+}) {
+  return (
+    <span className="relative flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+      {value && (
+        <span
+          className="pointer-events-none absolute left-2 h-2 w-2 rounded-[2px]"
+          style={{ background: value === 'break' ? 'var(--color-break)' : 'var(--color-work)' }}
+        />
+      )}
+      <select
+        data-testid={testId}
+        aria-label={label}
+        title={label}
+        disabled={disabled}
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value as Tag)}
+        className={clsx(
+          'h-7 cursor-pointer appearance-none rounded-control border bg-transparent pr-6 text-[12px] outline-none focus-visible:border-accent',
+          'disabled:cursor-default disabled:opacity-50',
+          value ? 'w-[80px] border-transparent pl-6 text-muted enabled:hover:border-border enabled:hover:bg-surface-2 enabled:hover:text-text' : 'border-border pl-2.5 text-text hover:bg-surface-2',
+        )}
+      >
+        {value === null && (
+          <option value="" disabled>
+            Tag…
+          </option>
+        )}
+        <option value="work">Work</option>
+        <option value="break">Break</option>
+      </select>
+      <svg className="pointer-events-none absolute right-2 text-faint" width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+        <path d="M2.5 4 5 6.5 7.5 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
 // ---- timeline legend, apps, distractions ---------------------------------------------------
 
 function TimelineLegend() {
@@ -565,7 +626,7 @@ function TimelineLegend() {
   );
   return (
     <span className="flex items-center gap-4 text-faint">
-      {item(<span className="h-2 w-2 rounded-[2px] bg-accent" />, 'Accounted for')}
+      {item(<span className="h-2 w-2 rounded-[2px] bg-work" />, 'Work')}
       {item(<span className="h-2 w-2 rounded-[2px] bg-open" />, 'Not yet')}
       {item(<span className="h-2 w-2 rounded-[2px] bg-break/50" />, 'Break')}
       {item(<span className="hatch h-2 w-2 rounded-[2px]" />, 'Untracked')}

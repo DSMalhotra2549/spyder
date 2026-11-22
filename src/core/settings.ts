@@ -14,6 +14,8 @@ export interface Settings {
   keepWorkingStepMin: number;
   widgetPos: { x: number; y: number } | null;
   theme: 'system' | 'light' | 'dark';
+  /** P67: the colour of work blocks, #rrggbb. */
+  workColor: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepWorkingStepMin: 30,
   widgetPos: null,
   theme: 'system',
+  workColor: '#3fb27f',
 };
 
 export interface ScheduleRow {
@@ -81,6 +84,8 @@ export function cleanSettings(partial: Record<string, unknown>): Partial<Setting
       if (ENUMS[key]!.includes(v)) out[k] = v;
     } else if (key === 'widgetPos') {
       if (v === null || (typeof v === 'object' && typeof (v as { x: unknown }).x === 'number' && typeof (v as { y: unknown }).y === 'number')) out[k] = v;
+    } else if (key === 'workColor') {
+      if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) out[k] = v.toLowerCase();
     } else if (key === 'hotkey') {
       if (typeof v === 'string' && v.trim()) out[k] = v.trim();
     } else if (typeof v === typeof def) out[k] = v;

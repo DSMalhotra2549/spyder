@@ -323,6 +323,20 @@ export function daySummary(
   };
 }
 
+export type TimeSplitKey = 'work' | 'break' | 'unanswered' | 'untracked';
+
+/** Where the day's time went (P68): work blocks, break blocks, ended work blocks not accounted for, untracked. Empty parts are dropped. */
+export function timeSplit(s: Pick<DaySummary, 'workSec' | 'breakSec' | 'untrackedSec' | 'sessions'>): { key: TimeSplitKey; sec: number }[] {
+  const unanswered = s.sessions.filter((x) => x.kind !== 'break' && x.name === null && !x.running).reduce((t, x) => t + x.daySec, 0);
+  const parts: { key: TimeSplitKey; sec: number }[] = [
+    { key: 'work', sec: s.workSec - unanswered },
+    { key: 'break', sec: s.breakSec },
+    { key: 'unanswered', sec: unanswered },
+    { key: 'untracked', sec: s.untrackedSec },
+  ];
+  return parts.filter((p) => p.sec > 0);
+}
+
 /** One line of Today's session log (P55): every part of the day in time order. */
 export type LogEntry =
   | ({ type: 'session' } & SessionLine)

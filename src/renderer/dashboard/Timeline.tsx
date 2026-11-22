@@ -36,14 +36,17 @@ interface Tip {
   lines: string[];
 }
 
-/** The colour a block gets everywhere on Today: purple when accounted for, grey when not, break muted. */
+/** The colour a block gets everywhere (P67): the work colour when accounted for, grey when not, break blue-grey. */
 export function blockColor(x: { kind: string; name: string | null }): string {
   if (x.kind === 'break') return 'var(--color-break)';
-  return x.name ? 'var(--color-accent)' : 'var(--color-open)';
+  return x.name ? 'var(--color-work)' : 'var(--color-open)';
 }
 
-/** What a block was spent on, as shown everywhere (P60). */
-export const answerText = (x: { kind: string; name: string | null }) => (x.kind === 'break' ? 'Break' : (x.name ?? 'Not accounted for'));
+/** What a block was spent on, as shown everywhere (P60, P66). A break without an answer of its own reads "Break". */
+export const answerText = (x: { kind: string; name: string | null }) => x.name ?? (x.kind === 'break' ? 'Break' : 'Not accounted for');
+
+/** The block's own answer text, for editing: a break stored as just "Break" has none (P66). */
+export const ownAnswer = (x: { kind: string; name: string | null }) => (x.kind === 'break' && x.name === 'Break' ? null : x.name);
 
 export function Timeline({
   s,
