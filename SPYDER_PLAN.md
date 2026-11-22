@@ -712,7 +712,7 @@ _(append one entry per phase: date · phase · verification results with numbers
 - Build: `src/main/export.ts` (exceljs). It builds 8 sheets: Sessions, Segments, Activity, App-Site summary, Daily summary, Away, Reviews and KPIs.
   - Header rows are bold, frozen and filterable, with set column widths.
   - Dates and times are real Excel dates. Durations appear as minutes (a number) and h:mm (text).
-- CSV: `src/core/csv.ts` writes one file per sheet: UTF-8 with BOM, RFC 4180 quoting, CRLF line breaks, and a `'` before text starting with `= + - @`.
+- CSV: `src/core/csv.ts` writes one file per sheet: UTF-8 with BOM, RFC 4180 quoting, CRLF line breaks, and a `'` before text starting with `= + - @`, a tab or a CR (OWASP).
 - IPC: `exportData` opens a save dialog; e2e paths are honoured only in debug builds. `showInFolder` was added, and `getSettings` now returns `today`.
 - The export dialog offers Today, This week, This month, Last 30 days and Custom presets. It opens from Settings and from the Today, Week and Month top bars.
 - Verify:

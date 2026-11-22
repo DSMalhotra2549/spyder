@@ -2,8 +2,8 @@
 
 export type CsvValue = string | number | boolean | null | undefined;
 
-/** Text starting with one of these would run as a formula in a spreadsheet; it gets a leading `'`. */
-const FORMULA_START = /^[=+\-@]/;
+/** Text starting with one of these (OWASP list, incl. tab and CR) could run as a formula; it gets a leading `'`. */
+const FORMULA_START = /^[=+\-@\t\r]/;
 
 export function csvCell(v: CsvValue): string {
   if (v === null || v === undefined) return '';

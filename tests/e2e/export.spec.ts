@@ -118,7 +118,7 @@ test('export: 8 sheets, counts and minutes match the DB, CSVs round-trip', async
 
     // ---- CSV ---------------------------------------------------------------------
     const csvDir = join(out, 'export (CSV)');
-    const escape = (v: string) => (/^[=+\-@]/.test(v) ? `'${v}` : v);
+    const escape = (v: string) => (/^[=+\-@\t\r]/.test(v) ? `'${v}` : v);
     for (const sh of sheets) {
       const text = readFileSync(join(csvDir, csvFileName(sh.name)), 'utf8');
       expect(text.charCodeAt(0)).toBe(0xfeff);

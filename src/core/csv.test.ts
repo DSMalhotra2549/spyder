@@ -15,6 +15,8 @@ describe('csv', () => {
     expect(csvCell('-x')).toBe("'-x");
     expect(csvCell('@SUM(A1)')).toBe("'@SUM(A1)");
     expect(csvCell('=a,b')).toBe(`"'=a,b"`);
+    expect(csvCell('\t=1+1')).toBe("'\t=1+1");
+    expect(csvCell('\r=1+1')).toBe(`"'\r=1+1"`);
     // Numbers are numbers, not text: a negative stays as is.
     expect(csvCell(-5)).toBe('-5');
   });
