@@ -103,11 +103,11 @@ Closest to Rize's widget (`rize-widget_meeting_dark.png`). Window: collapsed 192
 Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring, no rounded corners. Window 528 × 50. No hover card and no panel. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
 ```
 ┌──┬───────────────────────────────────────────────────────────────┬───┬──┐
-│⌂ │   24:59 WRITING WEEKLY    0 min PRODUCTIVE    14% PERCENT       │ – │⋮⋮│
-│  │         REPORT                  TODAY               OF DAY      │   │  │
+│▦▦│   24:59 WRITING WEEKLY    0 min PRODUCTIVE    14% PERCENT       │ – │⋮⋮│
+│▦▦│         REPORT                  TODAY               OF DAY      │   │  │
 └──┴───────────────────────────────────────────────────────────────┴───┴──┘
 ```
-- **Dashboard button** (32 px, left-most, `surface-2` tint, right border, home icon): opens the dashboard on Today. It's the only way in from the bar.
+- **Dashboard button** (32 px, left-most, `surface-2` tint, right border, 2×2 grid icon): opens the dashboard on Today. It's the only way in from the bar.
 - Three cells, each as wide as its content and spread evenly (`justify-around`, P49); even a full two-line label leaves ≥ 12 px between cells. Each is a 19/700 tabular number + a two-line `caps` label (muted). **Cells do nothing when clicked**; they drag like the gaps.
   1. **Session timer.** Label: the session name typeset exactly like the other captions (`caps`: 9/700, uppercase, same tracking and leading), but wrapping across both lines instead of one word per line, max 104 px wide, with `…` only past the second line (`line-clamp-2`); the full name is in the tooltip. The label shows in every working state, including distracted, overtime and paused (the paused session's name). States show by colour only: `text`/`muted` normally, `red` when overtime or distracted, `break` when paused. An unlabelled session keeps the two-line caption as Compact (`SESSION / ELAPSED`, `DISTRACTED / youtube.com`, …). `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`. The prompt dot sits at its top-right.
   2. **Productive today** in `accent` (`23 min`, `2h 14m` from an hour); `green` once the goal is met.
