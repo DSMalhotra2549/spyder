@@ -35,7 +35,9 @@ export interface OverrideVM {
   endMin: number;
 }
 
-export type SettingsVM = Settings & { hotkeyOk: boolean; dataDir: string };
+export type SettingsVM = Settings & { hotkeyOk: boolean; dataDir: string; today: string };
+
+export type ExportResult = { ok: true; xlsxPath: string; csvDir: string } | { canceled: true } | { error: 'range' };
 
 export interface WidgetPayload extends WidgetVM {
   style: 'full' | 'compact';
@@ -121,6 +123,9 @@ export interface SpyderApi {
   setSchedule(rows: ScheduleRow[]): Promise<void>;
   setDayOverride(date: string, o: Omit<OverrideVM, 'date'> | null): Promise<void>;
   openDataFolder(): Promise<string>;
+  /** Opens a save dialog; `xlsxPath` / `csvDir` are honoured only in debug builds (e2e). */
+  exportData(o: { from: string; to: string; xlsxPath?: string; csvDir?: string }): Promise<ExportResult>;
+  showInFolder(path: string): Promise<void>;
 
   getReview(date?: string): Promise<ReviewVM>;
   saveReviewItem(it: Omit<ReviewItem, 'id'> & { id?: string }): Promise<ReviewItem>;

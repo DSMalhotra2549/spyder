@@ -1,5 +1,6 @@
 // IPC contract (plan §11). Channels are `spyder:<method>`. Later phases add the remaining data handlers.
-import { ipcMain, shell } from 'electron';
+import { app, dialog, ipcMain, shell } from 'electron';
+import { join, parse } from 'node:path';
 import type { Rule } from '../core/categorize';
 import { cleanSettings, type ScheduleRow } from '../core/settings';
 import type { DayOverride } from '../core/schedule';
@@ -7,12 +8,15 @@ import type { TitlePattern } from '../core/titlePatterns';
 import type { Answer, AwayClassification, EngineError, Kind, StartInput } from '../core/types';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
+import { exportRange } from './export';
 import type { EngineHost } from './engineHost';
 import { registerHotkey } from './hotkey';
 import * as report from './report';
+import { dateKey } from '../core/schedule';
 import { loadSettings, saveSettings } from './settings';
 import { hideWidget, openDashboard, resizePrompt, setWidgetLayout, showWidget, type WidgetLayout } from './windows';
 
+const documentsDir = () => app.getPath('documents');
 const result = (err: EngineError | null) => err ?? { ok: true as const };
 
 export interface IpcHooks {
@@ -25,7 +29,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     ipcMain.handle(`spyder:${method}`, (_e, ...args: unknown[]) => (fn as (...a: unknown[]) => unknown)(...args));
 
   // Settings
-  h('getSettings', () => ({ ...ctx.settings, hotkeyOk: ctx.hotkeyOk, dataDir: ctx.dataDir }));
+  h('getSettings', () => ({ ...ctx.settings, hotkeyOk: ctx.hotkeyOk, dataDir: ctx.dataDir, today: dateKey(ctx.clock.now()) }));
   h('setSettings', (raw: Record<string, unknown>) => {
     const partial = cleanSettings(raw);
     saveSettings(ctx.db, partial);
@@ -34,7 +38,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     if ('widgetStyle' in partial) setWidgetLayout(ctx);
     if ('goalSec' in partial || 'appPercentScope' in partial) host.reloadRules();
     host.push();
-    return { ...ctx.settings, hotkeyOk: ctx.hotkeyOk, dataDir: ctx.dataDir };
+    return { ...ctx.settings, hotkeyOk: ctx.hotkeyOk, dataDir: ctx.dataDir, today: dateKey(ctx.clock.now()) };
   });
   h('getSchedule', () => ({ rows: repo.loadSchedule(ctx.db).sort((a, b) => a.weekday - b.weekday), overrides: Object.fromEntries(repo.loadOverrides(ctx.db)) }));
   h('setSchedule', (rows: ScheduleRow[]) => {
@@ -49,6 +53,30 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     host.scheduleChanged();
   });
   h('openDataFolder', () => shell.openPath(ctx.dataDir));
+
+  // Export (P28): one .xlsx, plus the same sheets as CSVs in a folder next to it.
+  h('exportData', async (o: { from: string; to: string; xlsxPath?: string; csvDir?: string }) => {
+    const ok = /^\d{4}-\d{2}-\d{2}$/;
+    if (!ok.test(o.from) || !ok.test(o.to) || o.from > o.to) return { error: 'range' as const };
+    // Only the e2e tests pass paths; the app always asks.
+    let xlsxPath = ctx.debug ? (o.xlsxPath ?? process.env.SPYDER_EXPORT_PATH) : undefined;
+    if (!xlsxPath) {
+      const parent = ctx.dashboard ?? undefined;
+      const opts = {
+        title: 'Export to Excel',
+        defaultPath: join(documentsDir(), `Spyder ${o.from} to ${o.to}.xlsx`),
+        filters: [{ name: 'Excel workbook', extensions: ['xlsx'] }],
+      };
+      const r = parent ? await dialog.showSaveDialog(parent, opts) : await dialog.showSaveDialog(opts);
+      if (r.canceled || !r.filePath) return { canceled: true as const };
+      xlsxPath = r.filePath;
+    }
+    const p = parse(xlsxPath);
+    const csvDir = (ctx.debug ? o.csvDir : undefined) ?? join(p.dir, `${p.name} (CSV)`);
+    await exportRange(ctx.db, { from: o.from, to: o.to, xlsxPath, csvDir }, ctx.clock.now(), ctx.settings);
+    return { ok: true as const, xlsxPath, csvDir };
+  });
+  h('showInFolder', (path: string) => shell.showItemInFolder(path));
 
   // Engine
   h('getWidget', () => host.widget());

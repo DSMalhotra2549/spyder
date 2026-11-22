@@ -707,3 +707,22 @@ _(append one entry per phase: date · phase · verification results with numbers
   - `settings.spec.ts`: check-in 10 min → no prompt at 9 min, prompt at 10; idle threshold 1 min → `simulateIdle` 70 s ago → away; Tuesday switched off → Off hours in the widget (and the review opens); a today-only override → working again.
   - Screenshots viewed: week, week-previous, month, month-bottom, rules, rules-patterns, rules-inbox, rules-projects, rules-kpis, settings, settings-bottom, settings-after, today-bottom. Fixed from them: clipped heatmap column, truncated top-10 names, legend wrapping into the card title, clipped AM/PM in time inputs, wrapping labels, a squashed data-folder row.
 - Deviations / decisions: **P38** (week bar stacks), **P39** (title patterns at read time; defaults read-only), **P40** (settings validation; switching today off opens the review). The goal marker sits above the bar together with the day total. No capture-unavailable banner yet. The Export button is disabled until Phase 7. `streaks.ts` itself arrived in Phase 5.
+
+**2026-11-22 · Phase 7 · built; the user's manual Excel check is pending.**
+- Build: `src/main/export.ts` (exceljs). It builds 8 sheets: Sessions, Segments, Activity, App-Site summary, Daily summary, Away, Reviews and KPIs.
+  - Header rows are bold, frozen and filterable, with set column widths.
+  - Dates and times are real Excel dates. Durations appear as minutes (a number) and h:mm (text).
+- CSV: `src/core/csv.ts` writes one file per sheet: UTF-8 with BOM, RFC 4180 quoting, CRLF line breaks, and a `'` before text starting with `= + - @`.
+- IPC: `exportData` opens a save dialog; e2e paths are honoured only in debug builds. `showInFolder` was added, and `getSettings` now returns `today`.
+- The export dialog offers Today, This week, This month, Last 30 days and Custom presets. It opens from Settings and from the Today, Week and Month top bars.
+- Verify:
+  - Typecheck and lint are clean.
+  - Unit tests 129/129; core coverage is 99.0 % lines and 94.4 % branches. `csv.test.ts` covers quoting, formula escaping and an emoji + CJK round trip.
+  - E2E 19/19. `export.spec.ts`:
+    - Seeds 14 days, adds a session named `=cmd|' /C calc'!A0` and a `Zoë 🚀 日本語のページ — Привет` title, then exports through the dialog after checking the presets.
+    - Re-opens the xlsx with exceljs: the 8 sheet names, headers, bold frozen header rows, and Sessions and Activity row counts equal to the DB counts.
+    - Each of the 14 Daily summary rows matches `daySummary` in minutes and in goal met.
+    - Every CSV parses back to the same rows. The formula name is escaped in CSV and kept verbatim in xlsx, and the non-Latin title survives in both.
+  - Screenshots viewed: export-dialog, export-settings and week (Export… in the top bar). Fixed: the presets wrapping onto two lines.
+  - **Manual, by the user:** open the xlsx in Excel and confirm it looks neat. Pending.
+- Deviations / decisions: **P41** (export details).

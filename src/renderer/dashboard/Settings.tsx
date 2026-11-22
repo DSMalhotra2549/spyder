@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { Settings as S } from '../../core/settings';
 import type { ScheduleRow, SettingsVM } from '../../preload/api';
 import { Btn, inputCls } from '../ui/controls';
+import { ExportButton } from './Export';
 import { Card, Segmented, Toggle, TopBar, useLoader } from './parts';
 
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
@@ -193,9 +194,7 @@ export function Settings() {
                 <Btn onClick={() => void window.spyder.openDataFolder()}>Open folder</Btn>
               </Field>
               <Field label="Export to Excel / CSV">
-                <Btn disabled title="Export arrives in the next update">
-                  Export…
-                </Btn>
+                <ExportButton />
               </Field>
             </Card>
           </div>

@@ -5,6 +5,7 @@ import { fmtHM } from '../../core/format';
 import { dayStartFromKey } from '../../core/schedule';
 import { monthDates, type DayLite, type RangeVM } from '../../core/trends';
 import { RangeStats } from './Week';
+import { ExportButton } from './Export';
 import { Card, Empty, TopBar, useLoader } from './parts';
 import { pct } from './stats';
 
@@ -14,7 +15,7 @@ export function Month({ date, onDate }: { date: string; onDate: (d: string) => v
   if (!vm) return <TopBar title="Month" />;
   return (
     <>
-      <TopBar title="Month" date={date} today={vm.today} onDate={onDate} unit="month" />
+      <TopBar title="Month" date={date} today={vm.today} onDate={onDate} unit="month" actions={<ExportButton preset="month" />} />
       <div className="flex-1 overflow-x-hidden overflow-y-auto p-6" data-testid="month">
         <RangeStats vm={vm} />
         <div className="mt-4 grid grid-cols-12 gap-4">

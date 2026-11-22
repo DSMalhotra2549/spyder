@@ -6,6 +6,7 @@ import type { ActivityCategory } from '../../core/categorize';
 import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
 import { Timeline } from './Timeline';
+import { ExportButton } from './Export';
 import { CAT_COLOR, CAT_LABEL, Card, CategoryChip, Empty, GoalRing, Stat, TopBar, useLoader } from './parts';
 import { appTexts, statTexts } from './stats';
 
@@ -16,7 +17,7 @@ export function Today({ date, onDate }: { date?: string; onDate: (d: string) => 
   if (!vm) return <TopBar title="Today" />;
   return (
     <>
-      <TopBar title="Today" date={vm.date} today={vm.today} onDate={onDate} />
+      <TopBar title="Today" date={vm.date} today={vm.today} onDate={onDate} actions={<ExportButton />} />
       <TodayBody vm={vm} reload={reload} />
     </>
   );
