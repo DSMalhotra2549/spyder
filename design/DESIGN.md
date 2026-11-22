@@ -54,7 +54,7 @@ The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel
 The bar is the only widget (P50; Full and Compact were removed). The BrowserWindow is transparent: the bar plus an 8 px margin on every side, **528 × 50**. It is display-only; Start, Stop and the block length live in the dashboard sidebar (P59).
 
 ### Bar (P43, P49, P50, P63) — 512 × 34, sharp corners
-Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring, no rounded corners. Window 528 × 50. No hover card and no panel. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
+Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a flat status strip, no title, no ring, no rounded corners. Window 528 × 50. No hover card and no panel. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
 ```
 ┌──┬───────────────────────────────────────────────────────────────┬───┬──┐
 │▦▦│   04:32 BLOCK        0 min PRODUCTIVE    14% PERCENT            │ – │⋮⋮│
@@ -72,7 +72,7 @@ Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`):
 
 ## 3. Prompt window (`#/prompt`)
 
-420 px wide, height = content (main resizes to `document.body.scrollHeight`). Fill `surface`, border 1 px `border-strong`, radius card, `shadow-float`, 20 px padding. Styled like the reference popover card (`rize-autotag-example.png`). It pops on top when it appears and again whenever another block ends (P60); it never closes on Esc.
+420 px wide, height = content (main resizes to `document.body.scrollHeight`). Fill `surface`, border 1 px `border-strong`, radius card, `shadow-float`, 20 px padding. Styled like the reference popover card (`rize-autotag-example.png` in `design/reference/INDEX.md`). It pops on top when it appears and again whenever another block ends (P60); it never closes on Esc.
 
 ### Accounting (P60)
 ```

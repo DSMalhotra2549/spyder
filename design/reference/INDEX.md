@@ -1,8 +1,10 @@
 # Design reference index
 
-Downloaded 2026-11-21 from rize.io (public marketing / changelog assets). Used for **look and feel only**; no Rize logo, name or brand marks are reused in Spyder (P23).
+On 2026-11-21 these images were downloaded from rize.io (public marketing / changelog assets) and studied for **look and feel only**; no Rize logo, name or brand marks are reused in Spyder (P23).
 
-| File | Source | What it shows |
+**The images are no longer in the repository.** They are Rize's copyrighted material, so they were removed before the public release. The descriptions below are what remains; the sources are listed so you can look at the originals yourself.
+
+| Former file | Source | What it shows |
 |---|---|---|
 | `rize-widget_meeting_dark.png` | rize-io S3 `assets/blog/widget_meeting_dark.png` (changelog "Rize v3.0.149: A New Desktop Widget") | **The desktop widget.** A states sheet of the floating pill in dark mode. Pill ≈ 140–170 × 36 px, near-black fill, 1 px dark border, fully rounded. Left: big bold tabular timer (`54:00`), then a tiny two-line all-caps caption (`TIME SINCE / LAST BREAK`, `FOCUS TIME / REMAINING`, `BREAK TIME / REMAINING`, `MEETING TIME / ELAPSED`, `TRACKING / STATUS`). Right: a ~22 px purple gradient orb (Rize's agent avatar — **brand mark, not copied**). Session progress is drawn as a coloured stroke running along the pill border (partially wrapping the right end). State colours: default white text/white stroke; *past break threshold* = orange text + full orange border; *focus* = cyan text + cyan stroke + small cyan square at left; *break* = blue (#5B7FE0-ish) text/stroke/square; *meeting* = pink-lilac; *paused/syncing/locked* = grey word instead of timer. A second column shows an "upcoming meeting" card attached to the left of the pill (× button, "In 10 min · 7:04 AM", bold title, `Join` button), with long titles ellipsized. |
 | `rize-october_focus_hero.png` | rize-io S3 `assets/blog/october_focus_hero.png` | **Focus timer page (light theme).** Large cyan ring (~330 px) with `44:54` / "Focus time remaining" centred; round icon buttons below with a filled purple stop button. Right panel: "Today's focus 3 hr 18 min" big stat, a weekly bar chart (cyan bars, light gridlines), "Top distractions", and "Apps & websites" ranked list `1 linear.app · 20% · 52 min` where each row has a faint bar behind it proportional to share. Bottom status bar: `End Focus` split button. Left sidebar with grouped nav (AGENT / TRACK / ANALYZE / WORK small-caps headings). |
@@ -12,3 +14,5 @@ Downloaded 2026-11-21 from rize.io (public marketing / changelog assets). Used f
 | `rize-autotag-example.png` | webflow CDN `autotag_example5.avif` (converted) | Timeline with a **popover card**: dark surface, 8 px radius, bold title, muted subtitle, body text, and three pill-shaped secondary buttons (`Accept ✓`, `Reject ×`, `Choose Project`). Good model for Spyder's prompt window. (The content is an AI suggestion — Spyder has no AI; only the card styling is used.) |
 
 **Not found:** a high-resolution screenshot of the *expanded* widget. The expanded state is designed from the pill style plus the popover card style above.
+
+`rize floating widget.jpeg` was a small screenshot of the real Rize widget. What Spyder's bar takes from it is described in `design/DESIGN.md` §2.
