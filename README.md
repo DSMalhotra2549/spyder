@@ -60,6 +60,13 @@ npm run dev            # starts the app with hot reload
 
 The installer is **not code-signed**, so Windows SmartScreen warns about it ("Windows protected your PC"). Choose **More info → Run anyway**, or build it yourself from source.
 
+> The first `npm run dist` downloads Electron (~110 MB) and a few packaging tools from GitHub releases. On networks where GitHub release downloads crawl, it can fail with `Timeout awaiting 'request' for 600000ms`. Point both downloads at a mirror and run it again. Each file is still checked against its known checksum.
+> ```powershell
+> $env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
+> $env:ELECTRON_BUILDER_BINARIES_MIRROR = "https://npmmirror.com/mirrors/electron-builder-binaries/"
+> npm run dist
+> ```
+
 **Shortcuts:** `Ctrl+Alt+S` shows or hides the widget. The tray icon has everything else.
 
 ## Commands
