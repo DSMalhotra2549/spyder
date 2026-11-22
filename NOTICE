@@ -1,0 +1,14 @@
+Spyder
+Copyright 2026 Rishabh
+
+This product adapts Windows activity-capture techniques (foreground window
+sampling, browser URL reading through UI Automation, Firefox window-title
+parsing) from OpenTime:
+
+  OpenTime — https://github.com/ElectricGamer61/OpenTime
+  Licensed under the Apache License, Version 2.0
+  https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the Apache License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.

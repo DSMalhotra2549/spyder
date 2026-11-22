@@ -6,6 +6,7 @@ import { cleanSettings, type ScheduleRow } from '../core/settings';
 import type { DayOverride } from '../core/schedule';
 import type { TitlePattern } from '../core/titlePatterns';
 import type { Answer, AwayClassification, EngineError, Kind, StartInput } from '../core/types';
+import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
 import { exportRange } from './export';
@@ -35,6 +36,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     saveSettings(ctx.db, partial);
     ctx.settings = loadSettings(ctx.db);
     if ('hotkey' in partial) registerHotkey(ctx);
+    if ('autostart' in partial) applyAutostart(ctx);
     if ('widgetStyle' in partial) setWidgetLayout(ctx);
     if ('goalSec' in partial || 'appPercentScope' in partial) host.reloadRules();
     host.push();

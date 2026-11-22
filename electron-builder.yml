@@ -1,0 +1,28 @@
+# Packaging (plan Phase 8). `npm run dist` → release/Spyder Setup <version>.exe
+appId: com.spyder.app
+productName: Spyder
+copyright: Copyright © 2026 Rishabh
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+asarUnpack:
+  - '**/*.node'
+extraResources:
+  - from: resources/UrlHelper.exe
+    to: UrlHelper.exe
+  - from: resources/icon.png
+    to: icon.png
+  - from: NOTICE
+    to: NOTICE
+win:
+  target: nsis
+  icon: resources/icon.png
+nsis:
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh

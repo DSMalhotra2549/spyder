@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClock, parseLocalIso } from '../core/clock';
 import { Tracker } from './capture/tracker';
+import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
 import { Db } from './db/db';
 import { migrate } from './db/migrate';
@@ -81,6 +82,7 @@ async function boot(): Promise<void> {
   await app.whenReady();
   registerIpc(ctx, host, { titlePatternsChanged: () => tracker?.firefox.reload() });
   registerDebug(ctx);
+  applyAutostart(ctx);
   addDebugState('host', () => host.debugState());
   addDebugHook('injectActivity', (s: ActivitySample) => host.feedSample(s));
   addDebugHook('setScale', (scale: number) => ctx.clock.setScale(scale));

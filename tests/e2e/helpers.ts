@@ -41,6 +41,13 @@ export async function windowByHash(app: ElectronApplication, hash: string, timeo
   throw new Error(`window #/${hash} not found; have: ${app.windows().map((p) => p.url()).join(', ')}`);
 }
 
+/** SPYDER_EXE=<installed Spyder.exe> runs the same specs against the packaged app (plan Phase 8). */
+export const INSTALLED_EXE = process.env.SPYDER_EXE;
+export const exeLaunch = (env: Record<string, string>) =>
+  INSTALLED_EXE
+    ? { executablePath: INSTALLED_EXE, args: [], env, cwd: ROOT }
+    : { args: [join(ROOT, 'out/main/index.js')], env, cwd: ROOT };
+
 export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
   const dataDir = opts.dataDir ?? freshDataDir();
   const env: Record<string, string> = {
@@ -55,7 +62,7 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
   };
   delete env.ELECTRON_RENDERER_URL;
   delete env.ELECTRON_RUN_AS_NODE;
-  const app = await electron.launch({ args: [join(ROOT, 'out/main/index.js')], env, cwd: ROOT });
+  const app = await electron.launch(exeLaunch(env));
   const widget = await windowByHash(app, 'widget');
   const dashboard = await windowByHash(app, 'dashboard');
   const prompt = await windowByHash(app, 'prompt');

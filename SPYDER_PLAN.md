@@ -726,3 +726,15 @@ _(append one entry per phase: date · phase · verification results with numbers
   - Screenshots viewed: export-dialog, export-settings and week (Export… in the top bar). Fixed: the presets wrapping onto two lines.
   - **Manual, by the user:** opened the sample xlsx in Excel — "yep it's fine".
 - Deviations / decisions: **P41** (export details).
+
+**2026-11-22 · Phase 8 · built; waiting for the user's one-workday acceptance.**
+- Build: `electron-builder.yml` (appId `com.spyder.app`, productName Spyder, NSIS one-click per-user, icon from `resources/icon.png`, `extraResources` UrlHelper.exe + icon.png + NOTICE, `asarUnpack **/*.node`), `build/installer.nsh` (uninstall removes the Run entry), `NOTICE` (OpenTime, Apache-2.0), `src/main/autostart.ts` (`setLoginItemSettings` at launch and on settings change, installed app only).
+- Verify:
+  - `npm run dist` → `release/Spyder Setup 0.1.0.exe` (131 MB). The x-win `.node` is unpacked from the asar; UrlHelper.exe, icon.png and NOTICE are in `resources/`.
+  - Silent install (`/S`) → `%LOCALAPPDATA%\Programs\spyder\Spyder.exe`, Start-menu shortcut, uninstall entry.
+  - `installed.spec.ts` (runs only with `SPYDER_EXE`): launched without `SPYDER_DEBUG` → `app.isPackaged`, the widget window is shown, `window.spyder.debug` is undefined, and `HKCU\…\Run\Spyder` = the installed exe ✓. Screenshot `installed-widget.png` viewed ("Day off" on a Sunday).
+  - The smoke e2e against the installed exe (`SPYDER_EXE=… playwright test smoke`): 5/5 ✓.
+  - Silent uninstall → the exe, uninstall entry and Run entry are gone; `%APPDATA%\Spyder\spyder.db` is still there ✓. Reinstalled afterwards for the acceptance day.
+  - Typecheck and lint clean. Unit 129/129 (core 99.0 % lines, 94.4 % branches). E2E 19/19 (+ `installed.spec.ts` skipped without `SPYDER_EXE`).
+- Deviations / decisions: **P42** (autostart only when installed; uninstall drops the Run entry; debug hooks still opt-in via `SPYDER_DEBUG=1`). The app is unsigned, so SmartScreen may warn on first run.
+- **User acceptance (one real workday):** pending.
