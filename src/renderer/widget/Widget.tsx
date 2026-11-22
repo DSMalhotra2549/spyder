@@ -384,8 +384,15 @@ function Bar({ w }: { w: WidgetPayload }) {
         onClick={() => void window.spyder.openDashboard('today')}
         className="no-drag flex w-8 shrink-0 cursor-pointer items-center justify-center border-r border-border-strong bg-surface-2/60 text-muted outline-none hover:text-text"
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
-          {[0, 7].flatMap((x) => [0, 7].map((y) => <rect key={`${x}${y}`} x={x} y={y} width="5" height="5" rx="1" fill="currentColor" />))}
+        <svg data-testid="home-icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+          <path
+            d="M2 6.5 7 2l5 4.5M3.5 5.5V12h2.75V8.75h1.5V12h2.75V5.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
       <div className="flex min-w-0 flex-1 items-center justify-around px-1">
