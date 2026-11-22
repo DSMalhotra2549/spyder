@@ -9,7 +9,7 @@ Each one owns its own subject. Update the owner, and point to it from elsewhere.
 - **`CONTEXT.md`**: the glossary. Use its terms exactly in code, UI copy and commits. Read it first.
 - **`docs/product-decisions.md`**: every settled behavior decision (P1…), with the reasons. Read it before changing behavior. Ask the user about anything it doesn't cover, then record the answer as the next P number.
 - **`docs/adr/`**: architectural decisions. Read the relevant ADR before touching storage, capture, the stack or the engine's shape. Record new hard-to-reverse choices as the next ADR.
-- **`SPYDER_PLAN.md`**: the original spec. Use it for the engine rules (§7, E1–E19), nudge (§8), capture (§9), aggregation (§10), IPC (§11) and UI behavior (§12), and its progress log (§14) for what was verified and how. A later P decision overrides the plan.
+- **`SPYDER_PLAN.md`**: the original spec. Use it for nudge (§8), capture (§9), aggregation (§10), IPC (§11) and UI behavior (§12), and its progress log (§14) for what was verified and how. A later P decision overrides the plan. Its session engine (§7, E1–E19) is history: the block engine follows P58–P65 and ADR-0011.
 - **`design/DESIGN.md`**: visual spec (tokens, widget anatomy, pages). Follow it for any UI change.
 
 ## Code map
@@ -26,7 +26,7 @@ Each one owns its own subject. Update the owner, and point to it from elsewhere.
 - `src/core/` imports nothing from Electron, `node:fs` or `node:sqlite`, and gets time only from `ctx.now` (ADR-0006, enforced by ESLint).
 - Activity rows store raw facts; categories and Firefox sites are computed at read time (ADR-0005, P39).
 - A block is a row in `sessions` (kind `open` or `break`; `name` NULL = not accounted for yet) and its time is the sum of its segments. The tables keep their old names (ADR-0011).
-- Prompt wording comes from `src/core/promptView.ts`, which follows plan §12 exactly.
+- Prompt wording comes from `src/core/promptView.ts`, which follows P59 and P60 exactly.
 - No AI or LLM features of any kind (ADR-0009).
 - TypeScript strict. Any `any` carries a `// reason:` comment.
 

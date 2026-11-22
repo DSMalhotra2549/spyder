@@ -21,15 +21,15 @@ The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel
 | `--color-text` | `#ECECEF` | `#18181B` | primary text |
 | `--color-muted` | `#8F8F99` | `#6C6C77` | secondary text, labels |
 | `--color-faint` | `#5E5E68` | `#A3A3AD` | tertiary text, axis labels, untracked |
-| `--color-accent` | `#7B61FF` | `#6A4FF0` | primary buttons, selection, named sessions |
+| `--color-accent` | `#7B61FF` | `#6A4FF0` | primary buttons, selection, answered blocks |
 | `--color-on-accent` | `#FFFFFF` | `#FFFFFF` | text on accent |
-| `--color-red` | `#EF5157` | `#DC3A40` | overtime, distraction, destructive |
+| `--color-red` | `#EF5157` | `#DC3A40` | distraction, destructive |
 | `--color-orange` | `#F2A33A` | `#C97A10` | warnings |
 | `--color-green` | `#3FB27F` | `#1F9D63` | goal met |
-| `--color-planned` / `timed` / `open` / `break` / `away` | | | session states (see `styles.css`) |
+| `--color-open` / `break` | | | block states (see `styles.css`) |
+| `--color-away` | | | start reminder, Week chart |
+| `--color-planned` / `timed` | | | spare series colours (Month KPI lines) |
 | `--color-productive` / `neutral` / `distracting` / `uncategorized` | | | activity categories |
-
-Project colours (user-picked): `#7B61FF #22D3EE #2DD4BF #F59E0B #E3A6F2 #5B7FE0 #F472B6 #A3E635`.
 
 ### Type
 - Family: `"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif` (ships with Windows 11; no web-font download). All numbers use `font-variant-numeric: tabular-nums`.
@@ -131,7 +131,7 @@ Toggles: 32 × 18 track, `surface-2` off / `accent` on, white 14 px knob.
 ## 5. Charts (Recharts + custom SVG)
 - Background transparent on the card; gridlines `border` 1 px, horizontal only, dashed `3 3`. Axis text `11px muted`, no axis lines, ticks off.
 - Bars radius `[3,3,0,0]` on the top stack only, max width 28. Lines 2 px, no dots except on hover (4 px). Donut: inner radius 62 %, padding angle 1, centre label = total `h:mm` (`stat` 20) + `section` caption.
-- Colours: categories use the category tokens; kinds use session-state tokens; anything else uses the categorical series order.
+- Colours: categories use the category tokens; breaks and away use their block-state tokens; KPI lines use `planned`.
 - Tooltip: `surface` card, 1 px `border`, `shadow-pop`, radius control, 12 px, values tabular.
 - Durations displayed as `h:mm` in tables, `2h 15m` in prose and prompts, `38m` under an hour.
 
