@@ -103,12 +103,12 @@ Closest to Rize's widget (`rize-widget_meeting_dark.png`). Window: collapsed 192
 Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring, no rounded corners. Window 484 × 50. No hover card and no panel. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
 ```
 ┌──────────────────────────────────────────────────────────────┬───┬──┐
-│  24:59 Writing…      0 min PRODUCTIVE       14% PERCENT        │ – │⋮⋮│
-│                            TODAY                OF DAY         │   │  │
+│  24:59 Writing weekly 0 min PRODUCTIVE       14% PERCENT        │ – │⋮⋮│
+│        report               TODAY                OF DAY         │   │  │
 └──────────────────────────────────────────────────────────────┴───┴──┘
 ```
-- Three cells spread across the bar (`justify-around`), each a 19/700 tabular number + a label. **Clicking a cell (number or label) opens the dashboard on Today.**
-  1. **Session timer.** Label: the session name in 13/600 on one line, whole if it fits 12 characters, else the first word + `…` (`barLabel`). The label shows in every working state, including distracted, overtime and paused (the paused session's name). States show by colour only: `text`/`muted` normally, `red` when overtime or distracted, `break` when paused. An unlabelled session keeps the two-line `caps` caption as Compact (`SESSION / ELAPSED`, `DISTRACTED / youtube.com`, …). `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`. The prompt dot sits at its top-right.
+- Three cells, each centred in a fixed slot (P47): timer 160 px, then productive and percent split the rest 1.25 : 1, so the whitespace around them stays even. Each is a 19/700 tabular number + a label. **Clicking a cell (number or label) opens the dashboard on Today**; the slot around it is drag area.
+  1. **Session timer.** Label: the session name in 12/600, 14 px leading, wrapping onto two lines like the caps captions (about 12 characters per line), with `…` only past the second line (`line-clamp-2`); the full name is in the tooltip. The label shows in every working state, including distracted, overtime and paused (the paused session's name). States show by colour only: `text`/`muted` normally, `red` when overtime or distracted, `break` when paused. An unlabelled session keeps the two-line `caps` caption as Compact (`SESSION / ELAPSED`, `DISTRACTED / youtube.com`, …). `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`. The prompt dot sits at its top-right.
   2. **Productive today** in `accent` (`23 min`, `2h 14m` from an hour); `green` once the goal is met.
   3. **Percent of day** (`14%`, `–` on a day off).
 - **Minimize** (32 px, left border, `–`): hides the bar; the tray or the hotkey brings it back. Not remembered across launches.

@@ -156,6 +156,9 @@ test('4. suspend 72 min → away prompt → Break', async () => {
   await shot(s.prompt, 'prompt-away');
   await s.prompt.getByRole('button', { name: 'Break', exact: true }).click();
   await expect.poll(() => promptVisible(s!)).toBe(false);
+  // No check-in right after: the 72 min away don't count toward it (P48).
+  await s.prompt.waitForTimeout(1500);
+  expect((await host(s)).engine.prompts).toEqual([]);
   const rows = s.db().prepare('SELECT classification, reason, end_ms - start_ms AS ms FROM away_periods').all();
   expect(rows).toHaveLength(1);
   expect(rows[0]).toMatchObject({ classification: 'break', reason: 'suspend' });
@@ -176,8 +179,9 @@ test('5. killed app → relaunch 40 min later → recovery prompt', async () => 
   expect(await promptVisible(s)).toBe(true);
   await shot(s.prompt, 'prompt-recovery');
   await s.prompt.getByRole('button', { name: 'Not working' }).click();
-  // The next queued prompt (a check-in: 40 min since the last one) replaces it.
-  await expect(title(s.prompt)).not.toHaveText(/wasn't running/);
+  // The 40 min Spyder wasn't running don't count toward a check-in (P48), so nothing follows.
+  await expect.poll(() => promptVisible(s!)).toBe(false);
+  expect((await host(s)).engine.prompts).toEqual([]);
   expect(s.db().prepare('SELECT reason, classification FROM away_periods').get()).toMatchObject({
     reason: 'not_running',
     classification: 'not_working',
@@ -310,14 +314,28 @@ test('7c. bar style (default): label, sharp corners, cells → Today, minimize, 
   await expect(s.widget.getByTestId('panel')).toHaveCount(0);
   expect((await widgetBounds(s)).height).toBe(50);
 
-  // A label replaces the caption: whole if it fits, else the first word + …
+  // A label replaces the caption and wraps onto two lines; … only past the second (P47).
   const id = (await host(s)).engine.current!.id;
+  const label = s.widget.getByTestId('bar-label');
+  const lines = () => label.evaluate((el) => Math.round(el.clientHeight / 14));
+  const clipped = () => label.evaluate((el) => el.scrollHeight > el.clientHeight + 2); // 1 px of descender rounding
   await s.widget.evaluate((sid) => window.spyder.label(sid, 'Code review', null), id);
-  await expect(s.widget.getByTestId('bar-label')).toHaveText('Code review');
+  await expect(label).toHaveText('Code review');
   await s.widget.evaluate((sid) => window.spyder.label(sid, 'Writing weekly report', null), id);
-  await expect(s.widget.getByTestId('bar-label')).toHaveText('Writing…');
+  await expect(label).toHaveText('Writing weekly report');
+  expect(await lines()).toBe(2);
+  expect(await clipped()).toBe(false);
   await expect(bar).not.toContainText(/elapsed/i);
   await shot(s.widget, 'widget-bar-labelled');
+  await s.widget.evaluate((sid) => window.spyder.label(sid, 'Quarterly planning with the whole design team', null), id);
+  await expect.poll(lines).toBe(2);
+  expect(await clipped()).toBe(true);
+  await shot(s.widget, 'widget-bar-label-clamped');
+  // Cells keep their fixed slots (P43 spacing): timer slot 160 px, the rest split 1.25 : 1.
+  const slot = (tid: string) => s!.widget.getByTestId(tid).evaluate((el) => el.parentElement!.getBoundingClientRect().width);
+  expect(await slot('pill-body')).toBe(160);
+  expect(Math.round((await slot('bar-productive')) / (await slot('bar-day')) * 100)).toBe(125);
+  await s.widget.evaluate((sid) => window.spyder.label(sid, 'Writing weekly report', null), id);
 
   // Distracted: still the label, now red.
   const yt = { exe: 'chrome.exe', appName: 'Google Chrome', domain: 'youtube.com', title: 'Lofi - YouTube', browser: 'chrome' as const };
@@ -326,7 +344,7 @@ test('7c. bar style (default): label, sharp corners, cells → Today, minimize, 
   await s.debug.injectActivity(yt);
   await expect(s.widget.getByTestId('timer')).toHaveClass(/text-red/);
   await expect(s.widget.getByTestId('bar-label')).toHaveClass(/text-red/);
-  await expect(s.widget.getByTestId('bar-label')).toHaveText('Writing…');
+  await expect(s.widget.getByTestId('bar-label')).toHaveText('Writing weekly report');
   await s.widget.waitForTimeout(2200);
   await shot(s.widget, 'widget-bar-distracted');
   await s.debug.injectActivity({ ...yt, exe: 'code.exe', appName: 'VS Code', domain: null, title: 'x', browser: null });
@@ -337,7 +355,7 @@ test('7c. bar style (default): label, sharp corners, cells → Today, minimize, 
   await shot(d, 'sidebar-controls');
   await ctl.getByRole('button', { name: 'Pause' }).click();
   await expect(s.widget.getByTestId('timer')).toHaveClass(/text-break/);
-  await expect(s.widget.getByTestId('bar-label')).toHaveText('Writing…');
+  await expect(s.widget.getByTestId('bar-label')).toHaveText('Writing weekly report');
   await expect(s.widget.getByTestId('bar-label')).toHaveClass(/text-break/);
   await expect(ctl.getByRole('button')).toHaveText(['Resume', 'Done']);
   await shot(s.widget, 'widget-bar-paused');

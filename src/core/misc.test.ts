@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { T } from './engine.testkit';
-import { barLabel, fmtClock, fmtDuration, fmtHM, fmtTime } from './format';
+import { fmtClock, fmtDuration, fmtHM, fmtTime } from './format';
 import { initialNudge, nudgeMessage, stepNudge, type NudgeSample, type NudgeState } from './nudge';
 import {
   addDays,
@@ -65,12 +65,6 @@ describe('schedule', () => {
 
 describe('format', () => {
   it('clock, h:mm, durations, time', () => {
-    expect(barLabel('Emails')).toBe('Emails');
-    expect(barLabel('Code review')).toBe('Code review'); // 11 chars fits
-    expect(barLabel('Writing weekly report')).toBe('Writing…');
-    expect(barLabel('  Inbox   zero  ')).toBe('Inbox zero');
-    expect(barLabel('Internationalisation work')).toBe('Internation…');
-    expect(barLabel('Supercalifragilistic')).toBe('Supercalifr…');
     expect(fmtClock(59)).toBe('00:59');
     expect(fmtClock(30 * 60)).toBe('30:00');
     expect(fmtClock(3723)).toBe('1:02:03');

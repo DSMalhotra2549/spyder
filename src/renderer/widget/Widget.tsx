@@ -1,7 +1,7 @@
 // Floating widget (plan §12, design/DESIGN.md §2): Bar, Full and Compact styles (P31, P43, P46), expanded panel, hover card.
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
-import { barLabel, fmtClock, fmtDuration, fmtHM } from '../../core/format';
+import { fmtClock, fmtDuration, fmtHM } from '../../core/format';
 import type { Kind } from '../../core/types';
 import type { WidgetPayload } from '../../preload/api';
 import { Btn } from '../ui/controls';
@@ -366,7 +366,8 @@ function Bar({ w }: { w: WidgetPayload }) {
   const red = w.isOvertime || w.isDistracted;
   const met = w.productiveTodaySec >= w.goalSec;
   const openToday = () => void window.spyder.openDashboard('today');
-  const cell = 'no-drag flex cursor-pointer items-center gap-2 px-1 outline-none';
+  // Fixed slots (P43 spacing): the slot is drag area, only the content inside is the click target.
+  const cell = 'no-drag flex min-w-0 cursor-pointer items-center gap-2 outline-none';
   return (
     <div
       data-testid="pill"
@@ -377,7 +378,7 @@ function Bar({ w }: { w: WidgetPayload }) {
         w.isDistracted ? 'distracted bg-[color-mix(in_srgb,#f04452_14%,var(--color-surface))]' : 'bg-surface',
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center justify-around px-1">
+      <div className="flex w-[160px] shrink-0 items-center justify-center px-2">
         <button type="button" data-testid="pill-body" onClick={openToday} className={clsx(cell, 'relative')}>
           {off || away ? (
             <span className="text-[15px] font-semibold whitespace-nowrap text-muted">{off ? 'Off hours' : 'Away'}</span>
@@ -397,11 +398,11 @@ function Bar({ w }: { w: WidgetPayload }) {
               data-testid="bar-label"
               title={w.label}
               className={clsx(
-                'max-w-[104px] truncate text-[13px] font-semibold whitespace-nowrap',
+                'line-clamp-2 min-w-0 text-left text-[12px] leading-[14px] font-semibold [overflow-wrap:anywhere]',
                 red ? 'text-red' : w.isPaused ? 'text-break' : 'text-muted',
               )}
             >
-              {barLabel(w.label)}
+              {w.label}
             </span>
           ) : (
             <Caps lines={barCaption(w)} className={red ? 'text-red' : undefined} />
@@ -410,12 +411,16 @@ function Bar({ w }: { w: WidgetPayload }) {
             <span data-testid="prompt-dot" className="absolute top-0 -right-1 h-1.5 w-1.5 rounded-full bg-orange" />
           )}
         </button>
+      </div>
+      <div className="flex flex-[1.25] items-center justify-center">
         <button type="button" data-testid="bar-productive" onClick={openToday} className={cell}>
           <span className={clsx('tabular text-[19px] leading-none font-bold whitespace-nowrap', met ? 'text-green' : 'text-accent')}>
             {fmtBarMin(w.productiveTodaySec)}
           </span>
           <Caps lines={['Productive', 'today']} />
         </button>
+      </div>
+      <div className="flex flex-1 items-center justify-center">
         <button type="button" data-testid="bar-day" onClick={openToday} className={cell}>
           <span className="tabular text-[19px] leading-none font-bold whitespace-nowrap">
             {w.isDayOff ? '–' : `${Math.round(w.workdayPct)}%`}

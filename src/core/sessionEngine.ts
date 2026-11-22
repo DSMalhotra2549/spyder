@@ -484,8 +484,11 @@ function awayEnd(r: Run): void {
       st.mode = 'working';
     }
   } else {
-    if (interrupted) r.resume(interrupted);
-    else r.startOpen();
+    if (interrupted) {
+      // Time away doesn't count toward the next check-in (P48).
+      interrupted.lastCheckInMs += now - away.startMs;
+      r.resume(interrupted);
+    } else r.startOpen();
     st.mode = 'working';
   }
   r.heartbeat();

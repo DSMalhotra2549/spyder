@@ -325,6 +325,18 @@ describe('session engine — plan §13 Phase 2 scenarios', () => {
     expect(s.view().promptCount).toBe(2);
   });
 
+  it('time away does not count toward the next check-in (P48)', () => {
+    const s = bootOpen(); // 11:00, check-in due 11:30
+    s.send({ type: 'AWAY_BEGIN', atMs: T(11, 10), reason: 'suspend' });
+    s.send({ type: 'AWAY_END' }, T(12, 22)); // 72 min away
+    s.tick(T(12, 22, 1));
+    expect(s.state.prompts.map((p) => p.type)).toEqual(['away']);
+    s.tick(T(12, 41, 59)); // 10 + 19 min 59 s of work
+    expect(s.state.prompts.map((p) => p.type)).toEqual(['away']);
+    s.tick(T(12, 42)); // 30 min of work since the last check-in
+    expect(s.state.prompts.map((p) => p.type)).toEqual(['away', 'checkIn']);
+  });
+
   it('16. an open session is capped at 24 h', () => {
     const s = new Sim();
     s.windowFn = () => ({ startMs: 0, endMs: Number.MAX_SAFE_INTEGER });
