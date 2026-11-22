@@ -6,6 +6,12 @@ Most time trackers quietly log what you did. Spyder is stricter: you press **Sta
 
 No accounts, no cloud and no AI. Everything stays in a local SQLite file on your machine.
 
+![The floating widget: time in the current block, productive time today and percent of the workday](docs/images/widget.png)
+
+![The Today page: productive time against the goal, and the day's blocks with their answers](docs/images/today.png)
+
+<sub>Screenshots show made-up sample data.</sub>
+
 ## What it does
 
 - **The block loop.** Press Start in the dashboard with a block length (5–180 minutes). When a block ends, the next one starts at once and a prompt asks what the last one was: type it, press **Break**, or **Same as last**. Missed a few? They're all in one prompt.
@@ -20,6 +26,19 @@ No accounts, no cloud and no AI. Everything stays in a local SQLite file on your
   - **Month:** a heatmap and trend lines.
 - **End-of-day review.** When work hours end, you answer any blocks still not accounted for, write *Today's wins* and *How I'll improve*, and record your own daily numbers (KPIs). Meeting your goal on consecutive workdays builds a streak.
 - **Export.** Any date range goes out to one `.xlsx` workbook plus matching CSVs.
+
+## Privacy
+
+Spyder makes no network requests. Nothing leaves your machine unless you export it yourself.
+
+What it stores, in `%APPDATA%\Spyder\spyder.db`:
+
+- **The foreground app every 2 seconds**: its exe name, app name and **window title**. Window titles often contain document names, email subjects and page titles.
+- **Websites**: for Chrome and Edge, the site's domain from the address bar (not the full URL). For Firefox, the page title and site, parsed from the window title.
+- **Private windows**: Firefox private windows are stored as *Private browsing*, with no title or site. **Chrome Incognito and Edge InPrivate windows can't be reliably told apart from normal ones, so they are recorded like any other window** ([ADR-0007](docs/adr/0007-browser-site-detection.md)).
+- What you type: block answers, review notes and KPI values.
+
+Nothing is recorded while you're away (idle, locked or asleep). Spyder starts with Windows (turn it off in Settings). Uninstalling keeps your data. To delete it, quit Spyder and delete the `%APPDATA%\Spyder` folder.
 
 ## Getting started
 
@@ -38,6 +57,8 @@ npm run dev            # starts the app with hot reload
 
 **Build an installer:** `npm run dist` writes `release/Spyder Setup <version>.exe`. This is a per-user install that starts with Windows. Uninstalling keeps your data.
 
+The installer is **not code-signed**, so Windows SmartScreen warns about it ("Windows protected your PC"). Choose **More info → Run anyway**, or build it yourself from source.
+
 **Shortcuts:** `Ctrl+Alt+S` shows or hides the widget. The tray icon has everything else.
 
 ## Commands
@@ -51,7 +72,7 @@ npm run dev            # starts the app with hot reload
 | `npm run seed` | Fill `SPYDER_DATA_DIR` with realistic sample days |
 | `npm run db:dump` | Print what's in the database |
 | `npm run dist` | Build the Windows installer |
-| `npm run install:local` | Build the installer, install it over the local app and restart it (runs after every commit on `main`) |
+| `npm run install:local` | **Maintainer only.** Builds the installer, force-quits the running Spyder, installs over it silently and restarts it. The opt-in post-commit hook (`git config core.hooksPath .githooks`) runs it after every commit on `main`; contributors shouldn't turn that on |
 
 ## How it's built
 
@@ -76,6 +97,10 @@ The core logic never reads the real clock. Time is passed in, so tests can run a
 | [`SPYDER_PLAN.md`](SPYDER_PLAN.md) | The full original spec and the build log |
 | [`design/DESIGN.md`](design/DESIGN.md) | Visual design: colors, type, widget and page layouts |
 | [`AGENTS.md`](AGENTS.md) | Orientation for AI coding agents working on the repo |
+
+## Contributing and security
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). To report a vulnerability, see [`SECURITY.md`](SECURITY.md); please don't open a public issue.
 
 ## Credits
 

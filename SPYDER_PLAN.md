@@ -434,7 +434,7 @@ Each phase lists **Build**, **Verify** (everything must pass) and **Commit**. Sh
 - Default `now`: `'2026-11-24T11:00:00'` (a Tuesday, inside work hours).
 
 ### Phase 0: Setup and design reference
-**Already done:** folder moved to `C:\Users\rexon\spyder`, `git init`, plan committed, ADRs, `docs/product-decisions.md`, `CONTEXT.md`.
+**Already done:** folder moved out of OneDrive (ADR-0010), `git init`, plan committed, ADRs, `docs/product-decisions.md`, `CONTEXT.md`.
 
 **Build:**
 - `.gitignore` (node_modules, out, dist, release, coverage, tests/e2e/__shots__, *.db, *.db-wal, *.db-shm, resources/UrlHelper.exe) and `.gitattributes`.
