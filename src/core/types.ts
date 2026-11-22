@@ -108,7 +108,13 @@ export type EngineEvent =
   | { type: 'AWAY_BEGIN'; atMs: number; reason: AwayReason }
   | { type: 'AWAY_END' }
   | { type: 'KEEP_WORKING' }
-  | { type: 'SCHEDULE_CHANGED' };
+  | { type: 'SCHEDULE_CHANGED' }
+  /** E20 (P53): the session was deleted. */
+  | { type: 'DROP'; sessionId: string }
+  /** E21 (P54): `removedIds` were merged into `sessionId`, whose closed time grew by `addSec` (negative on undo). */
+  | { type: 'ABSORB'; sessionId: string; addSec: number; removedIds: string[] }
+  /** E22: undo of deleting the running session; `active` takes over the fresh open session `replacesId`. */
+  | { type: 'RESTORE'; active: Active; replacesId: string };
 
 export interface SessionInsertRow {
   id: string;

@@ -15,7 +15,9 @@ import { registerHotkey } from './hotkey';
 import * as report from './report';
 import { dateKey } from '../core/schedule';
 import { loadSettings, saveSettings } from './settings';
-import { hideWidget, openDashboard, resizePrompt, setWidgetLayout, showWidget, type WidgetLayout } from './windows';
+import { SessionEditor } from './sessionEdit';
+import { applyTheme } from './theme';
+import { hideWidget, openDashboard, resizePrompt, showWidget } from './windows';
 
 const documentsDir = () => app.getPath('documents');
 const result = (err: EngineError | null) => err ?? { ok: true as const };
@@ -37,7 +39,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     ctx.settings = loadSettings(ctx.db);
     if ('hotkey' in partial) registerHotkey(ctx);
     if ('autostart' in partial) applyAutostart(ctx);
-    if ('widgetStyle' in partial) setWidgetLayout(ctx);
+    if ('theme' in partial) applyTheme(ctx);
     if ('goalSec' in partial || 'appPercentScope' in partial) host.reloadRules();
     host.push();
     return { ...ctx.settings, hotkeyOk: ctx.hotkeyOk, dataDir: ctx.dataDir, today: dateKey(ctx.clock.now()) };
@@ -92,6 +94,12 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   );
   h('keepWorking', () => result(host.dispatch({ type: 'KEEP_WORKING' })));
 
+  // Editing sessions after the fact (P52–P54)
+  const editor = new SessionEditor(ctx, host);
+  h('deleteSession', (id: string) => editor.delete(id));
+  h('mergeSessions', (keepId: string, ids: string[]) => editor.merge(keepId, ids));
+  h('undoEdit', (undoId: string) => editor.undo(undoId));
+
   // Prompts
   h('getPrompt', () => host.promptState());
   h('answer', (promptId: string, a: Answer) => host.answer(promptId, a));
@@ -140,6 +148,5 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('hideWidget', () => hideWidget(ctx));
   h('showWidget', () => showWidget(ctx));
   h('openDashboard', (route?: string) => openDashboard(ctx, route));
-  h('widgetLayout', (layout: WidgetLayout) => setWidgetLayout(ctx, layout));
   h('resizePrompt', (height: number) => resizePrompt(ctx, height));
 }

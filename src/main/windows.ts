@@ -3,18 +3,10 @@ import { join } from 'node:path';
 import type { AppCtx } from './context';
 import { rendererUrl } from './paths';
 import { saveSettings } from './settings';
+import { windowBackground } from './theme';
 
-/** Window sizes per design/DESIGN.md §2 (content + 8 px shadow margin). */
-export const WIDGET_SIZE = {
-  bar: { collapsed: { width: 528, height: 50 }, expanded: { width: 528, height: 168 }, hover: { width: 528, height: 184 } },
-  full: { collapsed: { width: 336, height: 80 }, expanded: { width: 336, height: 196 }, hover: { width: 336, height: 80 } },
-  compact: {
-    collapsed: { width: 192, height: 56 },
-    expanded: { width: 336, height: 172 },
-    hover: { width: 256, height: 176 },
-  },
-} as const;
-export type WidgetLayout = 'collapsed' | 'expanded' | 'hover';
+/** The bar (P49): 512 × 34 plus an 8 px margin on every side (design/DESIGN.md §2). */
+export const WIDGET_SIZE = { width: 528, height: 50 } as const;
 
 /** Prompt card is 420 wide plus an 8 px shadow margin each side (DESIGN.md §3). */
 export const PROMPT_WIDTH = 436;
@@ -54,7 +46,7 @@ export function widgetPosition(
 }
 
 export function createWidget(ctx: AppCtx): BrowserWindow {
-  const size = WIDGET_SIZE[ctx.settings.widgetStyle].collapsed;
+  const size = WIDGET_SIZE;
   const pos = widgetPosition(ctx.settings.widgetPos, size);
   const win = new BrowserWindow({
     ...size,
@@ -94,18 +86,6 @@ export function createWidget(ctx: AppCtx): BrowserWindow {
   });
   load(win, '/widget');
   return win;
-}
-
-let widgetLayout: WidgetLayout = 'collapsed';
-
-/** Resizes the widget for its current style and layout, keeping the top-left corner fixed. */
-export function setWidgetLayout(ctx: AppCtx, layout: WidgetLayout = widgetLayout): void {
-  widgetLayout = layout;
-  const w = ctx.widget;
-  if (!w || w.isDestroyed()) return;
-  const size = WIDGET_SIZE[ctx.settings.widgetStyle][layout];
-  const [x, y] = w.getPosition();
-  w.setBounds({ x, y, ...size });
 }
 
 export function createPrompt(ctx: AppCtx): BrowserWindow {
@@ -186,7 +166,7 @@ export function createDashboard(ctx: AppCtx, route = 'today'): BrowserWindow {
     minHeight: 640,
     show: false,
     title: 'Spyder',
-    backgroundColor: '#0E0E12',
+    backgroundColor: windowBackground(),
     autoHideMenuBar: true,
     webPreferences: webPreferences(),
   });

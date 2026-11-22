@@ -15,7 +15,8 @@ export class Sim {
   state: EngineState = initialState();
   now = T(11);
   overrides = new Map<string, DayOverride>();
-  settings = { ...DEFAULT_SETTINGS };
+  /** The plan's scenarios (§13 Phase 2) were written for 30-min check-ins; P51's 15-min default has its own test. */
+  settings = { ...DEFAULT_SETTINGS, checkInIntervalSec: 1800 };
   log: Effect[] = [];
   last: ReduceResult | null = null;
   windowFn: ((ms: number) => WorkWindow | null) | null = null;

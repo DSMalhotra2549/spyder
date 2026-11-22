@@ -94,13 +94,24 @@ describe('cleanSettings', () => {
     expect(
       cleanSettings({
         idleThresholdSec: 10, checkInIntervalSec: 600.4, goalSec: 'x', defaultDirection: 'up', appPercentScope: 'bad',
-        widgetStyle: 'compact', hotkey: ' Control+Alt+K ', autostart: false, widgetPos: { x: 1, y: 2 }, nope: 1,
+        theme: 'dark', hotkey: ' Control+Alt+K ', autostart: false, widgetPos: { x: 1, y: 2 }, nope: 1,
       }),
     ).toEqual({
-      idleThresholdSec: 60, checkInIntervalSec: 600, defaultDirection: 'up', widgetStyle: 'compact',
+      idleThresholdSec: 60, checkInIntervalSec: 600, defaultDirection: 'up', theme: 'dark',
       hotkey: 'Control+Alt+K', autostart: false, widgetPos: { x: 1, y: 2 },
     });
     expect(cleanSettings({ hotkey: '  ', widgetPos: null, autostart: 'yes' })).toEqual({ widgetPos: null });
     expect(Object.keys(cleanSettings({ ...DEFAULT_SETTINGS }))).toHaveLength(Object.keys(DEFAULT_SETTINGS).length);
+  });
+
+  it('P50: the widget style setting is gone', () => {
+    expect(cleanSettings({ widgetStyle: 'compact', theme: 'sepia' })).toEqual({});
+  });
+
+  it('P51: check-ins default to 15 min and stay between 5 min and 3 h', () => {
+    expect(DEFAULT_SETTINGS.checkInIntervalSec).toBe(900);
+    expect(cleanSettings({ checkInIntervalSec: 60 })).toEqual({ checkInIntervalSec: 300 });
+    expect(cleanSettings({ checkInIntervalSec: 4 * 3600 })).toEqual({ checkInIntervalSec: 10_800 });
+    expect(cleanSettings({ checkInIntervalSec: 1800 })).toEqual({ checkInIntervalSec: 1800 });
   });
 });

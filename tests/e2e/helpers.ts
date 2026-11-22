@@ -16,8 +16,6 @@ export interface LaunchOpts {
   scale?: number;
   dataDir?: string;
   env?: Record<string, string>;
-  /** Switch the widget style right after launch (the default is `bar`, P43). */
-  widgetStyle?: 'bar' | 'full' | 'compact';
 }
 
 export interface Launched {
@@ -45,10 +43,11 @@ export async function windowByHash(app: ElectronApplication, hash: string, timeo
 
 /** SPYDER_EXE=<installed Spyder.exe> runs the same specs against the packaged app (plan Phase 8). */
 export const INSTALLED_EXE = process.env.SPYDER_EXE;
+/** `colorScheme: null`: Playwright would otherwise force a light `prefers-color-scheme` and hide the app theme (P57). */
 export const exeLaunch = (env: Record<string, string>) =>
   INSTALLED_EXE
-    ? { executablePath: INSTALLED_EXE, args: [], env, cwd: ROOT }
-    : { args: [join(ROOT, 'out/main/index.js')], env, cwd: ROOT };
+    ? { executablePath: INSTALLED_EXE, args: [], env, cwd: ROOT, colorScheme: null }
+    : { args: [join(ROOT, 'out/main/index.js')], env, cwd: ROOT, colorScheme: null };
 
 export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
   const dataDir = opts.dataDir ?? freshDataDir();
@@ -70,10 +69,6 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
   const prompt = await windowByHash(app, 'prompt');
   await widget.waitForLoadState('domcontentloaded');
   await widget.waitForFunction(() => !!window.spyder?.debug);
-  if (opts.widgetStyle) {
-    await widget.evaluate((st) => window.spyder.setSettings({ widgetStyle: st }), opts.widgetStyle);
-    await widget.locator(`[data-style=${opts.widgetStyle}]`).waitFor();
-  }
 
   const debug = new Proxy({} as DebugApi, {
     get:

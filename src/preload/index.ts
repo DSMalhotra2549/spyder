@@ -15,9 +15,9 @@ const on = (channel: string) => (cb: (v: unknown) => void) => {
 const methods = [
   'getSettings', 'setSettings', 'getWidget', 'start', 'done', 'extend', 'pause', 'resume', 'label', 'keepWorking',
   'getPrompt', 'answer', 'openStart', 'closeStart', 'nameSuggestions', 'listProjects', 'saveProject',
-  'hideWidget', 'openDashboard', 'widgetLayout', 'resizePrompt',
+  'hideWidget', 'openDashboard', 'resizePrompt',
   'getDay', 'saveRule', 'getReview', 'saveReviewItem', 'deleteReviewItem', 'completeReview', 'listKpis', 'saveKpi',
-  'setKpiValue', 'classifyAway', 'showWidget',
+  'setKpiValue', 'classifyAway', 'showWidget', 'deleteSession', 'mergeSessions', 'undoEdit',
   'getRange', 'listUncategorized', 'listRules', 'deleteRule', 'listTitlePatterns', 'saveTitlePattern', 'deleteTitlePattern',
   'getSchedule', 'setSchedule', 'setDayOverride', 'openDataFolder', 'exportData', 'showInFolder',
 ] as const;

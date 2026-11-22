@@ -79,7 +79,7 @@ tests/e2e/           *.spec.ts, helpers.ts, __shots__/
 |---|---|---|
 | goalSec | 18000 (5 h) | daily productive goal (P24) |
 | idleThresholdSec | 300 | P7 |
-| checkInIntervalSec | 1800 | P8 |
+| checkInIntervalSec | 900 | P8, P51 (300–10800) |
 | nagIntervalSec | 300 | P5 re-nag |
 | nudgeAfterSec | 300 | P13 |
 | nudgeRepeatSec | 300 | P13 |
@@ -92,7 +92,7 @@ tests/e2e/           *.spec.ts, helpers.ts, __shots__/
 | appPercentScope | "work_hours" | P26 ("work_hours" \| "all_day") |
 | keepWorkingStepMin | 30 | P20 |
 | widgetPos | null | `{x,y}`, saved on move |
-| widgetStyle | "bar" | P31, P43 (`"bar"` \| `"full"` \| `"compact"`) |
+| theme | "system" | P57 (`"system"` \| `"light"` \| `"dark"`); replaces `widgetStyle` (P50) |
 
 Default schedule (P10): weekday 1–5 (Mon–Fri) enabled 600–1020 (10:00–17:00), with 0 and 6 disabled. `weekday` uses JS `Date.getDay()` numbering (0 = Sunday).
 
@@ -738,3 +738,10 @@ _(append one entry per phase: date · phase · verification results with numbers
   - Typecheck and lint clean. Unit 129/129 (core 99.0 % lines, 94.4 % branches). E2E 19/19 (+ `installed.spec.ts` skipped without `SPYDER_EXE`).
 - Deviations / decisions: **P42** (autostart only when installed; uninstall drops the Run entry; debug hooks still opt-in via `SPYDER_DEBUG=1`). The app is unsigned, so SmartScreen may warn on first run.
 - **User acceptance (one real workday):** pending.
+
+**2026-11-22 · Scope reset and dashboard redesign (P50–P57).**
+- Back to the original plan's scope (P50): the bar is the only widget (Full, Compact, the style toggle and `widgetStyle` removed; §12's widget text for them is superseded), the export has 7 sheets, the review has no Mark as Unknown. Check-ins default to 15 min, 5 min–3 h (P51; a stored 30 becomes 15 in migration 002).
+- Sessions can be renamed, deleted (→ untracked, soft delete) and merged from Today's session log, with an Undo toast; a completed review's numbers refresh (P52–P54; engine events E20–E22, `src/main/sessionEdit.ts`).
+- Today rebuilt core first (P55): stat row → session log → one-track timeline → apps & sites → distractions. Linear/Vercel restyle of every page (P56). Light / Dark / System theme for every window (P57).
+- The sidebar always offers Start session while working, and Keep working off hours (both were only in the removed panel).
+- Verify: typecheck and lint clean; unit 146/146; e2e 23/23 (+ `installed.spec.ts` skipped without `SPYDER_EXE`), including new `sessions.spec.ts` (rename, delete → untracked → undo, merge → undo, breaks-only merge, timeline pick, running delete → fresh session → undo resumes, paused locked) and `theme.spec.ts` (live switch, every page in both themes). Screenshots viewed in both themes.

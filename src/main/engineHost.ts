@@ -206,6 +206,12 @@ export class EngineHost {
     this.productiveCache.atMs = Number.NaN;
   }
 
+  /** Sessions were edited outside the engine (P52): recompute today's productive time and push. */
+  dataChanged(): void {
+    this.productiveCache.atMs = Number.NaN;
+    this.push();
+  }
+
   // ---- view models -----------------------------------------------------------------
   sessionInfo(id: string): SessionInfo | null {
     const now = this.app.clock.now();
@@ -237,7 +243,6 @@ export class EngineHost {
     const ds = this.nudge.distractStartMs;
     return {
       ...vm,
-      style: this.app.settings.widgetStyle,
       distractTarget: vm.isDistracted ? this.distractTarget : null,
       distractSec: vm.isDistracted && ds !== null ? Math.floor((ctx.now - ds) / 1000) : 0,
     };

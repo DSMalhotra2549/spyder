@@ -1,4 +1,5 @@
-// Session engine: a pure reducer (plan §7, ADR-0004, ADR-0006). Rule ids E1–E19 refer to the plan.
+// Session engine: a pure reducer (plan §7, ADR-0004, ADR-0006). Rule ids E1–E19 refer to the plan; E20–E22
+// (editing sessions after the fact, P52–P54) are defined here.
 import { dateKey, inWork, minutesOfDay, workdayPct } from './schedule';
 import type {
   Active,
@@ -240,6 +241,12 @@ function apply(r: Run, ev: EngineEvent): void {
       return awayEnd(r);
     case 'KEEP_WORKING':
       return keepWorking(r);
+    case 'DROP':
+      return drop(r, ev.sessionId);
+    case 'ABSORB':
+      return absorb(r, ev.sessionId, ev.addSec, ev.removedIds);
+    case 'RESTORE':
+      return restore(r, ev.active, ev.replacesId);
   }
 }
 
@@ -430,6 +437,73 @@ function label(r: Run, sessionId: string, name: string, projectId: string | null
     }
   }
   r.removePrompts((p) => p.type === 'label' && p.sessionId === sessionId);
+}
+
+/** Sessions that can't be deleted or merged right now (P53): the paused one, its pause break, the one an away period interrupted. */
+function locked(st: EngineState): Set<string> {
+  const ids = new Set<string>();
+  if (st.paused) {
+    ids.add(st.paused.id);
+    if (st.current) ids.add(st.current.id);
+  }
+  if (st.away?.interrupted) ids.add(st.away.interrupted.id);
+  return ids;
+}
+
+const LOCKED_MSG = 'Resume or finish the paused session first';
+
+/** E20 (P53). The DB row is hidden by the host; the running session is replaced by a fresh open session. */
+function drop(r: Run, id: string): void {
+  const st = r.st;
+  if (locked(st).has(id)) {
+    r.error = { error: 'invalid', message: LOCKED_MSG };
+    return;
+  }
+  r.removePrompts((p) => p.sessionId === id);
+  const a = st.current;
+  if (a?.id !== id) return;
+  r.closeSegment(a, r.now);
+  r.emit({
+    db: 'updateSession',
+    row: { id, status: 'done', endedMs: Math.max(r.now, a.startedMs), elapsedSec: Math.round(a.accumulatedSec), overtimeSec: 0, endReason: 'done' },
+  });
+  st.current = null;
+  if (r.inWorkNow()) r.startOpen();
+  else st.mode = 'off_hours';
+  r.heartbeat();
+}
+
+/** E21 (P54). The host moves the segments; the engine keeps the running session's time and prompts in step. */
+function absorb(r: Run, id: string, addSec: number, removedIds: string[]): void {
+  const st = r.st;
+  const lock = locked(st);
+  if (lock.has(id) || removedIds.some((x) => lock.has(x) || x === st.current?.id)) {
+    r.error = { error: 'invalid', message: st.paused ? LOCKED_MSG : 'The running session must be the one kept' };
+    return;
+  }
+  r.removePrompts((p) => p.sessionId !== undefined && removedIds.includes(p.sessionId));
+  const a = st.current;
+  if (a?.id !== id) return;
+  a.accumulatedSec = Math.max(0, a.accumulatedSec + addSec);
+  if (a.timeUpAtMs !== null && a.plannedSec !== null && elapsedSec(a, r.now) < a.plannedSec) {
+    a.timeUpAtMs = null;
+    a.lastNagMs = null;
+    r.removePrompts((p) => p.sessionId === a.id && (p.type === 'timeUp' || p.type === 'label' || p.type === 'breakEnd'));
+  }
+  r.heartbeat();
+}
+
+/** E22: Undo of E20 on the running session, while the fresh open session it started is still current and unlabelled. */
+function restore(r: Run, active: Active, replacesId: string): void {
+  const st = r.st;
+  const cur = st.current;
+  if (st.mode !== 'working' || !cur || cur.id !== replacesId || cur.name !== null || st.paused) {
+    r.error = { error: 'invalid', message: 'The session has moved on' };
+    return;
+  }
+  r.removePrompts((p) => p.sessionId === replacesId);
+  st.current = { ...structuredClone(active), segmentId: cur.segmentId, segmentStartMs: cur.segmentStartMs };
+  r.heartbeat();
 }
 
 /** E5 */

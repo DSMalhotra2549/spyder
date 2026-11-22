@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appKey, daySummary, type DayActivity, type DayData, type DaySession } from './aggregate';
+import { appKey, dayLog, daySummary, gaps, type DayActivity, type DayData, type DaySession } from './aggregate';
 import type { Rule } from './categorize';
 import { DEFAULT_RULES } from './defaults';
 import { leftovers } from './review';
@@ -209,5 +209,42 @@ describe('streak', () => {
   });
   it('caps at 366', () => {
     expect(streak('2026-11-24', () => ({ scheduled: true, goalMet: true }))).toBe(366);
+  });
+});
+
+describe('untracked time and the day log (P53, P55)', () => {
+  it('gaps: the uncovered parts of a range, ignoring slivers under a minute', () => {
+    const b = (a: number, z: number) => ({ startMs: a * 60_000, endMs: z * 60_000 });
+    expect(gaps(0, 100 * 60_000, [b(10, 20), b(15, 30), b(30.5, 40), b(90, 120)])).toEqual([b(0, 10), b(40, 90)]);
+    expect(gaps(0, 10 * 60_000, [])).toEqual([b(0, 10)]);
+    expect(gaps(0, 10 * 60_000, [b(-5, 20)])).toEqual([]);
+  });
+
+  it('work-hours time with no session and no away period is untracked', () => {
+    const d = daySummary('2026-11-24', fixture(), rules, S);
+    // Sessions cover 10:00–14:00 and away periods 14:00–15:30; nothing covers 15:30–17:00.
+    expect(d.untracked).toEqual([{ startMs: at(15, 30), endMs: at(17), sec: 90 * 60 }]);
+    expect(d.untrackedSec).toBe(90 * 60);
+  });
+
+  it('a deleted session leaves a gap that is not work time; only time up to now counts', () => {
+    const f = fixture();
+    f.sessions = f.sessions.filter((x) => x.id !== 'D'); // deleted: its segment is no longer loaded
+    f.segments = f.segments.filter((g) => g.sessionId !== 'D');
+    f.nowMs = at(16);
+    const d = daySummary('2026-11-24', f, rules, S);
+    expect(d.untracked.map((u) => [u.startMs, u.endMs])).toEqual([[at(13, 30), at(14)], [at(15, 30), at(16)]]);
+    expect(d.workSec).toBe(275 * 60);
+    expect(leftovers(d)).toBe(1); // only the pending away period; untracked isn't a leftover
+  });
+
+  it('dayLog lists sessions, away periods and untracked spans in time order', () => {
+    const d = daySummary('2026-11-24', fixture(), rules, S);
+    const log = dayLog(d);
+    expect(log.map((e) => e.type)).toEqual([
+      'session', 'session', 'session', 'session', 'session',
+      'away', 'away', 'away', 'away', 'away', 'away', 'untracked', 'session',
+    ]);
+    expect(log.map((e) => e.startMs)).toEqual([...log.map((e) => e.startMs)].sort((a, b) => a - b));
   });
 });

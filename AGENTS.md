@@ -57,7 +57,8 @@ The e2e helper also sets `SPYDER_CAPTURE=0` and `SPYDER_FAKE_IDLE=1`, so the rea
 - One instance per data dir. A second launch against the same dir exits silently.
 - `resources/UrlHelper.exe` is gitignored. Run `npm run build:helper` before testing Chrome site capture or `npm run dist`.
 - Run `scripts/capture-check.ts` from PowerShell. The Store version of Notepad won't launch from Git Bash.
-- The default widget style is `bar` (P43, P49). Full and Compact still exist and must keep working.
+- The bar is the only widget (P50). Its session controls are in the dashboard sidebar; e2e tests start sessions from there (`startFromSidebar` in `widget.spec.ts`).
+- Playwright's Electron launcher forces a light `prefers-color-scheme` unless `colorScheme: null` is passed (`exeLaunch` in `tests/e2e/helpers.ts` does). Without it the app's theme (P57) can't be tested and every screenshot renders light.
 - After 3 failed attempts at the same problem, stop and ask the user, with the exact error and what you tried.
 
 ## Commits

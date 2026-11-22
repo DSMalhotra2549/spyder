@@ -12,9 +12,10 @@ import { Settings } from './Settings';
 import { Today } from './Today';
 import { Week } from './Week';
 import { TopBar, useLoader } from './parts';
+import { Toast } from './toast';
 
 const icon = (d: string) => (
-  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
     <path d={d} />
   </svg>
 );
@@ -41,14 +42,14 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
   const onDate = (d: string) => go(page, rv && d === rv.today ? undefined : d);
   return (
     <div className="flex h-full">
-      <aside className="flex w-[220px] shrink-0 flex-col border-r border-border bg-surface px-3 py-4">
-        <div className="mb-6 flex items-center gap-2 px-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[13px] font-bold text-white">S</div>
-          <span className="text-[15px] font-semibold">Spyder</span>
+      <aside className="flex w-[216px] shrink-0 flex-col border-r border-border bg-sidebar px-2.5 pt-3 pb-3">
+        <div className="mb-5 flex h-8 items-center gap-2 px-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-accent text-[11px] font-bold text-on-accent">S</div>
+          <span className="text-[14px] font-semibold tracking-[-0.01em]">Spyder</span>
         </div>
         {GROUPS.map((g) => (
-          <nav key={g.title} className="mb-5">
-            <div className="section-label mb-1 px-2">{g.title}</div>
+          <nav key={g.title} className="mb-4">
+            <div className="mb-1 px-2 text-[11px] font-medium text-faint">{g.title}</div>
             {g.items.map((i) => (
               <button
                 key={i.id}
@@ -56,14 +57,14 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
                 // Keep the viewed date when switching between Today and Review.
                 onClick={() => go(i.id, i.id === 'today' || i.id === 'review' ? date : undefined)}
                 className={clsx(
-                  'flex h-[34px] w-full items-center gap-2.5 rounded-control px-2 text-left text-[13px]',
-                  page === i.id ? 'bg-surface-2 text-text' : 'text-muted hover:text-text',
+                  'flex h-8 w-full items-center gap-2.5 rounded-control px-2 text-left text-[13px]',
+                  page === i.id ? 'bg-surface-2 font-medium text-text' : 'text-muted hover:bg-surface-2/60 hover:text-text',
                 )}
               >
-                {ICONS[i.id]}
+                <span className={page === i.id ? 'text-text' : 'text-faint'}>{ICONS[i.id]}</span>
                 {i.label}
                 {i.id === 'review' && rv && rv.leftoverCount > 0 && (
-                  <span data-testid="review-badge" className="ml-auto rounded-pill bg-accent px-1.5 text-[11px] leading-[18px] font-semibold text-white tabular">
+                  <span data-testid="review-badge" className="ml-auto rounded-pill bg-accent px-1.5 text-[11px] leading-[18px] font-semibold text-on-accent tabular">
                     {rv.leftoverCount}
                   </span>
                 )}
@@ -92,6 +93,7 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
           <TopBar title={LABELS[page] ?? 'Spyder'} />
         )}
       </main>
+      <Toast />
     </div>
   );
 }
@@ -105,79 +107,87 @@ const KIND_DOT: Record<string, string> = {
 
 /** Session buttons that depend on the state (P46); none off hours or while away. */
 function SessionControls({ w }: { w: WidgetPayload }) {
-  if (w.mode !== 'working') return null;
+  if (w.mode !== 'working' || !w.kind) return null;
   const run = (fn: () => unknown) => () => void fn();
   const b = 'flex-1 px-0';
   let buttons: ReactNode;
   if (w.isPaused) {
     buttons = (
       <>
-        <Btn variant="outline" className={b} onClick={run(() => window.spyder.resume())}>
+        <Btn size="sm" variant="outline" className={b} onClick={run(() => window.spyder.resume())}>
           Resume
         </Btn>
-        <Btn className={b} onClick={run(() => window.spyder.done())}>
+        <Btn size="sm" className={b} onClick={run(() => window.spyder.done())}>
           Done
         </Btn>
       </>
     );
-  } else if (!w.kind) {
-    buttons = (
-      <Btn variant="primary" className={b} onClick={run(() => window.spyder.openStart())}>
-        Start session
-      </Btn>
-    );
   } else if (w.kind === 'break') {
     buttons = (
-      <Btn className={b} onClick={run(() => window.spyder.done())}>
+      <Btn size="sm" className={b} onClick={run(() => window.spyder.done())}>
         End break
       </Btn>
     );
   } else {
     buttons = (
       <>
-        <Btn className={b} onClick={run(() => window.spyder.pause())}>
+        <Btn size="sm" className={b} onClick={run(() => window.spyder.pause())}>
           Pause
         </Btn>
-        <Btn className={b} onClick={run(() => window.spyder.openStart('break'))}>
+        <Btn size="sm" className={b} onClick={run(() => window.spyder.openStart('break'))}>
           Break
         </Btn>
-        <Btn className={b} onClick={run(() => window.spyder.done())}>
+        <Btn size="sm" className={b} onClick={run(() => window.spyder.done())}>
           Done
         </Btn>
       </>
     );
   }
   return (
-    <div data-testid="session-controls" className="mb-2 flex gap-1.5">
+    <div data-testid="session-controls" className="flex gap-1">
       {buttons}
     </div>
   );
 }
 
-/** Mini status like the widget: state dot, timer and a two-line caption. */
+/** Status like the bar (dot, timer, caption) and the session controls. Start session is always there while working. */
 function Footer() {
   const [w, setW] = useState<WidgetPayload | null>(null);
+  const [step, setStep] = useState(30);
   useEffect(() => {
     void window.spyder.getWidget().then(setW);
+    void window.spyder.getSettings().then((s) => setStep(s.keepWorkingStepMin));
     return window.spyder.onWidget(setW);
   }, []);
   if (!w) return null;
   const dot = w.mode === 'away' ? 'var(--color-away)' : w.mode === 'off_hours' || !w.kind ? 'var(--color-faint)' : KIND_DOT[w.kind];
   const caption = w.mode === 'off_hours' ? 'Off hours' : w.mode === 'away' ? 'Away' : w.title;
   return (
-    <div className="mt-auto border-t border-border px-2 pt-3">
-      <div className="mb-2 flex items-center gap-2.5">
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dot }} />
+    <div className="mt-auto flex flex-col gap-1.5 rounded-card border border-border bg-surface p-2.5">
+      <div className="mb-0.5 flex items-center gap-2">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
+        <span className="min-w-0 flex-1 truncate text-[12px] text-muted" title={caption}>
+          {caption}
+        </span>
         {w.mode === 'working' && (
-          <span className={clsx('text-[15px] font-bold tabular', w.isOvertime && 'text-red')}>
+          <span data-testid="sidebar-timer" className={clsx('text-[13px] font-semibold tabular', w.isOvertime && 'text-red')}>
             {w.isOvertime ? '+' : ''}
             {fmtClock(w.timerSec)}
           </span>
         )}
-        <span className="caps line-clamp-2 min-w-0 text-muted">{caption}</span>
       </div>
+      {w.mode === 'working' && (
+        <Btn size="sm" variant="primary" data-testid="sidebar-start" className="w-full" onClick={() => void window.spyder.openStart()}>
+          Start session
+        </Btn>
+      )}
       <SessionControls w={w} />
-      <Btn variant="ghost" className="w-full" onClick={() => void window.spyder.showWidget()}>
+      {w.mode === 'off_hours' && (
+        <Btn size="sm" data-testid="keep-working" className="w-full" onClick={() => void window.spyder.keepWorking()}>
+          Keep working +{step}
+        </Btn>
+      )}
+      <Btn size="sm" variant="ghost" className="w-full" onClick={() => void window.spyder.showWidget()}>
         Show widget
       </Btn>
     </div>

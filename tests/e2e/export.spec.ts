@@ -17,7 +17,7 @@ const at = (h: number, m = 0) => new Date(2026, 10, 24, h, m).getTime();
 const EVIL = "=cmd|' /C calc'!A0";
 const INTL = 'Zoë 🚀 日本語のページ — Привет';
 
-test('export: 8 sheets, counts and minutes match the DB, CSVs round-trip', async () => {
+test('export: 7 sheets (P50), counts and minutes match the DB, CSVs round-trip', async () => {
   const dir = freshDataDir();
   seed(dir, 14, TO);
   {

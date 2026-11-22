@@ -40,7 +40,6 @@ export type SettingsVM = Settings & { hotkeyOk: boolean; dataDir: string; today:
 export type ExportResult = { ok: true; xlsxPath: string; csvDir: string } | { canceled: true } | { error: 'range' };
 
 export interface WidgetPayload extends WidgetVM {
-  style: Settings['widgetStyle'];
   distractTarget: string | null;
   distractSec: number;
 }
@@ -51,6 +50,8 @@ export type PromptWindowState =
   | null;
 
 export type Ok = { ok: true };
+/** A delete or merge (P52): `undoId` undoes it while it's the latest edit. */
+export type EditResult = { ok: true; undoId: string; message: string } | EngineError;
 export type StartResult = Ok | (EngineError & { elapsedSec?: number });
 
 export interface Project {
@@ -98,6 +99,9 @@ export interface SpyderApi {
   resume(): Promise<Ok | EngineError>;
   label(sessionId: string, name: string, projectId: string | null): Promise<Ok | EngineError>;
   keepWorking(): Promise<Ok | EngineError>;
+  deleteSession(id: string): Promise<EditResult>;
+  mergeSessions(keepId: string, ids: string[]): Promise<EditResult>;
+  undoEdit(undoId: string): Promise<Ok | EngineError>;
 
   getPrompt(): Promise<PromptWindowState>;
   onPrompt(cb: (p: PromptWindowState) => void): () => void;
@@ -139,7 +143,6 @@ export interface SpyderApi {
   hideWidget(): Promise<void>;
   showWidget(): Promise<void>;
   openDashboard(route?: string): Promise<void>;
-  widgetLayout(layout: 'collapsed' | 'expanded' | 'hover'): Promise<void>;
   resizePrompt(height: number): Promise<void>;
   debug?: DebugApi;
 }

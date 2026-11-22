@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Sim, T } from './engine.testkit';
+import { DEFAULT_SETTINGS } from './settings';
 import { initialState, inWorkSession, reduce, visiblePrompt } from './sessionEngine';
-import type { AwayClassification, EngineState } from './types';
+import type { AwayClassification, EngineEvent, EngineState } from './types';
 
 const MIN = 60;
 
@@ -115,6 +116,16 @@ describe('session engine — plan §13 Phase 2 scenarios', () => {
     s.tick(T(12, 59));
     expect(s.state.prompts).toHaveLength(0);
     s.tick(T(13, 0));
+    expect(visiblePrompt(s.state)!.type).toBe('checkIn');
+  });
+
+  it('P51: with the default settings an open session gets its first check-in after 15 min', () => {
+    const s = new Sim();
+    s.settings = { ...DEFAULT_SETTINGS };
+    s.send({ type: 'BOOT', heartbeat: null }, T(11));
+    s.tick(T(11, 14, 59));
+    expect(s.state.prompts).toHaveLength(0);
+    s.tick(T(11, 15));
     expect(visiblePrompt(s.state)!.type).toBe('checkIn');
   });
 
@@ -706,5 +717,99 @@ describe('widgetView', () => {
       timerSec: 600,
       progress: null,
     });
+  });
+});
+
+describe('editing sessions after the fact (E20–E22, P52–P54)', () => {
+  it('E20 deleting the running session closes it and starts a fresh open session', () => {
+    const s = bootOpen();
+    const id = s.state.current!.id;
+    s.tick(T(11, 30)); // a check-in for it is queued
+    expect(s.state.prompts.map((p) => p.type)).toEqual(['checkIn']);
+    s.send({ type: 'DROP', sessionId: id }, T(11, 40));
+    expect(s.db('closeSegment')).toEqual([{ id: expect.any(String), endMs: T(11, 40) }]);
+    expect(s.db('updateSession')).toContainEqual(expect.objectContaining({ id, status: 'done', endedMs: T(11, 40), elapsedSec: 40 * MIN }));
+    expect(s.state.prompts).toHaveLength(0); // no label prompt for a deleted session
+    expect(s.state.current!.id).not.toBe(id);
+    expect(s.state.current).toMatchObject({ kind: 'open', name: null, startedMs: T(11, 40) });
+  });
+
+  it('E20 deleting a finished session only drops its prompts', () => {
+    const s = bootOpen();
+    const id = s.state.current!.id;
+    s.send({ type: 'DONE' }, T(11, 20)); // unlabelled → label prompt
+    const cur = s.state.current!.id;
+    s.send({ type: 'DROP', sessionId: id }, T(11, 25));
+    expect(s.state.prompts).toHaveLength(0);
+    expect(s.state.current!.id).toBe(cur);
+    expect(s.db('closeSegment')).toHaveLength(0);
+  });
+
+  it('E20/E21 refuse the paused session and its pause break', () => {
+    const s = bootOpen();
+    const id = s.state.current!.id;
+    s.send({ type: 'LABEL', sessionId: id, name: 'Writing' });
+    s.send({ type: 'PAUSE' }, T(11, 10));
+    const brk = s.state.current!.id;
+    for (const ev of [
+      { type: 'DROP', sessionId: id },
+      { type: 'DROP', sessionId: brk },
+      { type: 'ABSORB', sessionId: id, addSec: 60, removedIds: ['x'] },
+    ] satisfies EngineEvent[]) {
+      expect(s.send(ev).error).toEqual({ error: 'invalid', message: 'Resume or finish the paused session first' });
+    }
+  });
+
+  it('E21 merging into the running session adds the time and drops the absorbed prompts', () => {
+    const s = bootOpen();
+    const first = s.state.current!.id;
+    s.send({ type: 'DONE' }, T(11, 20)); // label prompt for `first`
+    const run = s.state.current!.id;
+    expect(s.send({ type: 'ABSORB', sessionId: first, addSec: 0, removedIds: [run] }).error).toMatchObject({ error: 'invalid' });
+    s.send({ type: 'ABSORB', sessionId: run, addSec: 20 * MIN, removedIds: [first] }, T(11, 30));
+    expect(s.state.prompts).toHaveLength(0);
+    expect(s.view().timerSec).toBe(30 * MIN);
+    // Undo: the time goes back out.
+    s.send({ type: 'ABSORB', sessionId: run, addSec: -20 * MIN, removedIds: [] }, T(11, 31));
+    expect(s.view().timerSec).toBe(11 * MIN);
+  });
+
+  it('E21 taking time back out of a timed session that was over its time clears time up', () => {
+    const s = bootOpen();
+    s.send({ type: 'START', kind: 'timed', plannedSec: 10 * MIN }, T(11, 0)); // the open session is unlabelled
+    expect(s.last!.error).toMatchObject({ error: 'needs_label' });
+    s.send({ type: 'LABEL', sessionId: s.state.current!.id, name: 'Setup' });
+    s.send({ type: 'START', kind: 'timed', plannedSec: 10 * MIN }, T(11, 0));
+    const id = s.state.current!.id;
+    s.send({ type: 'ABSORB', sessionId: id, addSec: 15 * MIN, removedIds: ['other'] }, T(11, 1));
+    s.tick(T(11, 1, 1));
+    expect(s.state.prompts.map((p) => p.type)).toEqual(['label']);
+    s.send({ type: 'ABSORB', sessionId: id, addSec: -15 * MIN, removedIds: [] }, T(11, 2));
+    expect(s.state.prompts).toHaveLength(0);
+    expect(s.state.current!.timeUpAtMs).toBeNull();
+  });
+
+  it('E22 undo of deleting the running session puts it back on the fresh segment', () => {
+    const s = bootOpen();
+    s.send({ type: 'LABEL', sessionId: s.state.current!.id, name: 'Writing' });
+    const before = structuredClone(s.state.current!);
+    s.send({ type: 'DROP', sessionId: before.id }, T(11, 40));
+    const fresh = s.state.current!;
+    const closed = { ...before, accumulatedSec: 40 * MIN, segmentId: null, segmentStartMs: null };
+    s.send({ type: 'RESTORE', active: closed, replacesId: fresh.id }, T(11, 41));
+    expect(s.state.current).toMatchObject({ id: before.id, name: 'Writing', segmentId: fresh.segmentId, segmentStartMs: T(11, 40) });
+    expect(s.view().timerSec).toBe(41 * MIN);
+    // A second restore no longer applies.
+    expect(s.send({ type: 'RESTORE', active: closed, replacesId: fresh.id }).error).toMatchObject({ error: 'invalid' });
+  });
+
+  it('E20 deleting the running session outside work hours goes off hours', () => {
+    const s = bootOpen(T(16, 50));
+    s.windowFn = () => ({ startMs: T(10), endMs: T(17) });
+    const id = s.state.current!.id;
+    s.windowFn = () => null; // today was just switched off
+    s.send({ type: 'DROP', sessionId: id }, T(16, 55));
+    expect(s.state.current).toBeNull();
+    expect(s.state.mode).toBe('off_hours');
   });
 });

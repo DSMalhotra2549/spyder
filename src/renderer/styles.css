@@ -1,41 +1,78 @@
 @import 'tailwindcss';
 
-/* Tokens from design/DESIGN.md §1 */
+/* Tokens from design/DESIGN.md §1 (P56). Dark is the default; light overrides below (P57). */
 @theme {
-  --color-bg: #0e0e12;
-  --color-surface: #16161b;
-  --color-surface-2: #1e1e25;
-  --color-border: #2a2a33;
-  --color-border-strong: #3a3a46;
-  --color-text: #ededf2;
-  --color-muted: #8e8e9c;
-  --color-faint: #5c5c6a;
+  --color-bg: #0e0e10;
+  --color-sidebar: #09090b;
+  --color-surface: #141417;
+  --color-surface-2: #1c1c20;
+  --color-border: #232328;
+  --color-border-strong: #313138;
+  --color-text: #ececef;
+  --color-muted: #8f8f99;
+  --color-faint: #5e5e68;
   --color-accent: #7b61ff;
-  --color-accent-hover: #8e78ff;
-  --color-red: #f04452;
-  --color-orange: #f59e0b;
-  --color-green: #22c55e;
+  --color-accent-hover: #8c76ff;
+  --color-on-accent: #ffffff;
+  --color-red: #ef5157;
+  --color-orange: #f2a33a;
+  --color-green: #3fb27f;
 
-  --color-planned: #22d3ee;
+  --color-planned: #38bdf8;
   --color-timed: #2dd4bf;
-  --color-open: #ededf2;
-  --color-break: #5b7fe0;
-  --color-away: #e3a6f2;
+  --color-open: #a1a1aa;
+  --color-break: #6b8afd;
+  --color-away: #c99cf0;
 
   --color-productive: #2dd4bf;
-  --color-neutral: #7c8293;
-  --color-distracting: #f04452;
-  --color-uncategorized: #4a4a57;
+  --color-neutral: #71717a;
+  --color-distracting: #ef5157;
+  --color-uncategorized: #3f3f46;
 
   --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
 
   --radius-pill: 9999px;
-  --radius-card: 10px;
-  --radius-control: 8px;
-  --radius-chip: 6px;
-  --radius-bar: 3px;
+  --radius-card: 8px;
+  --radius-control: 6px;
+  --radius-chip: 4px;
+  --radius-bar: 2px;
 
-  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+/* Light theme (P57): follows Windows unless Settings picks one (nativeTheme.themeSource). */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg: #ffffff;
+    --color-sidebar: #f7f7f8;
+    --color-surface: #ffffff;
+    --color-surface-2: #f3f3f5;
+    --color-border: #e8e8ec;
+    --color-border-strong: #d5d5db;
+    --color-text: #18181b;
+    --color-muted: #6c6c77;
+    --color-faint: #a3a3ad;
+    --color-accent: #6a4ff0;
+    --color-accent-hover: #5b40e0;
+    --color-red: #dc3a40;
+    --color-orange: #c97a10;
+    --color-green: #1f9d63;
+
+    --color-planned: #0e8fc7;
+    --color-timed: #0f9b8e;
+    --color-open: #71717a;
+    --color-break: #4f6ee8;
+    --color-away: #a86ad8;
+
+    --color-productive: #14b8a6;
+    --color-neutral: #a1a1aa;
+    --color-distracting: #e5484d;
+    --color-uncategorized: #d4d4d8;
+
+    --shadow-float: 0 8px 24px rgba(16, 16, 24, 0.12), 0 0 0 1px rgba(16, 16, 24, 0.06);
+    --shadow-pop: 0 4px 16px rgba(16, 16, 24, 0.1), 0 0 0 1px rgba(16, 16, 24, 0.05);
+  }
 }
 
 @layer base {
@@ -44,6 +81,14 @@
   #root {
     height: 100%;
     margin: 0;
+  }
+  :root {
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+    }
   }
   body {
     font-family: var(--font-sans);
@@ -60,6 +105,23 @@
     background: transparent;
     overflow: hidden;
   }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
+    outline-offset: 1px;
+  }
 }
 
 @utility tabular {
@@ -72,12 +134,25 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+/* Small muted label above a value or a group (sentence case, P56). */
 @utility section-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--color-muted);
+}
+/* Heading of a page section. */
+@utility section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+/* Untracked time (P53): diagonal hatching in the faint colour. */
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-faint) 45%, transparent) 0 1.5px,
+    transparent 1.5px 5px
+  );
 }
 @utility drag {
   -webkit-app-region: drag;

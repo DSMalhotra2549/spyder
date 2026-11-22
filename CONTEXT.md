@@ -33,7 +33,7 @@ _Avoid_: overtime (that's per session), extend day
 ### Sessions
 
 **Session**:
-A labelled block of the user's time. Every moment of work hours belongs to exactly one session or one away period.
+A labelled block of the user's time. Every moment of work hours belongs to exactly one session or one away period, unless it is untracked.
 _Avoid_: task, entry, timer
 
 **Planned session**:
@@ -64,10 +64,6 @@ _Avoid_: tag, title
 A user-defined grouping that sessions can belong to (e.g. "Client A", "Admin").
 _Avoid_: client, category
 
-**Unknown**:
-The label given during a review to a session the user can't account for.
-_Avoid_: unlabelled (an unlabelled session has no label yet)
-
 **Pause**:
 Setting the current session aside by starting a break. **Resume** ends that break and continues the paused session.
 _Avoid_: stop, hold
@@ -83,6 +79,18 @@ _Avoid_: overrun, extra time
 **Check-in**:
 A periodic question during an open session asking what the user has been doing.
 _Avoid_: reminder, ping
+
+**Merge**:
+Folding two or more sessions of the same day into one of them, chosen by the user. The kept session keeps its label, kind and plan and gains the others' time. Time between them stays as it was.
+_Avoid_: combine, join
+
+**Delete**:
+Removing a session after the fact. Its time becomes untracked.
+_Avoid_: discard, remove
+
+**Untracked**:
+Work-hours time that belongs to no session and no away period, usually because the user deleted the session it was in. It doesn't count as work time and isn't a leftover.
+_Avoid_: gap, unaccounted, deleted time
 
 ### Absence
 
@@ -146,7 +154,7 @@ _Avoid_: report (the report is what the review looks at), journal
 
 **Leftover**:
 A finished session with no label, or an away period with no classification, that the review asks the user to resolve.
-_Avoid_: gap, untracked time
+_Avoid_: gap, untracked (untracked time is deliberate, not pending)
 
 **Win**:
 One entry under "Today's wins" in a review.
@@ -164,7 +172,7 @@ A planned session's intended duration compared with its real elapsed time.
 ### Interface
 
 **Widget**:
-The small always-on-top window showing the running session's timer. It comes in three styles: **Bar** (the default flat strip), **Full** and **Compact** (pills).
+The small always-on-top bar showing the running session's timer, today's productive time and the percent of day. It only displays; session controls live in the dashboard.
 _Avoid_: overlay, HUD, timer window
 
 **Prompt**:

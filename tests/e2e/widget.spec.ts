@@ -33,21 +33,18 @@ const widgetBounds = (l: Launched) =>
       .getBounds(),
   );
 
-async function expand(l: Launched) {
-  if (await l.widget.getByTestId('panel').isVisible()) return;
-  const t = l.widget.getByTestId('title'); // full style; compact has no title in the pill
-  await ((await t.count()) ? t : l.widget.getByTestId('pill-body')).click();
-  await expect(l.widget.getByTestId('panel')).toBeVisible();
-}
-
-/** Opens the start popover from the widget, fills it and labels the boot session if asked (P21). */
-async function startFromWidget(
+/** Opens the start popover from the dashboard sidebar, fills it and labels the boot session if asked (P21, P50). */
+async function startFromSidebar(
   l: Launched,
   o: { tab: 'Planned' | 'Timed' | 'Open' | 'Break'; name?: string; minutes?: number; custom?: number },
   shotName?: string,
 ) {
-  await expand(l);
-  await l.widget.getByRole('button', { name: o.tab === 'Break' ? 'Break' : '▶ Start' }).click();
+  await l.widget.evaluate(() => window.spyder.openDashboard('today'));
+  const d = l.dashboard;
+  await (o.tab === 'Break'
+    ? d.getByTestId('session-controls').getByRole('button', { name: 'Break' })
+    : d.getByTestId('sidebar-start')
+  ).click();
   const p = l.prompt;
   await expect(p.getByRole('tab', { name: 'Planned' })).toBeVisible();
   await p.getByRole('tab', { name: o.tab }).click();
@@ -65,24 +62,21 @@ async function startFromWidget(
     await p.getByRole('button', { name: 'Start ▶' }).click();
   }
   await expect.poll(async () => (await host(l)).startOpen).toBe(false);
-  await l.widget.keyboard.press('Escape'); // collapse (in real use the widget loses focus)
 }
 
 const title = (p: Page) => p.getByTestId('prompt-title');
 
 test('1. planned countdown → timeUp → overtime → re-nag → +15', async () => {
-  s = await launch({ scale: 600, widgetStyle: 'full' });
-  await shot(s.widget, 'widget-full-collapsed');
-  await expand(s);
-  await shot(s.widget, 'widget-full-expanded');
-  await s.widget.keyboard.press('Escape');
-
-  await startFromWidget(s, { tab: 'Planned', name: 'Replying to emails', minutes: 30 }, 'start-popover');
+  // Real time until the session starts, so no check-in (15 min, P51) beats the start form.
+  s = await launch({ scale: 1 });
+  await s.debug.advance(600);
+  await startFromSidebar(s, { tab: 'Planned', name: 'Replying to emails', minutes: 30 }, 'start-popover');
   const st = await host(s);
   expect(st.engine.current).toMatchObject({ kind: 'planned', name: 'Replying to emails' });
   // Labelled boot session got its name.
   expect(s.db().prepare("SELECT kind FROM sessions WHERE name = 'Setup'").get()).toMatchObject({ kind: 'open' });
 
+  await s.debug.setScale(600);
   await expect(title(s.prompt)).toHaveText("Time's up: Replying to emails", { timeout: 5000 });
   expect(await promptVisible(s)).toBe(true);
   // Slow the clock to real time so the rest of the scenario is deterministic.
@@ -92,7 +86,7 @@ test('1. planned countdown → timeUp → overtime → re-nag → +15', async ()
   const timer = s.widget.getByTestId('timer');
   await expect(timer).toHaveText(/^\+\d\d:\d\d$/);
   await expect(timer).toHaveClass(/text-red/);
-  await shot(s.widget, 'widget-full-overtime');
+  await shot(s.widget, 'widget-bar-overtime');
 
   const rings = (await host(s)).ringCount;
   expect(rings).toBeGreaterThanOrEqual(1);
@@ -109,8 +103,9 @@ test('1. planned countdown → timeUp → overtime → re-nag → +15', async ()
 });
 
 test('2. timed 10 min → label prompt → named in DB', async () => {
-  s = await launch({ scale: 600, widgetStyle: 'full' });
-  await startFromWidget(s, { tab: 'Timed', custom: 10 });
+  s = await launch({ scale: 1 });
+  await startFromSidebar(s, { tab: 'Timed', custom: 10 });
+  await s.debug.setScale(600);
   await expect(title(s.prompt)).toHaveText(/^What did you do for the last 1\dm\?$/, { timeout: 5000 });
   await s.debug.setScale(1);
   await shot(s.prompt, 'prompt-label');
@@ -121,9 +116,9 @@ test('2. timed 10 min → label prompt → named in DB', async () => {
   expect(row).toMatchObject({ kind: 'timed', status: 'done', planned_sec: 600 });
 });
 
-test('3. open session → check-in → Log & continue', async () => {
+test('3. open session → check-in after 15 min (P51) → Log & continue', async () => {
   s = await launch({ scale: 600 });
-  await expect(title(s.prompt)).toHaveText(/^What have you been doing for the last 3\dm\?$/, { timeout: 6000 });
+  await expect(title(s.prompt)).toHaveText(/^What have you been doing for the last 1\dm\?$/, { timeout: 6000 });
   await s.debug.setScale(1);
   await shot(s.prompt, 'prompt-checkIn');
   await s.prompt.getByLabel('Session name').fill('Planning');
@@ -134,8 +129,8 @@ test('3. open session → check-in → Log & continue', async () => {
   expect(s.db().prepare('SELECT name FROM sessions WHERE id = ?').get(st.engine.current!.id)).toMatchObject({
     name: 'Planning',
   });
-  // Labelled check-in 30 min later.
-  await s.debug.advance(1800);
+  // Labelled check-in 15 min later.
+  await s.debug.advance(900);
   await s.debug.tick();
   await expect(title(s.prompt)).toHaveText('Still on Planning?');
   await shot(s.prompt, 'prompt-checkIn-labelled');
@@ -144,12 +139,12 @@ test('3. open session → check-in → Log & continue', async () => {
 });
 
 test('4. suspend 72 min → away prompt → Break', async () => {
-  s = await launch({ widgetStyle: 'full' });
+  s = await launch();
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
   await s.debug.simulateSuspend();
   expect((await host(s)).engine.mode).toBe('away');
   await expect(s.widget.getByTestId('pill')).toContainText('Away');
-  await shot(s.widget, 'widget-full-away');
+  await shot(s.widget, 'widget-bar-away');
   await s.debug.advance(4320);
   await s.debug.simulateResume();
   await expect(title(s.prompt)).toHaveText('You were away 1h 12m');
@@ -212,8 +207,8 @@ test('6. position persists; hide and hotkey', async () => {
   await expect.poll(async () => (await s!.debug.state()).widgetVisible).toBe(true);
 });
 
-test('7a. distracted, paused and break-end states', async () => {
-  s = await launch({ scale: 1, widgetStyle: 'full' });
+test('7a. distraction flag and toast; break end prompt', async () => {
+  s = await launch({ scale: 1 });
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
   const yt = { exe: 'chrome.exe', appName: 'Google Chrome', domain: 'youtube.com', title: 'Lofi - YouTube', browser: 'chrome' as const };
   expect(await s.debug.injectActivity(yt)).toBe('distracting');
@@ -226,36 +221,13 @@ test('7a. distracted, paused and break-end states', async () => {
     target: 'youtube.com',
     continuous_sec: 300,
   });
-  await expect(s.widget.getByTestId('title')).toContainText('⚠');
-  await s.widget.waitForTimeout(2200); // let the one-off pulse finish
-  await shot(s.widget, 'widget-full-distracted');
-
-  // Compact style with the hover card.
-  await s.widget.evaluate(() => window.spyder.setSettings({ widgetStyle: 'compact' }));
-  await expect(s.widget.getByTestId('pill')).toHaveAttribute('data-style', 'compact');
-  await expect.poll(async () => (await widgetBounds(s!)).width).toBe(192);
-  await shot(s.widget, 'widget-compact-distracted');
-  await s.widget.getByTestId('pill').hover();
-  await expect(s.widget.getByTestId('hover-card')).toContainText('On youtube.com for 5 min');
-  await shot(s.widget, 'widget-compact-hover');
-  await s.widget.mouse.move(1, 1);
-  await s.widget.getByTestId('pill-body').click();
-  await expect(s.widget.getByTestId('panel')).toBeVisible();
-  await expect.poll(async () => (await widgetBounds(s!)).width).toBe(336);
-  await shot(s.widget, 'widget-compact-expanded');
-  await s.widget.getByRole('button', { name: 'Switch to full' }).click();
-  await expect(s.widget.getByTestId('pill')).toHaveAttribute('data-style', 'full');
-
-  // Pause → break colours with PAUSED caption.
-  await s.widget.evaluate(() => window.spyder.pause());
-  await expect(s.widget.getByTestId('caption')).toContainText(/paused · untitled session/i);
-  await s.widget.keyboard.press('Escape');
-  await shot(s.widget, 'widget-full-paused');
-  await s.widget.evaluate(() => window.spyder.resume());
+  await expect(s.widget.getByTestId('pill')).toContainText(/distracted/i);
+  await expect(s.widget.getByTestId('pill')).toContainText(/youtube\.com/i);
+  await s.debug.injectActivity({ ...yt, exe: 'code.exe', appName: 'VS Code', domain: null, title: 'x', browser: null });
 
   // Break with a duration → breakEnd prompt.
+  await startFromSidebar(s, { tab: 'Break', minutes: 15 });
   await s.debug.setScale(600);
-  await startFromWidget(s, { tab: 'Break', minutes: 15 });
   await expect(title(s.prompt)).toHaveText("Break's over (15m)", { timeout: 5000 });
   await s.debug.setScale(1);
   await shot(s.prompt, 'prompt-breakEnd');
@@ -263,22 +235,23 @@ test('7a. distracted, paused and break-end states', async () => {
   await expect.poll(() => promptVisible(s!)).toBe(false);
 });
 
-test('7b. compact running and off-hours states', async () => {
+test('7b. Start session from the sidebar while one runs; off hours → Keep working (P20, P50)', async () => {
   s = await launch({ scale: 1, now: '2026-11-24T16:50:00' });
-  await s.widget.evaluate(() => window.spyder.setSettings({ widgetStyle: 'compact' }));
-  await startFromWidget(s, { tab: 'Planned', name: 'Deep work', minutes: 25 });
-  await shot(s.widget, 'widget-compact-collapsed');
+  await startFromSidebar(s, { tab: 'Planned', name: 'Deep work', minutes: 25 });
+  const d = s.dashboard;
+  // Start session stays available while a session runs.
+  await expect(d.getByTestId('sidebar-start')).toBeVisible();
+  await startFromSidebar(s, { tab: 'Open', name: 'Email' });
+  await expect.poll(async () => (await host(s!)).engine.current?.name).toBe('Email');
+  expect(s.db().prepare("SELECT status FROM sessions WHERE name = 'Deep work'").get()).toMatchObject({ status: 'done' });
+
   await s.debug.setNow(new Date(2026, 10, 24, 17, 0, 5).getTime());
   await s.debug.tick();
   await expect(s.widget.getByTestId('pill')).toContainText('Off hours');
-  await shot(s.widget, 'widget-compact-offhours');
-  await s.widget.evaluate(() => window.spyder.setSettings({ widgetStyle: 'full' }));
-  await expect(s.widget.getByTestId('title')).toHaveText('Workday done');
-  await shot(s.widget, 'widget-full-offhours');
-  await expand(s);
-  await shot(s.widget, 'widget-full-offhours-expanded');
-  await s.widget.getByTestId('panel').getByRole('button', { name: 'Keep working +30' }).click();
+  await expect(d.getByTestId('sidebar-start')).toHaveCount(0);
+  await d.getByTestId('keep-working').click();
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
+  await expect(d.getByTestId('sidebar-start')).toBeVisible();
 });
 
 test('7c. bar style (default): label, sharp corners, dashboard button, inert cells, minimize, drag handle (P46, P49)', async () => {

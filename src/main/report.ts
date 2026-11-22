@@ -39,8 +39,9 @@ export function loadDayData(db: Db, date: string, nowMs: number): DayData {
       `SELECT s.id, s.kind, s.name, s.project_id, p.name AS pname, p.color AS pcolor, s.planned_sec, s.status,
               s.started_ms, s.ended_ms, s.end_reason
          FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
-        WHERE (s.started_ms >= ? AND s.started_ms < ?)
-           OR s.id IN (SELECT session_id FROM segments WHERE start_ms < ? AND COALESCE(end_ms, ?) > ?)`,
+        WHERE s.deleted_ms IS NULL
+          AND ((s.started_ms >= ? AND s.started_ms < ?)
+           OR s.id IN (SELECT session_id FROM segments WHERE start_ms < ? AND COALESCE(end_ms, ?) > ?))`,
       d0, d1, d1, nowMs, d0,
     )
     .map((r) => ({
@@ -178,6 +179,16 @@ export function setKpiValue(db: Db, date: string, kpiId: string, value: number |
       'INSERT INTO kpi_values (date, kpi_id, value) VALUES (?, ?, ?) ON CONFLICT(date, kpi_id) DO UPDATE SET value = excluded.value',
       date, kpiId, value,
     );
+}
+
+/** P52: after an edit, a completed review's snapshot numbers follow the day (completion time unchanged). */
+export function refreshReview(db: Db, date: string, nowMs: number, settings: Settings): void {
+  if (!db.get('SELECT 1 AS x FROM reviews WHERE date = ? AND completed_ms IS NOT NULL', date)) return;
+  const s = summaryFor(db, date, nowMs, settings);
+  db.run(
+    'UPDATE reviews SET productive_sec = ?, work_sec = ?, scheduled_sec = ?, goal_sec = ?, goal_met = ?, score = ? WHERE date = ?',
+    s.productiveSec, s.workSec, s.scheduledSec, s.goalSec, s.goalMet ? 1 : 0, s.score, date,
+  );
 }
 
 /** Writes the `reviews` snapshot. Refused while leftovers remain. */

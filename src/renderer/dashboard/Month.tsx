@@ -126,13 +126,13 @@ function Heatmap({ days }: { days: DayLite[] }) {
                 x={x + 6}
                 y={y + 15}
                 fontSize={11}
-                fill={d.future ? 'var(--color-faint)' : 'var(--color-text)'}
+                fill={d.future ? 'var(--color-faint)' : frac > 0.5 ? 'var(--color-on-accent)' : 'var(--color-text)'}
                 className="tabular"
               >
                 {Number(d.date.slice(8))}
               </text>
               {d.goalMet && !d.future && (
-                <circle cx={x + CELL - 9} cy={y + CELL - 9} r={3.5} fill="var(--color-green)" />
+                <circle cx={x + CELL - 9} cy={y + CELL - 9} r={3.5} fill="var(--color-green)" stroke="var(--color-surface)" strokeWidth={1.5} />
               )}
             </g>
           );

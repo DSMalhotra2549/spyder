@@ -1,4 +1,4 @@
-// Settings keys and defaults (plan §5, P31).
+// Settings keys and defaults (plan §5, P51, P57).
 export interface Settings {
   goalSec: number;
   idleThresholdSec: number;
@@ -15,13 +15,13 @@ export interface Settings {
   appPercentScope: 'work_hours' | 'all_day';
   keepWorkingStepMin: number;
   widgetPos: { x: number; y: number } | null;
-  widgetStyle: 'bar' | 'full' | 'compact';
+  theme: 'system' | 'light' | 'dark';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   goalSec: 18000,
   idleThresholdSec: 300,
-  checkInIntervalSec: 1800,
+  checkInIntervalSec: 900,
   nagIntervalSec: 300,
   nudgeAfterSec: 300,
   nudgeRepeatSec: 300,
@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   appPercentScope: 'work_hours',
   keepWorkingStepMin: 30,
   widgetPos: null,
-  widgetStyle: 'bar',
+  theme: 'system',
 };
 
 export interface ScheduleRow {
@@ -55,7 +55,7 @@ export const DEFAULT_SCHEDULE: ScheduleRow[] = [0, 1, 2, 3, 4, 5, 6].map((weekda
 const MIN: Partial<Record<keyof Settings, number>> = {
   goalSec: 60,
   idleThresholdSec: 60,
-  checkInIntervalSec: 60,
+  checkInIntervalSec: 300,
   nagIntervalSec: 60,
   nudgeAfterSec: 30,
   nudgeRepeatSec: 30,
@@ -65,13 +65,18 @@ const MIN: Partial<Record<keyof Settings, number>> = {
   keepWorkingStepMin: 5,
 };
 
+/** Upper bounds (P51: check-ins from 5 min to 3 h). */
+const MAX: Partial<Record<keyof Settings, number>> = {
+  checkInIntervalSec: 10_800,
+};
+
 const ENUMS: Partial<Record<keyof Settings, readonly unknown[]>> = {
   defaultDirection: ['up', 'down'],
   appPercentScope: ['work_hours', 'all_day'],
-  widgetStyle: ['bar', 'full', 'compact'],
+  theme: ['system', 'light', 'dark'],
 };
 
-/** Drops unknown keys and invalid values from a settings change; numbers below their minimum are raised to it. */
+/** Drops unknown keys and invalid values from a settings change; numbers are clamped to their range. */
 export function cleanSettings(partial: Record<string, unknown>): Partial<Settings> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(partial)) {
@@ -79,7 +84,7 @@ export function cleanSettings(partial: Record<string, unknown>): Partial<Setting
     const key = k as keyof Settings;
     const def = DEFAULT_SETTINGS[key];
     if (key in MIN) {
-      if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.max(MIN[key]!, Math.round(v));
+      if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.min(MAX[key] ?? Infinity, Math.max(MIN[key]!, Math.round(v)));
     } else if (key in ENUMS) {
       if (ENUMS[key]!.includes(v)) out[k] = v;
     } else if (key === 'widgetPos') {

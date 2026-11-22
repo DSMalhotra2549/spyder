@@ -35,7 +35,6 @@ export interface Sheet {
 
 export const SHEET_NAMES = [
   'Sessions',
-  'Segments',
   'Activity',
   'App-Site summary',
   'Daily summary',
@@ -79,7 +78,7 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
     `SELECT s.id, s.kind, s.name, p.name AS pname, s.planned_sec, s.started_ms, s.ended_ms, s.end_reason,
             (SELECT SUM(COALESCE(g.end_ms, MAX(g.start_ms, ?)) - g.start_ms) FROM segments g WHERE g.session_id = s.id) AS actual_ms
        FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
-      WHERE s.started_ms >= ? AND s.started_ms < ? ORDER BY s.started_ms`,
+      WHERE s.deleted_ms IS NULL AND s.started_ms >= ? AND s.started_ms < ? ORDER BY s.started_ms`,
     nowMs,
     d0,
     d1,
@@ -113,45 +112,6 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
         s.end_reason,
       ];
     }),
-  };
-
-  // ---- Segments ------------------------------------------------------------------
-  const segments = db.all<{
-    start_ms: number;
-    end_ms: number | null;
-    source: string;
-    kind: string;
-    name: string | null;
-    pname: string | null;
-  }>(
-    `SELECT g.start_ms, g.end_ms, g.source, s.kind, s.name, p.name AS pname
-       FROM segments g JOIN sessions s ON s.id = g.session_id LEFT JOIN projects p ON p.id = s.project_id
-      WHERE g.start_ms >= ? AND g.start_ms < ? ORDER BY g.start_ms`,
-    d0,
-    d1,
-  );
-  const segmentSheet: Sheet = {
-    name: 'Segments',
-    columns: [
-      col('Date', 'date'),
-      col('Start', 'time_s'),
-      col('End', 'time_s'),
-      col('Session', 'text', 30),
-      col('Kind', 'text', 9),
-      col('Project', 'text', 16),
-      ...durCols('Length'),
-      col('Source', 'text', 13),
-    ],
-    rows: segments.map((g) => [
-      dateKey(g.start_ms),
-      g.start_ms,
-      g.end_ms,
-      g.name ?? '(unlabelled)',
-      g.kind,
-      g.pname,
-      ...dur(Math.round(((g.end_ms ?? Math.max(g.start_ms, nowMs)) - g.start_ms) / 1000)),
-      g.source,
-    ]),
   };
 
   // ---- Activity ------------------------------------------------------------------
@@ -364,7 +324,7 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
     ]),
   };
 
-  return [sessionSheet, segmentSheet, activitySheet, appSheet, dailySheet, awaySheet, reviewSheet, kpiSheet];
+  return [sessionSheet, activitySheet, appSheet, dailySheet, awaySheet, reviewSheet, kpiSheet];
 }
 
 // ---- writers ---------------------------------------------------------------------------

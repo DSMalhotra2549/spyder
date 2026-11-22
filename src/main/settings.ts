@@ -1,8 +1,9 @@
-import { DEFAULT_SETTINGS, type Settings } from '../core/settings';
+import { cleanSettings, DEFAULT_SETTINGS, type Settings } from '../core/settings';
 import type { Db } from './db/db';
 
+/** Stored values go through the same validation as changes, so old or out-of-range values can't reach the app. */
 export function loadSettings(db: Db): Settings {
-  const out: Record<string, unknown> = { ...DEFAULT_SETTINGS };
+  const out: Record<string, unknown> = {};
   for (const r of db.all<{ key: string; value: string }>('SELECT key, value FROM settings')) {
     try {
       out[r.key] = JSON.parse(r.value);
@@ -10,7 +11,7 @@ export function loadSettings(db: Db): Settings {
       // keep default on corrupt value
     }
   }
-  return out as unknown as Settings;
+  return { ...DEFAULT_SETTINGS, ...cleanSettings(out) };
 }
 
 export function saveSettings(db: Db, partial: Partial<Settings>): void {

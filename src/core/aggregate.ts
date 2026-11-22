@@ -75,6 +75,7 @@ export interface AppRow {
 export interface SessionLine {
   id: string;
   name: string | null;
+  projectId: string | null;
   projectName: string | null;
   projectColor: string | null;
   kind: Kind;
@@ -120,6 +121,9 @@ export interface DaySummary {
   flags: DayFlag[];
   offHoursActivitySec: number;
   unlabelledCount: number;
+  /** Work-hours time (up to now) covered by no session and no away period, e.g. after a delete (P53). */
+  untracked: (Block & { sec: number })[];
+  untrackedSec: number;
   timeline: {
     segments: (Block & { sessionId: string; kind: Kind; name: string | null })[];
     away: (Block & { classification: AwayClassification | null; label: string | null })[];
@@ -129,6 +133,23 @@ export interface DaySummary {
 
 const overlap = (a0: number, a1: number, b0: number, b1: number) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
 const sec = (ms: number) => Math.round(ms / 1000);
+
+/** Untracked spans shorter than this are rounding noise between segments, not gaps. */
+export const MIN_UNTRACKED_MS = 60_000;
+
+/** The parts of [from, to) not covered by any of `cover`. */
+export function gaps(from: number, to: number, cover: Block[], minMs = MIN_UNTRACKED_MS): Block[] {
+  const out: Block[] = [];
+  let at = from;
+  for (const c of [...cover].sort((a, b) => a.startMs - b.startMs)) {
+    if (c.endMs <= at) continue;
+    if (c.startMs >= to) break;
+    if (c.startMs - at >= minMs) out.push({ startMs: at, endMs: c.startMs });
+    at = Math.max(at, c.endMs);
+  }
+  if (to - at >= minMs) out.push({ startMs: at, endMs: to });
+  return out;
+}
 
 /** Grouping key for the apps & sites table (§10). */
 export function appKey(a: DayActivity): string {
@@ -226,6 +247,7 @@ export function daySummary(
       return {
         id: s.id,
         name: s.name,
+        projectId: s.projectId,
         projectName: s.projectName,
         projectColor: s.projectColor,
         kind: s.kind,
@@ -241,6 +263,14 @@ export function daySummary(
     })
     .filter((s) => s.daySec > 0 || (s.startMs >= d0 && s.startMs < d1))
     .sort((a, b) => a.startMs - b.startMs);
+
+  const untracked = win
+    ? gaps(
+        Math.max(win.startMs, d0),
+        Math.min(win.endMs, d1, data.nowMs),
+        [...daySegs.map((g) => ({ startMs: g.s, endMs: g.e })), ...awayDay.map((a) => ({ startMs: a.s, endMs: a.e }))],
+      ).map((b) => ({ ...b, sec: sec(b.endMs - b.startMs) }))
+    : [];
 
   return {
     date,
@@ -278,6 +308,8 @@ export function daySummary(
     flags: data.flags.filter((f) => f.tsMs >= d0 && f.tsMs < d1).sort((a, b) => a.tsMs - b.tsMs),
     offHoursActivitySec: sec(offHoursMs),
     unlabelledCount: sessions.filter((s) => s.name === null && s.kind !== 'break' && !s.running).length,
+    untracked,
+    untrackedSec: untracked.reduce((t, b) => t + b.sec, 0),
     timeline: {
       segments: daySegs
         .map((g) => {
@@ -289,4 +321,18 @@ export function daySummary(
       activity: acts.map((x) => ({ startMs: x.s, endMs: x.e, category: x.cat, key: appKey(x.a) })),
     },
   };
+}
+
+/** One line of Today's session log (P55): every part of the day in time order. */
+export type LogEntry =
+  | ({ type: 'session' } & SessionLine)
+  | ({ type: 'away' } & DaySummary['away'][number])
+  | ({ type: 'untracked' } & Block & { sec: number });
+
+export function dayLog(s: Pick<DaySummary, 'sessions' | 'away' | 'untracked'>): LogEntry[] {
+  return [
+    ...s.sessions.map((x) => ({ type: 'session' as const, ...x })),
+    ...s.away.map((x) => ({ type: 'away' as const, ...x })),
+    ...s.untracked.map((x) => ({ type: 'untracked' as const, ...x })),
+  ].sort((a, b) => a.startMs - b.startMs);
 }

@@ -58,16 +58,14 @@ test('Today matches aggregate(); a category change creates a user rule', async (
         pct: await r.locator('[data-k=pct]').innerText(),
       }).toEqual(want[i]);
     }
-    // Only the top 5 show until "Show all"; sessions are collapsed until opened (P45).
+    // Only the top 5 show until "Show all"; every session is in the log right under the stats (P55).
     expect(vm.summary.apps.length).toBeGreaterThan(5);
     await expect(rows).toHaveCount(5);
-    await expect(d.getByTestId('session-row')).toHaveCount(0);
+    await expect(d.getByTestId('session-row')).toHaveCount(vm.summary.sessions.length);
     await d.mouse.move(0, 0);
     await shot(d, 'today');
     await d.getByTestId('apps-show-all').click();
     await expect(rows).toHaveCount(vm.summary.apps.length);
-    await d.getByTestId('sessions-toggle').click();
-    await expect(d.getByTestId('session-row')).toHaveCount(vm.summary.sessions.length);
     await d.getByTestId('today').evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await d.mouse.move(0, 0);
     await shot(d, 'today-bottom');

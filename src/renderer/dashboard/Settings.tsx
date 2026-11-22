@@ -52,16 +52,16 @@ export function Settings() {
               </Field>
             </Card>
             <Card title="Widget & hotkey">
-              <Field label="Widget style">
+              <Field label="Theme">
                 <Segmented
-                  testId="set-widgetStyle"
-                  value={s.widgetStyle}
+                  testId="set-theme"
+                  value={s.theme}
                   options={[
-                    { value: 'bar', label: 'Bar' },
-                    { value: 'full', label: 'Full' },
-                    { value: 'compact', label: 'Compact' },
+                    { value: 'system', label: 'System' },
+                    { value: 'light', label: 'Light' },
+                    { value: 'dark', label: 'Dark' },
                   ]}
-                  onChange={(v) => void set({ widgetStyle: v })}
+                  onChange={(v) => void set({ theme: v })}
                 />
               </Field>
               <Field label="Planned sessions count">

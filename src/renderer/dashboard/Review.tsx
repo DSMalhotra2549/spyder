@@ -9,6 +9,7 @@ import { Btn, inputCls, NameInput, ProjectSelect } from '../ui/controls';
 import { Timeline } from './Timeline';
 import { Card, TopBar, useLoader } from './parts';
 import { dur, pct } from './stats';
+import { showEditResult } from './toast';
 
 export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d: string) => void; onChanged: () => void }) {
   const [vm, reload] = useLoader(() => window.spyder.getReview(date), date ?? '', true);
@@ -32,7 +33,7 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
         actions={
           <>
             {vm.completedMs !== null && (
-              <span data-testid="reviewed-chip" className="flex h-7 items-center gap-1.5 rounded-pill bg-green/15 px-3 text-[12px] font-semibold text-green">
+              <span data-testid="reviewed-chip" className="flex h-7 items-center gap-1.5 rounded-control bg-green/12 px-2.5 text-[12px] font-medium text-green">
                 ✓ Reviewed at {fmtTime(vm.completedMs)}
               </span>
             )}
@@ -148,8 +149,17 @@ function LabelRow({ id, startMs, endMs, sec, onChanged }: { id: string; startMs:
           Save
         </Btn>
       </div>
-      <button className="mt-1.5 text-[12px] text-muted hover:text-text" onClick={() => void save('Unknown')}>
-        Mark as Unknown
+      <button
+        data-testid="leftover-delete"
+        className="mt-1.5 text-[12px] text-muted hover:text-red"
+        onClick={async () => {
+          // P50/P53: a leftover is labelled or deleted; deleting makes its time untracked.
+          const r = await window.spyder.deleteSession(id);
+          showEditResult(r, () => void onChanged());
+          await onChanged();
+        }}
+      >
+        Delete session
       </button>
     </div>
   );

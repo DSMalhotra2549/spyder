@@ -161,7 +161,7 @@ export function sessionRow(db: Db, id: string): { name: string | null; elapsed_s
 export function nameSuggestions(db: Db, prefix: string): string[] {
   return db
     .all<{ name: string }>(
-      `SELECT name FROM sessions WHERE name IS NOT NULL AND name LIKE ? ESCAPE '\\' AND kind != 'break'
+      `SELECT name FROM sessions WHERE name IS NOT NULL AND deleted_ms IS NULL AND name LIKE ? ESCAPE '\\' AND kind != 'break'
        GROUP BY name COLLATE NOCASE ORDER BY MAX(started_ms) DESC LIMIT 8`,
       `${prefix.replace(/[\\%_]/g, (c) => `\\${c}`)}%`,
     )

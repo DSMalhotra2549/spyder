@@ -76,7 +76,7 @@ export function StartPopover({ tab, defaultDirection }: { tab: Kind; defaultDire
             }}
             className={clsx(
               'h-7 flex-1 rounded-pill text-[12px] font-semibold',
-              t.kind === kind ? 'bg-accent text-white' : 'text-muted hover:text-text',
+              t.kind === kind ? 'bg-accent text-on-accent' : 'text-muted hover:text-text',
             )}
           >
             {t.label}
@@ -141,7 +141,7 @@ export function StartPopover({ tab, defaultDirection }: { tab: Kind; defaultDire
                 onClick={() => setDirection(d)}
                 className={clsx(
                   'h-6 rounded-pill px-3 text-[12px] font-semibold',
-                  direction === d ? 'bg-accent text-white' : 'text-muted',
+                  direction === d ? 'bg-accent text-on-accent' : 'text-muted',
                 )}
               >
                 {d === 'down' ? '↓ down' : '↑ up'}

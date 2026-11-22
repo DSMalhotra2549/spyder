@@ -1,4 +1,4 @@
-import { app, Notification } from 'electron';
+import { app, nativeTheme, Notification } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClock, parseLocalIso } from '../core/clock';
@@ -15,6 +15,7 @@ import { registerHotkey } from './hotkey';
 import { startIdle } from './idle';
 import { registerIpc } from './ipc';
 import { loadSettings } from './settings';
+import { applyTheme } from './theme';
 import { createTray } from './tray';
 import { createDashboard, createPrompt, createWidget, showWidget } from './windows';
 
@@ -83,7 +84,9 @@ async function boot(): Promise<void> {
   registerIpc(ctx, host, { titlePatternsChanged: () => tracker?.firefox.reload() });
   registerDebug(ctx);
   applyAutostart(ctx);
+  applyTheme(ctx);
   addDebugState('host', () => host.debugState());
+  addDebugState('theme', () => ({ source: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors }));
   addDebugHook('injectActivity', (s: ActivitySample) => host.feedSample(s));
   addDebugHook('setScale', (scale: number) => ctx.clock.setScale(scale));
   addDebugHook('tick', () => host.dispatch({ type: 'TICK' }));
