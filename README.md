@@ -57,6 +57,7 @@ npm run dev            # starts the app with hot reload
 | `npm run seed` | Fill `SPYDER_DATA_DIR` with realistic sample days |
 | `npm run db:dump` | Print what's in the database |
 | `npm run dist` | Build the Windows installer |
+| `npm run install:local` | Build the installer, install it over the local app and restart it (runs after every commit on `main`) |
 
 ## How it's built
 

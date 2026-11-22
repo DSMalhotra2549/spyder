@@ -54,6 +54,7 @@ The e2e helper also sets `SPYDER_CAPTURE=0` and `SPYDER_FAKE_IDLE=1`, so the rea
 ## Gotchas
 
 - `npm run dev` with no `SPYDER_DATA_DIR` uses the **real** database in `%APPDATA%\Spyder`. So do `npm run seed` and `npm run db:dump`, which means seeding without it writes fake days into the user's real data. Set `SPYDER_DATA_DIR` to a temp dir before experimenting or seeding.
+- Every commit on `main` rebuilds and reinstalls the local app in the background (`.githooks/post-commit` → `scripts/install-local.ps1`, about 3 min; log in `release/install-local.log`). It stops the running Spyder, installs silently and restarts it. A fresh clone needs `git config core.hooksPath .githooks` to turn this on.
 - One instance per data dir. A second launch against the same dir exits silently.
 - `resources/UrlHelper.exe` is gitignored. Run `npm run build:helper` before testing Chrome site capture or `npm run dist`.
 - Run `scripts/capture-check.ts` from PowerShell. The Store version of Notepad won't launch from Git Bash.

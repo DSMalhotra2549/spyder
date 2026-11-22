@@ -18,7 +18,8 @@
     "seed": "tsx scripts/seed.ts",
     "build:helper": "powershell -ExecutionPolicy Bypass -File scripts/build-helper.ps1",
     "icon": "powershell -ExecutionPolicy Bypass -File scripts/make-icon.ps1",
-    "dist": "npm run build:helper && npm run build && electron-builder --win nsis"
+    "dist": "npm run build:helper && npm run build && electron-builder --win nsis",
+    "install:local": "powershell -ExecutionPolicy Bypass -File scripts/install-local.ps1"
   },
   "dependencies": {
     "@miniben90/x-win": "^3.7.0",
