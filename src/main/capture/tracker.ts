@@ -1,5 +1,6 @@
 // Activity sampler (plan §9.1): every sampleIntervalSec of real time, read the foreground window,
 // resolve the browser domain, merge into activity rows, feed the nudge, and write in batches.
+import { isIgnoredExe } from '../../core/defaults';
 import { flushMerge, initialMerge, mergeSample, type ActivityRow, type ActivitySampleRow, type MergeState } from '../../core/merge';
 import { resolveDomain, type OmniboxMemo } from '../../core/url';
 import type { AppCtx } from '../context';
@@ -68,6 +69,11 @@ export class Tracker {
       }
       const s = await this.read();
       if (!s) return;
+      // Spyder and shell overlays (P44): end the previous app's row here, record nothing.
+      if (isIgnoredExe(s.exe)) {
+        this.close(now);
+        return;
+      }
       const ts = this.app.clock.now();
       const r = mergeSample(this.merge, s, ts, this.intervalMs);
       this.merge = r.state;
@@ -82,6 +88,7 @@ export class Tracker {
   private async read(): Promise<ActivitySampleRow | null> {
     const fg = await this.fg.sample();
     if (!fg) return null;
+    if (isIgnoredExe(fg.exe)) return { exe: fg.exe, appName: fg.appName, title: null, domain: null, browser: null, isPrivate: false };
     const browser = BROWSERS[fg.exe] ?? null;
     const base = { exe: fg.exe, appName: fg.appName, title: fg.title || null, domain: null, browser, isPrivate: false };
     if (browser === 'firefox') return { ...base, ...this.firefox.parse(fg.title) };

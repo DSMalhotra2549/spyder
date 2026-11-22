@@ -176,9 +176,11 @@ Same surface/border/shadow. Two rows of buttons, 8 px gaps, 16 px padding:
 - **Top bar** (56 px, bottom border): page title `h1`, date navigator `‹ › 📅 Tue, Nov 24 2026` (buttons 32 px, `surface-2`), right side page actions (`Export…` secondary; Review: `Complete review` primary).
 - **Content:** padding 24, 12-column grid, gap 16. Cards: `surface`, 1 px `border`, radius card, padding 16, header = `section` text + optional right-aligned muted total.
 
-### Today
-Row 1 — five stat cards (each 2–3 cols): Work time · Productive / goal (with a 44 px ring, green when met) · Day score (`74%`) · Streak (`🔥` not used; plain `6 days`) · Distractions (count + minutes, red when > 0). Stat card: `section` label, `stat` number, `small` muted sub-line.
-Row 2 — **Timeline** (12 cols, height 132), custom SVG:
+### Today (P45 — one calm column)
+A single centred column, max 760 px, 40 px between sections, no cards. One thing is loud; everything else is muted.
+1. **Hero**: productive time at 48/600 (green when the goal is met) + "productive" 18 px muted. A 6 px progress bar (accent, green when met) with `of 5h goal · met` beside it. One muted 13 px line: `5h 50m worked · 1h break · 82% day score (of 7h scheduled) · 1 day streak`, values in `text`.
+2. **Distraction note**, only when there is distracting time or a flag: a 10 % red-tinted box, `● 1 distraction flag · 7m distracting`, then one muted line per flag (`youtube.com at 11:13 — 5m straight`).
+3. **Timeline** (section label, no card):
 - x axis = the day's work window ±1 h (or 08:00–20:00 on a day off), hour ticks + labels `small muted`, gridlines `border`.
 - Lane 1 "Sessions" (28 px): blocks per segment, coloured by kind (planned cyan, timed teal, open white @ 70 %, break blue), radius 4; label inside if ≥ 60 px wide (`11/600`, dark text on light fills).
 - Lane 2 "Away" (16 px): lilac blocks, hatched (`pattern` 45°) while pending classification.
@@ -186,10 +188,9 @@ Row 2 — **Timeline** (12 cols, height 132), custom SVG:
 - Lane 4 flags: red 6 px triangles at distraction flag times.
 - Shaded `surface-2` background outside work hours. A red vertical `now` line.
 - Hover tooltip: card `surface-2`, 12 px text, name + time range + duration.
-Row 3 — Sessions table (7 cols) · Category donut (5 cols).
-Row 4 — Apps & sites (7 cols) · Distraction flags + off-hours note (5 cols).
-
-Tables: header 32 px `surface-2`, `section` text; rows 36 px, 1 px `border` dividers, hover `surface-2`. Numbers right-aligned tabular. Apps & sites rows follow Rize's ranked list: `1  youtube.com     38m   1.2%  [Distracting ▾]` with a faint bar (category colour @ 15 %) behind the row sized to pct. The category chip is a 22 px pill, dot + label, click opens a 4-option menu.
+4. **Where your time went** (scope `work hours` / `all day` right, faint): an 8 px stacked category bar with an inline legend (dot + label + `h:mm`), then the top 5 apps & sites as plain 40 px rows: name · `h:mm` · faint `%` · quiet category label (dot + muted text, no pill; ▾ and a `surface-2` fill on hover; click opens the 3-option menu). `Show all N →` reveals the rest.
+5. **Sessions**, collapsed to `▸ 8 sessions`; open: rows of time range · project dot · name · actual · `of 0:30 planned` (red when > 10 % over) or the kind.
+6. Off-hours note, 12 px faint.
 
 ### Week
 Stat row (total work, productive, avg score, goals hit `3/5`). Stacked bar chart (8 cols, 280 px): one bar per day, stacks productive / neutral / distracting / uncategorized / break / away. Goal-hit marker: green ✓ dot above the bar. Right (4 cols): top 10 sites ranked list. Bottom: estimate accuracy table (session · planned · actual · delta, delta red when over by > 10 %).

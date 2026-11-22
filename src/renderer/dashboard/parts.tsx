@@ -216,37 +216,16 @@ export function Stat({
   );
 }
 
-/** 44 px progress ring (productive / goal), green once met. */
-export function GoalRing({ frac }: { frac: number }) {
-  const r = 18;
-  const c = 2 * Math.PI * r;
-  const f = Math.max(0, Math.min(1, frac));
-  return (
-    <svg width={44} height={44} className="shrink-0 -rotate-90">
-      <circle cx={22} cy={22} r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth={4} />
-      {f > 0 && (
-        <circle
-          cx={22}
-          cy={22}
-          r={r}
-          fill="none"
-          stroke={f >= 1 ? 'var(--color-green)' : 'var(--color-accent)'}
-          strokeWidth={4}
-          strokeLinecap="round"
-          strokeDasharray={`${f * c} ${c}`}
-        />
-      )}
-    </svg>
-  );
-}
-
 /** Category pill; click opens a menu that creates a user rule (P12). */
 export function CategoryChip({
   category,
   onPick,
+  quiet,
 }: {
   category: ActivityCategory;
   onPick?: (c: Category) => void;
+  /** No pill outline; muted label, ▾ only on hover (Today page). */
+  quiet?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -264,11 +243,16 @@ export function CategoryChip({
         data-testid="category-chip"
         disabled={!onPick}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-[22px] items-center gap-1.5 rounded-pill border border-border bg-surface-2 pr-2 pl-2 text-[11px] font-semibold text-text hover:border-border-strong disabled:hover:border-border"
+        className={clsx(
+          'group/chip flex h-[22px] items-center gap-1.5 rounded-pill pr-2 pl-2 text-[11px]',
+          quiet
+            ? 'text-muted hover:bg-surface-2 hover:text-text'
+            : 'border border-border bg-surface-2 font-semibold text-text hover:border-border-strong disabled:hover:border-border',
+        )}
       >
         <span className="h-2 w-2 rounded-full" style={{ background: CAT_COLOR[category] }} />
         {CAT_LABEL[category]}
-        {onPick && <span className="text-muted">▾</span>}
+        {onPick && <span className={clsx('text-muted', quiet && 'invisible group-hover/chip:visible')}>▾</span>}
       </button>
       {open && onPick && (
         <div className="absolute top-[26px] right-0 z-20 w-[150px] rounded-control border border-border-strong bg-surface-2 p-1 shadow-float">

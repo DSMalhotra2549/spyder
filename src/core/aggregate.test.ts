@@ -119,6 +119,20 @@ describe('daySummary', () => {
     expect(Math.abs(all.apps.reduce((t, a) => t + a.pct, 0) - 100)).toBeLessThan(0.1);
   });
 
+  it('Spyder, dev Electron and shell overlays are never counted (P44)', () => {
+    const f = fixture();
+    const base = daySummary('2026-11-24', f, rules, S);
+    f.activity.push(
+      act(at(16), at(16, 10), { exe: 'Spyder.exe', appName: 'Spyder' }),
+      act(at(16, 10), at(16, 15), { exe: 'electron.exe', appName: 'Electron' }),
+      act(at(16, 15), at(16, 16), { exe: 'ScreenClippingHost.exe', appName: 'ScreenClippingHost.exe' }),
+    );
+    const d2 = daySummary('2026-11-24', f, rules, S);
+    expect(d2.apps).toEqual(base.apps);
+    expect(d2.categoryTotals).toEqual(base.categoryTotals);
+    expect(d2.timeline.activity).toEqual(base.timeline.activity);
+  });
+
   it('a day off uses the whole day as scope and has no score', () => {
     const off = daySummary('2026-11-24', { ...fixture(), window: null }, rules, S);
     expect(off.scheduledSec).toBe(0);

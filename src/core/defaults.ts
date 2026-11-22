@@ -83,3 +83,19 @@ export const DEFAULT_TITLE_PATTERNS: DefaultTitlePattern[] = [
   tp('contains', 'ChatGPT', 'chatgpt.com'),
   tp('contains', 'WhatsApp', 'web.whatsapp.com'),
 ];
+
+/**
+ * Windows that are never tracked (P44): Spyder itself (and electron.exe, which only appears for dev
+ * runs of Spyder) and Windows shell overlays that grab focus for a moment.
+ */
+export const IGNORED_EXES = new Set([
+  'spyder.exe',
+  'electron.exe',
+  'screenclippinghost.exe',
+  'lockapp.exe',
+  'searchhost.exe',
+  'startmenuexperiencehost.exe',
+  'shellexperiencehost.exe',
+]);
+
+export const isIgnoredExe = (exe: string): boolean => IGNORED_EXES.has(exe.toLowerCase());

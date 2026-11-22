@@ -1,6 +1,6 @@
 // Daily report numbers (plan §10, P25–P27, P30). Everything is clipped to the local day.
 import { categorize, type ActivityCategory, type Rule } from './categorize';
-import type { MatchType } from './defaults';
+import { isIgnoredExe, type MatchType } from './defaults';
 import { addDays, dayStartFromKey } from './schedule';
 import type { Settings } from './settings';
 import type { AwayClassification, AwayReason, EndReason, Kind, SessionStatus, WorkWindow } from './types';
@@ -175,6 +175,7 @@ export function daySummary(
   const breakMs = segMs(brk) + awayMs((c) => c === 'break');
 
   const acts = data.activity
+    .filter((a) => !isIgnoredExe(a.exe))
     .map((a) => ({ a, s: Math.max(a.startMs, d0), e: Math.min(a.endMs, d1), cat: categorize(a, rules) }))
     .filter((x) => x.e > x.s);
 
