@@ -12,6 +12,8 @@ test('theme switches live and covers every page and the bar', async () => {
   const s = await launch({ dataDir: dir, now: `${DATE}T15:00:00` });
   try {
     const d = s.dashboard;
+    // A running loop, so the bar shows its plain surface (Not started is tinted, P59).
+    await d.evaluate(() => window.spyder.start(900));
     await d.evaluate(() => window.spyder.openDashboard('settings'));
     const theme = d.getByTestId('set-theme');
     await theme.waitFor();

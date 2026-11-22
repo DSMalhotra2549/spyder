@@ -1,4 +1,4 @@
-// Engine types (plan §7).
+// Engine types (ADR-0011: the block loop).
 import type { Settings } from './settings';
 
 export type Kind = 'planned' | 'timed' | 'open' | 'break';
@@ -8,48 +8,34 @@ export type AwayClassification = 'break' | 'meeting' | 'offline_work' | 'not_wor
 export type EndReason = 'done' | 'switched' | 'work_hours_end' | 'cap_24h' | 'checkin_fresh' | 'resumed';
 export type SessionStatus = 'running' | 'paused' | 'interrupted' | 'done';
 
-export interface Active {
+/** The block that is running now (ADR-0011). */
+export interface RunningBlock {
   id: string;
-  kind: Kind;
-  name: string | null;
-  projectId: string | null;
-  plannedSec: number | null;
-  direction: Direction | null;
   startedMs: number;
-  accumulatedSec: number; // closed segments
-  segmentId: string | null;
-  segmentStartMs: number | null;
-  timeUpAtMs: number | null;
-  lastNagMs: number | null;
-  lastCheckInMs: number;
+  /** This block's length; the loop's length applies from the next block (P59). */
+  lengthSec: number;
+  segmentId: string;
 }
 
-export interface AwayState {
-  startMs: number;
-  reason: AwayReason;
-  interrupted: Active | null;
-}
-
-export type PromptType = 'away' | 'recovery' | 'timeUp' | 'label' | 'breakEnd' | 'checkIn';
-
-export interface Prompt {
-  id: string;
-  type: PromptType;
-  sessionId?: string;
-  awayId?: string;
-  /** away/recovery: the recorded interval. */
-  awayStartMs?: number;
-  awayEndMs?: number;
-  createdMs: number;
+export interface Loop {
+  block: RunningBlock;
+  /** Length for the next block. */
+  lengthSec: number;
+  /** Started in off hours: runs until Stop instead of stopping at the end of work hours (P59). */
+  untilStop: boolean;
 }
 
 export interface EngineState {
-  mode: 'off_hours' | 'working' | 'away';
-  current: Active | null;
-  paused: Active | null;
-  away: AwayState | null;
-  /** Kept ordered: by priority, then queue order (re-nag moves a prompt to the front of its priority). */
-  prompts: Prompt[];
+  /** Whether it's work hours now. */
+  mode: 'off_hours' | 'working';
+  loop: Loop | null;
+  /** The loop cut by the end of work hours; Keep working continues it from `atMs` (P62). */
+  cut: { lengthSec: number; atMs: number } | null;
+  /** The start reminder prompt is showing (P59). */
+  reminder: boolean;
+  lastReminderMs: number | null;
+  /** The user is away right now (idle, lock, sleep); only a hint for accounting (P61). */
+  away: { startMs: number; reason: AwayReason } | null;
   reviewOpenedFor: string | null;
   lastHeartbeatMs: number | null;
 }
@@ -59,10 +45,7 @@ export interface WorkWindow {
   endMs: number;
 }
 
-export type EngineSettings = Pick<
-  Settings,
-  'nagIntervalSec' | 'checkInIntervalSec' | 'shortAwayIgnoreSec' | 'keepWorkingStepMin' | 'defaultDirection'
->;
+export type EngineSettings = Pick<Settings, 'blockLengthSec' | 'keepWorkingStepMin'>;
 
 export interface Ctx {
   now: number;
@@ -72,49 +55,22 @@ export interface Ctx {
   newId(): string;
 }
 
-export interface StartInput {
-  kind: Kind;
-  name?: string | null;
-  projectId?: string | null;
-  plannedSec?: number | null;
-  direction?: Direction | null;
-}
-
 export interface Heartbeat {
   tsMs: number;
   state: EngineState;
 }
 
-export type Answer =
-  | { classification: AwayClassification; label?: string | null } // away / recovery
-  | 'done'
-  | 'switch'
-  | 'back'
-  | { extend: number } // timeUp / breakEnd
-  | { name: string; projectId?: string | null } // label
-  | { action: 'continue' | 'fresh'; name: string; projectId?: string | null } // checkIn
-  | { action: 'still' };
-
 export type EngineEvent =
   | { type: 'BOOT'; heartbeat: Heartbeat | null }
   | { type: 'TICK' }
-  | ({ type: 'START' } & StartInput)
-  | { type: 'DONE' }
-  | { type: 'EXTEND'; sec: number }
-  | { type: 'PAUSE' }
-  | { type: 'RESUME' }
-  | { type: 'LABEL'; sessionId: string; name: string; projectId?: string | null }
-  | { type: 'ANSWER'; promptId: string; answer: Answer }
-  | { type: 'AWAY_BEGIN'; atMs: number; reason: AwayReason }
-  | { type: 'AWAY_END' }
-  | { type: 'KEEP_WORKING' }
   | { type: 'SCHEDULE_CHANGED' }
-  /** E20 (P53): the session was deleted. */
-  | { type: 'DROP'; sessionId: string }
-  /** E21 (P54): `removedIds` were merged into `sessionId`, whose closed time grew by `addSec` (negative on undo). */
-  | { type: 'ABSORB'; sessionId: string; addSec: number; removedIds: string[] }
-  /** E22: undo of deleting the running session; `active` takes over the fresh open session `replacesId`. */
-  | { type: 'RESTORE'; active: Active; replacesId: string };
+  | { type: 'START'; lengthSec: number }
+  | { type: 'STOP' }
+  | { type: 'SET_LENGTH'; lengthSec: number }
+  | { type: 'DISMISS_REMINDER' }
+  | { type: 'KEEP_WORKING' }
+  | { type: 'AWAY_BEGIN'; atMs: number; reason: AwayReason }
+  | { type: 'AWAY_END' };
 
 export interface SessionInsertRow {
   id: string;
@@ -164,20 +120,17 @@ export type Effect =
   | { db: 'updateSession'; row: SessionUpdateRow }
   | { db: 'openSegment'; row: SegmentRow }
   | { db: 'closeSegment'; row: { id: string; endMs: number } }
-  | { db: 'insertSegment'; row: SegmentRow & { endMs: number } }
-  | { db: 'insertAway'; row: AwayInsertRow }
-  | { db: 'updateAway'; row: AwayUpdateRow }
-  | { ring: true }
-  | { promptsChanged: true }
+  /** A block cut before it lasted a second (Stop right after Start): removed, not kept as a 0 s block. */
+  | { db: 'discardSession'; id: string }
+  /** A block ended; the host shows the accounting prompt (P60). */
+  | { blockEnded: string }
+  /** An away interval ended; kept in memory as a hint (P61). */
+  | { awayEnded: { startMs: number; endMs: number } }
   | { openReview: string }
   | { setDayOverride: { date: string; endMin: number } }
-  | { openStartPopover: true }
   | { saveHeartbeat: true };
 
-export type EngineError =
-  | { error: 'needs_label'; sessionId: string }
-  | { error: 'unknown_prompt' }
-  | { error: 'invalid'; message: string };
+export type EngineError = { error: 'invalid'; message: string };
 
 export interface ReduceResult {
   state: EngineState;

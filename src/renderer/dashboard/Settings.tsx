@@ -64,17 +64,6 @@ export function Settings() {
                   onChange={(v) => void set({ theme: v })}
                 />
               </Field>
-              <Field label="Planned sessions count">
-                <Segmented
-                  testId="set-defaultDirection"
-                  value={s.defaultDirection}
-                  options={[
-                    { value: 'down', label: '↓ Down' },
-                    { value: 'up', label: '↑ Up' },
-                  ]}
-                  onChange={(v) => void set({ defaultDirection: v })}
-                />
-              </Field>
               <Field label="Widget hotkey" hint="shows / hides the widget">
                 <TextInput testId="set-hotkey" value={s.hotkey} onCommit={(v) => void set({ hotkey: v })} />
               </Field>
@@ -83,40 +72,22 @@ export function Settings() {
 
           <Card title="Timers" className="col-span-7">
             <div className="grid grid-cols-2 gap-x-6">
-              <Field label="Check-in interval" hint="open sessions">
+              <Field label="Block length" hint="5–180 min, from the next block">
                 <NumberInput
-                  testId="set-checkInIntervalSec"
-                  value={s.checkInIntervalSec / 60}
-                  min={1}
+                  testId="set-blockLengthSec"
+                  value={s.blockLengthSec / 60}
+                  min={5}
                   unit="min"
-                  onCommit={(v) => void set({ checkInIntervalSec: v * 60 })}
+                  onCommit={(v) => void set({ blockLengthSec: v * 60 })}
                 />
               </Field>
-              <Field label="Repeat ring" hint="while time's up">
-                <NumberInput
-                  testId="set-nagIntervalSec"
-                  value={s.nagIntervalSec / 60}
-                  min={1}
-                  unit="min"
-                  onCommit={(v) => void set({ nagIntervalSec: v * 60 })}
-                />
-              </Field>
-              <Field label="Away after idle">
+              <Field label="Away after idle" hint="shown as a hint">
                 <NumberInput
                   testId="set-idleThresholdSec"
                   value={s.idleThresholdSec / 60}
                   min={1}
                   unit="min"
                   onCommit={(v) => void set({ idleThresholdSec: v * 60 })}
-                />
-              </Field>
-              <Field label="Ignore away under">
-                <NumberInput
-                  testId="set-shortAwayIgnoreSec"
-                  value={s.shortAwayIgnoreSec}
-                  min={0}
-                  unit="sec"
-                  onCommit={(v) => void set({ shortAwayIgnoreSec: v })}
                 />
               </Field>
               <Field label="Nudge after">

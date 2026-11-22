@@ -1,6 +1,6 @@
 # Spyder
 
-A personal Windows app that holds its user accountable for how they spend their working time. It does this by making every minute of work hours belong to a labelled session.
+A personal Windows app that holds its user accountable for how they spend their working time. It does this by making every minute of work hours belong to a block the user has accounted for.
 
 ## Language
 
@@ -11,7 +11,7 @@ The user's scheduled working window for a given day (e.g. 10:00–17:00), from t
 _Avoid_: business hours, shift
 
 **Off hours**:
-Any time outside work hours. Activity is still recorded, but no sessions or prompts happen.
+Any time outside work hours. Activity is still recorded and no start reminders happen, but the user can still press Start; a loop started in off hours runs until Stop.
 _Avoid_: after hours, personal time
 
 **Workday %**:
@@ -27,79 +27,53 @@ Work hours set for today only, replacing the weekday schedule for that one day.
 _Avoid_: exception, custom hours
 
 **Keep working**:
-The user's explicit choice to extend today's work hours by a fixed step (30 minutes by default) after they've ended.
-_Avoid_: overtime (that's per session), extend day
+The user's explicit choice to extend today's work hours by a fixed step (30 minutes by default) after they've ended. A running loop carries on.
+_Avoid_: overtime, extend day
 
-### Sessions
+### Blocks
 
-**Session**:
-A labelled block of the user's time. Every moment of work hours belongs to exactly one session or one away period, unless it is untracked.
-_Avoid_: task, entry, timer
+**Block**:
+A stretch of the user's time, accounted for with one answer. The loop makes blocks of exactly the block length; merging adjacent blocks makes one longer block. Every moment of work hours belongs to one block or is untracked.
+_Avoid_: interval, chunk, slot, timer, session (the old model)
 
-**Planned session**:
-A session named and given a duration before it starts. It counts up or down.
-_Avoid_: focus session, named timer
+**Block length**:
+The duration the loop gives each new block, 5–180 minutes, set next to the Start button. A change applies from the next block.
+_Avoid_: interval, timer setting
 
-**Timed session**:
-A session given only a duration. It's named when the time is up.
-_Avoid_: anonymous timer
+**Loop**:
+The chain of back-to-back blocks that runs from Start until Stop or the end of work hours. Blocks start from the moment Start is pressed, not on clock boundaries. When one block ends, the next starts immediately, even if the previous one isn't accounted for yet.
+_Avoid_: run, timer
 
-**Open session**:
-A session with no duration that counts up until the user says what they did. It starts automatically whenever nothing else is running during work hours.
-_Avoid_: free session, stopwatch, auto session
+**Account for**:
+Saying in free text what a block was spent on, once it has ended. Several unanswered blocks are accounted for in one prompt, together or one by one.
+_Avoid_: log, label
 
-**Break**:
-A session the user spends resting. It's not work time.
-_Avoid_: pause (a pause *creates* a break)
+**Answer**:
+The free text that says what a block was spent on. Consecutive blocks with the same answer are shown joined but stay separate blocks until merged.
+_Avoid_: label, name, tag
 
-**Segment**:
-One continuous interval during which a session was actually running. A session is made up of one or more segments.
-_Avoid_: span, chunk
+**Break block**:
+A block the user accounts for as a break, with the Break button instead of text. It isn't work time.
+_Avoid_: pause
 
-**Label**:
-The name (and optional project) that says what a session was for.
-_Avoid_: tag, title
+**Away time** (in a block):
+Minutes within a block when the user wasn't at the computer. The loop keeps running; away time is shown as a hint when the block is accounted for and isn't asked about separately.
 
-**Project**:
-A user-defined grouping that sessions can belong to (e.g. "Client A", "Admin").
-_Avoid_: client, category
-
-**Pause**:
-Setting the current session aside by starting a break. **Resume** ends that break and continues the paused session.
-_Avoid_: stop, hold
-
-**Time up**:
-The moment a planned or timed session (or a break with a duration) reaches its planned duration.
-_Avoid_: timeout, expiry
-
-**Overtime**:
-Time a planned or timed session runs past its planned duration.
-_Avoid_: overrun, extra time
-
-**Check-in**:
-A periodic question during an open session asking what the user has been doing.
-_Avoid_: reminder, ping
+**Start reminder**:
+During work hours with no loop running, the bar shows "Not started" highlighted and a prompt with a Start button repeats every block length.
+_Avoid_: nag
 
 **Merge**:
-Folding two or more sessions of the same day into one of them, chosen by the user. The kept session keeps its label, kind and plan and gains the others' time. Time between them stays as it was.
+Joining adjacent blocks (no time between them) into one longer block with one answer, picked by the user. A break block can't be merged with a work block.
 _Avoid_: combine, join
 
 **Delete**:
-Removing a session after the fact. Its time becomes untracked.
+Removing a block after the fact. Its time becomes untracked.
 _Avoid_: discard, remove
 
 **Untracked**:
-Work-hours time that belongs to no session and no away period, usually because the user deleted the session it was in. It doesn't count as work time and isn't a leftover.
+Work-hours time that belongs to no block: before Start was pressed, or because the user deleted the block it was in. It doesn't count as work time and isn't a leftover.
 _Avoid_: gap, unaccounted, deleted time
-
-### Absence
-
-**Away period**:
-An interval when the user wasn't at the computer (idle, asleep, locked, or Spyder not running), which the user then classifies.
-_Avoid_: idle time, AFK, gap
-
-**Away classification**:
-What the user says an away period was: Break, Meeting, Offline work, Not working, or Working.
 
 ### Activity
 
@@ -123,16 +97,16 @@ Activity in a private browser window. It's recorded without a title or site and 
 _Avoid_: incognito
 
 **Distraction**:
-Time spent on Distracting apps/sites during a work session.
+Time spent on Distracting apps/sites in blocks that aren't break blocks.
 
 **Nudge**:
-A real-time warning shown after 5 continuous minutes of distraction during a work session.
+A real-time warning shown after 5 continuous minutes of distraction while the loop is running.
 _Avoid_: block, alert
 
 ### Accountability
 
 **Work time**:
-Time in non-break sessions, plus away time classified as Meeting or Offline work.
+Time in blocks that aren't break blocks, including blocks not yet accounted for.
 
 **Productive time**:
 Work time minus distraction time.
@@ -149,11 +123,11 @@ _Avoid_: focus score, productivity score
 The number of consecutive scheduled workdays on which the daily goal was met.
 
 **Review**:
-The end-of-day ritual: label leftover time, look at the day, and write wins and improvements.
+The end-of-day ritual: account for leftover blocks, look at the day, and write wins and improvements.
 _Avoid_: report (the report is what the review looks at), journal
 
 **Leftover**:
-A finished session with no label, or an away period with no classification, that the review asks the user to resolve.
+A finished block that hasn't been accounted for, which the review asks the user to answer.
 _Avoid_: gap, untracked (untracked time is deliberate, not pending)
 
 **Win**:
@@ -166,17 +140,14 @@ One entry under "How I'll improve" in a review.
 A user-defined daily number (e.g. "Calls made") recorded in the review and charted over time.
 _Avoid_: metric, stat
 
-**Planned vs actual**:
-A planned session's intended duration compared with its real elapsed time.
-
 ### Interface
 
 **Widget**:
-The small always-on-top bar showing the running session's timer, today's productive time and the percent of day. It only displays; session controls live in the dashboard.
+The small always-on-top bar showing the current block's timer, today's productive time and the percent of day. It only displays; Start, Stop and the block length live in the dashboard.
 _Avoid_: overlay, HUD, timer window
 
 **Prompt**:
-A question Spyder puts to the user (time up, label, check-in, away, break over). Only one is shown at a time; the rest wait in a queue.
+A question Spyder puts to the user (account for blocks, start reminder). Only one is shown at a time; the rest wait in a queue.
 _Avoid_: popup, dialog, notification
 
 **Dashboard**:

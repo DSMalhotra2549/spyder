@@ -2,10 +2,10 @@
 import { expect, test } from '@playwright/test';
 import { launch, shot } from './helpers';
 
-type Eng = { mode: string; prompts: { type: string }[] };
+type Eng = { mode: string; away: unknown; loop: { block: { lengthSec: number } } | null };
 
-test('settings apply live: check-in, idle threshold, schedule', async () => {
-  const s = await launch(); // Tue 2026-11-24 11:00, an open session auto-starts
+test('settings apply live: block length, idle threshold, schedule', async () => {
+  const s = await launch(); // Tue 2026-11-24 11:00, work hours
   try {
     const d = s.dashboard;
     const eng = async () => ((await s.debug.state()).host as { engine: Eng }).engine;
@@ -17,25 +17,15 @@ test('settings apply live: check-in, idle threshold, schedule', async () => {
     await shot(d, 'settings-bottom');
     await d.getByTestId('settings').evaluate((el) => el.scrollTo(0, 0));
 
-    // Check-in every 10 min → the prompt comes at 10 clock-min, not before.
-    await d.getByTestId('set-checkInIntervalSec').fill('10');
-    await d.getByTestId('set-checkInIntervalSec').press('Enter');
+    // Block length 10 min → Start uses it, and the sidebar box shows it (P59).
+    await d.getByTestId('set-blockLengthSec').fill('10');
+    await d.getByTestId('set-blockLengthSec').press('Enter');
     await expect
-      .poll(
-        () =>
-          (
-            s.db().prepare("SELECT value FROM settings WHERE key = 'checkInIntervalSec'").get() as {
-              value: string;
-            }
-          ).value,
-      )
+      .poll(() => (s.db().prepare("SELECT value FROM settings WHERE key = 'blockLengthSec'").get() as { value: string }).value)
       .toBe('600');
-    await s.debug.advance(540);
-    await s.debug.tick();
-    expect((await eng()).prompts.some((p) => p.type === 'checkIn')).toBe(false);
-    await s.debug.advance(61);
-    await s.debug.tick();
-    expect((await eng()).prompts.some((p) => p.type === 'checkIn')).toBe(true);
+    await expect(d.getByTestId('block-length')).toHaveValue('10');
+    await d.getByTestId('sidebar-start').click();
+    await expect.poll(async () => (await eng()).loop?.block.lengthSec).toBe(600);
 
     // Idle threshold 1 min → last input 70 s ago means away.
     await d.getByTestId('set-idleThresholdSec').fill('1');
@@ -52,9 +42,10 @@ test('settings apply live: check-in, idle threshold, schedule', async () => {
       .toBe('60');
     const now = (await s.debug.state()).now as number;
     await s.debug.simulateIdle(now - 70_000);
-    expect((await eng()).mode).toBe('away');
+    expect((await eng()).away).not.toBeNull();
+    expect((await eng()).loop).not.toBeNull(); // away doesn't stop the loop (P61)
     await s.debug.simulateIdle(null);
-    expect((await eng()).mode).toBe('working');
+    expect((await eng()).away).toBeNull();
 
     // Switching today (Tuesday) off → Off hours right away.
     await d.getByTestId('sched-2-enabled').click();

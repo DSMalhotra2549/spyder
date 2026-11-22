@@ -1,40 +1,46 @@
-// Engine host (plan §4, Phase 3): owns EngineState, ticks it with clock time, applies effects
-// (DB, ring, prompts, day overrides) and pushes view models to the widget and prompt windows.
+// Engine host (ADR-0011): owns EngineState, ticks it with clock time, applies effects (DB, review, day
+// overrides), writes answers, and pushes view models to the bar, the dashboard and the prompt window.
 import { randomUUID } from 'node:crypto';
+import { inLoop, initialState, reduce, widgetView } from '../core/blockEngine';
 import { categorize, type ActivityCategory, type ActivityKey, type Rule } from '../core/categorize';
-import { initialNudge, nudgeMessage, stepNudge, type NudgeState } from '../core/nudge';
-import { promptView, type SessionInfo } from '../core/promptView';
-import { dateKey, mergeOverride, minutesOfDay, workWindow, type DayOverride } from '../core/schedule';
-import { elapsedSec, initialState, inWorkSession, reduce, visiblePrompt, widgetView } from '../core/sessionEngine';
-import type { ScheduleRow } from '../core/settings';
 import { fmtClock } from '../core/format';
-import type { Answer, AwayClassification, Ctx, Effect, EngineError, EngineEvent, EngineState, Kind, StartInput } from '../core/types';
-import type { PromptWindowState, WidgetPayload } from '../preload/api';
+import { initialNudge, nudgeMessage, stepNudge, type NudgeState } from '../core/nudge';
+import { accountView, reminderView, type PendingBlock, type PromptVM } from '../core/promptView';
+import { addDays, dateKey, mergeOverride, minutesOfDay, startOfDay, workWindow, type DayOverride } from '../core/schedule';
+import type { ScheduleRow } from '../core/settings';
+import type { Ctx, Effect, EngineError, EngineEvent, EngineState } from '../core/types';
+import type { WidgetPayload } from '../preload/api';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
 import { toast } from './notify';
-import { summaryFor } from './report';
+import { refreshReview, summaryFor } from './report';
+import { saveSettings, loadSettings } from './settings';
 import { setTrayTooltip } from './tray';
 import { hidePrompt, openDashboard, showPrompt } from './windows';
 
 export type ActivitySample = ActivityKey & { appName?: string };
 
 type DbEffect = Extract<Effect, { db: string }>;
+type Result = { ok: true } | EngineError;
 
 export class EngineHost {
   state: EngineState = initialState();
-  ringCount = 0;
   toastCount = 0;
-  startOpen = false;
-  private startTab: Kind = 'planned';
   private schedule: ScheduleRow[] = [];
   private overrides = new Map<string, DayOverride>();
   private rules: Rule[] = [];
   private nudge: NudgeState = initialNudge();
   private distracted = false;
   private distractTarget: string | null = null;
+  /** Away intervals seen since launch: hints for accounting, never stored (P61). */
+  private awayLog: { startMs: number; endMs: number }[] = [];
+  /** Today's blocks waiting for an answer; recomputed when blocks or answers change. */
+  private pending: PendingBlock[] = [];
+  private pendingDirty = true;
+  private pendingDay = '';
   private lastWidget = '';
   private lastPrompt = '';
+  private lastPendingCount = 0;
   private timer: NodeJS.Timeout | undefined;
   private readonly app: AppCtx;
 
@@ -49,7 +55,7 @@ export class EngineHost {
     this.overrides = repo.loadOverrides(this.app.db);
   }
 
-  /** Settings page changed the schedule or an override: reload and let the engine react (E19). */
+  /** Settings page changed the schedule or an override: reload and let the engine react. */
   scheduleChanged(): void {
     this.reloadSchedule();
     this.productiveCache.atMs = Number.NaN;
@@ -65,7 +71,7 @@ export class EngineHost {
     };
   }
 
-  /** E1 on startup, then the tick loop. */
+  /** Restore from the heartbeat, then the tick loop. */
   boot(): void {
     this.dispatch({ type: 'BOOT', heartbeat: repo.loadHeartbeat(this.app.db) });
     const loop = () => {
@@ -90,14 +96,12 @@ export class EngineHost {
     const dbFx = r.effects.filter((e): e is DbEffect => 'db' in e);
     repo.applyDbEffects(this.app.db, dbFx);
     for (const e of r.effects) {
-      if ('ring' in e) this.ring();
-      else if ('openReview' in e) openDashboard(this.app, 'review');
+      if ('openReview' in e) openDashboard(this.app, 'review');
       else if ('setDayOverride' in e) this.applyOverride(e.setDayOverride.date, e.setDayOverride.endMin, ctx);
-      else if ('openStartPopover' in e) {
-        this.startTab = 'planned';
-        this.startOpen = true;
-      }
+      else if ('awayEnded' in e) this.awayLog.push(e.awayEnded);
+      else if ('blockEnded' in e) this.productiveCache.atMs = Number.NaN;
     }
+    if (dbFx.length) this.pendingDirty = true;
     if (r.effects.length) this.saveHeartbeat();
     this.push();
     return null;
@@ -111,91 +115,70 @@ export class EngineHost {
     this.overrides.set(date, o);
   }
 
-  private ring(): void {
-    this.ringCount++;
-    const w = this.app.widget;
-    if (w && !w.isDestroyed()) w.webContents.send('spyder:ring');
-  }
-
   saveHeartbeat(): void {
     repo.saveHeartbeat(this.app.db, this.app.clock.now(), this.state);
   }
 
-  // ---- commands from IPC / tray --------------------------------------------------
-  start(input: StartInput): { ok: true } | (EngineError & { elapsedSec?: number }) {
-    const err = this.dispatch({ type: 'START', ...input });
-    if (err) {
-      if (err.error === 'needs_label') return { ...err, elapsedSec: this.sessionInfo(err.sessionId)?.elapsedSec ?? 0 };
-      return err;
-    }
-    this.startOpen = false;
+  // ---- commands from IPC / tray ----------------------------------------------------
+  private remember(lengthSec: number): void {
+    if (this.app.settings.blockLengthSec === lengthSec) return;
+    saveSettings(this.app.db, { blockLengthSec: lengthSec });
+    this.app.settings = loadSettings(this.app.db);
+  }
+
+  start(lengthSec: number): Result {
+    const err = this.dispatch({ type: 'START', lengthSec });
+    if (err) return err;
+    this.remember(lengthSec);
     this.push();
     return { ok: true };
   }
 
-  answer(promptId: string, a: Answer): { ok: true } | EngineError {
-    return this.dispatch({ type: 'ANSWER', promptId, answer: a }) ?? { ok: true };
+  /** The sidebar's length box: remembered, and used from the next block (P59). */
+  setLength(lengthSec: number): Result {
+    const err = this.dispatch({ type: 'SET_LENGTH', lengthSec });
+    if (err) return err;
+    this.remember(lengthSec);
+    this.push();
+    return { ok: true };
   }
 
   /**
-   * Review: classify a pending away period. Uses its prompt when it is still queued; otherwise
-   * (an earlier day, or the prompt was lost) applies the same DB effects directly.
+   * Answers ended blocks (P60, P64): text, or null for Break. The running block has no answer yet.
+   * Used by the prompt, Today and the review.
    */
-  classifyAway(awayId: string, classification: AwayClassification, label: string | null): { ok: true } | EngineError {
-    const p = this.state.prompts.find((q) => q.awayId === awayId);
-    if (p) return this.answer(p.id, { classification, label });
-    const row = repo.awayRow(this.app.db, awayId);
-    if (!row) return { error: 'invalid', message: 'Unknown away period' };
-    const clean = label?.trim() || null;
-    if (classification === 'offline_work' && !clean) return { error: 'invalid', message: 'Offline work needs a label' };
-    const now = this.app.clock.now();
-    const fx: DbEffect[] = [];
-    if (classification === 'working') {
-      let sessionId = row.interrupted_session_id;
-      if (!sessionId) {
-        sessionId = randomUUID();
-        fx.push({
-          db: 'insertSession',
-          row: { id: sessionId, kind: 'open', name: null, projectId: null, plannedSec: null, direction: null, status: 'done', startedMs: row.start_ms, createdMs: now },
-        });
-        fx.push({ db: 'updateSession', row: { id: sessionId, endedMs: row.end_ms, overtimeSec: 0, endReason: 'done' } });
-      }
-      fx.push({ db: 'insertSegment', row: { id: randomUUID(), sessionId, startMs: row.start_ms, endMs: row.end_ms, source: 'away_working' } });
+  answer(answers: repo.BlockAnswer[]): Result {
+    const clean: repo.BlockAnswer[] = [];
+    const running = this.state.loop?.block.id;
+    for (const a of answers) {
+      const text = a.answer === null ? null : a.answer.trim();
+      if (text === '') return { error: 'invalid', message: 'Say what you did, or pick Break' };
+      if (a.id === running) return { error: 'invalid', message: 'The running block can’t be answered until it ends' };
+      const row = this.app.db.get<{ status: string; deleted_ms: number | null }>('SELECT status, deleted_ms FROM sessions WHERE id = ?', a.id);
+      if (!row || row.deleted_ms !== null) return { error: 'invalid', message: 'No such block' };
+      clean.push({ id: a.id, answer: text });
     }
-    fx.push({ db: 'updateAway', row: { id: awayId, classification, label: clean, classifiedMs: now } });
-    repo.applyDbEffects(this.app.db, fx);
-    this.push();
+    repo.writeAnswers(this.app.db, clean);
+    const dates = new Set(
+      clean.map((a) => dateKey(this.app.db.get<{ s: number }>('SELECT started_ms AS s FROM sessions WHERE id = ?', a.id)!.s)),
+    );
+    for (const d of dates) refreshReview(this.app.db, d, this.app.clock.now(), this.app.settings);
+    this.dataChanged();
     return { ok: true };
   }
 
-  openStart(tab: Kind = 'planned'): void {
-    this.startTab = tab;
-    this.startOpen = true;
-    this.push();
-  }
-
-  closeStart(): void {
-    this.startOpen = false;
-    this.push();
-  }
-
-  togglePause(): void {
-    this.dispatch({ type: this.state.paused ? 'RESUME' : 'PAUSE' });
-  }
-
-  // ---- nudge (plan §8) ---------------------------------------------------------
+  // ---- nudge (plan §8) ---------------------------------------------------------------
   feedSample(sample: ActivitySample, tsMs = this.app.clock.now()): ActivityCategory {
     const category = categorize(sample, this.rules);
     const target = sample.domain ?? sample.appName ?? sample.exe;
-    const r = stepNudge(this.nudge, { tsMs, category, target, inWorkSession: inWorkSession(this.state) }, this.app.settings);
+    const r = stepNudge(this.nudge, { tsMs, category, target, inWorkSession: inLoop(this.state) }, this.app.settings);
     this.nudge = r.state;
     this.distracted = r.isDistracted;
     if (category === 'distracting') this.distractTarget = target;
     if (r.nudge) {
-      const cur = this.state.current;
-      repo.insertFlag(this.app.db, { tsMs, sessionId: cur?.id ?? null, target: r.nudge.target, continuousSec: r.nudge.continuousSec });
+      repo.insertFlag(this.app.db, { tsMs, sessionId: this.state.loop?.block.id ?? null, target: r.nudge.target, continuousSec: r.nudge.continuousSec });
       this.toastCount++;
-      toast(nudgeMessage(r.nudge.target, cur?.name ?? null, r.nudge.continuousSec));
+      toast(nudgeMessage(r.nudge.target, r.nudge.continuousSec));
     }
     this.push();
     return category;
@@ -206,21 +189,14 @@ export class EngineHost {
     this.productiveCache.atMs = Number.NaN;
   }
 
-  /** Sessions were edited outside the engine (P52): recompute today's productive time and push. */
+  /** Blocks were edited outside the engine (P64): recompute and push. */
   dataChanged(): void {
     this.productiveCache.atMs = Number.NaN;
+    this.pendingDirty = true;
     this.push();
   }
 
-  // ---- view models -----------------------------------------------------------------
-  sessionInfo(id: string): SessionInfo | null {
-    const now = this.app.clock.now();
-    const live = [this.state.current, this.state.paused, this.state.away?.interrupted].find((a) => a?.id === id);
-    if (live) return { name: live.name, elapsedSec: elapsedSec(live, now), plannedSec: live.plannedSec };
-    const row = repo.sessionRow(this.app.db, id);
-    return row ? { name: row.name, elapsedSec: row.elapsed_sec, plannedSec: row.planned_sec } : null;
-  }
-
+  // ---- view models ---------------------------------------------------------------------
   private productiveCache = { atMs: Number.NaN, sec: 0 };
 
   /** P25 productive time today (aggregate.ts), recomputed at most every 10 clock-seconds. */
@@ -233,12 +209,39 @@ export class EngineHost {
     return c.sec;
   }
 
+  private awaySecIn(startMs: number, endMs: number, now: number): number {
+    const spans = [...this.awayLog, ...(this.state.away ? [{ startMs: this.state.away.startMs, endMs: now }] : [])];
+    let ms = 0;
+    for (const a of spans) ms += Math.max(0, Math.min(a.endMs, endMs) - Math.max(a.startMs, startMs));
+    return Math.round(ms / 1000);
+  }
+
+  /** Today's ended blocks without an answer, with their hints (P60). */
+  pendingBlocks(): PendingBlock[] {
+    const now = this.app.clock.now();
+    const day = dateKey(now);
+    if (this.pendingDirty || day !== this.pendingDay) {
+      const from = startOfDay(now);
+      this.pending = repo.pendingBlocks(this.app.db, from, addDays(from, 1)).map((b) => ({
+        id: b.id,
+        startMs: b.start_ms,
+        endMs: b.end_ms,
+        awaySec: this.awaySecIn(b.start_ms, b.end_ms, now),
+        apps: repo.topApps(this.app.db, b.start_ms, b.end_ms),
+      }));
+      this.pendingDirty = false;
+      this.pendingDay = day;
+    }
+    return this.pending;
+  }
+
   widget(): WidgetPayload {
     const ctx = this.ctx();
     const vm = widgetView(this.state, ctx, {
       productiveTodaySec: this.productiveToday(ctx.now),
       goalSec: this.app.settings.goalSec,
-      isDistracted: this.distracted && inWorkSession(this.state),
+      isDistracted: this.distracted && inLoop(this.state),
+      pendingCount: this.pendingBlocks().length,
     });
     const ds = this.nudge.distractStartMs;
     return {
@@ -248,11 +251,12 @@ export class EngineHost {
     };
   }
 
-  promptState(): PromptWindowState {
-    if (this.startOpen) return { view: 'start', defaultDirection: this.app.settings.defaultDirection, tab: this.startTab };
-    const p = visiblePrompt(this.state);
-    if (!p) return null;
-    return { view: 'prompt', prompt: promptView(p, this.state.prompts.length, p.sessionId ? this.sessionInfo(p.sessionId) : null) };
+  promptState(): PromptVM | null {
+    const pending = this.pendingBlocks();
+    const canContinue = !this.state.loop && !!this.state.cut && dateKey(this.state.cut.atMs) === dateKey(this.app.clock.now());
+    if (pending.length) return accountView(pending, repo.lastAnswer(this.app.db), canContinue);
+    if (this.state.reminder) return reminderView(this.app.settings.blockLengthSec);
+    return null;
   }
 
   push(): void {
@@ -263,27 +267,28 @@ export class EngineHost {
       for (const win of [this.app.widget, this.app.dashboard]) {
         if (win && !win.isDestroyed()) win.webContents.send('spyder:widget', w);
       }
-      const timer = w.mode === 'away' ? 'Away' : w.mode === 'off_hours' ? '' : `${w.isOvertime ? '+' : ''}${fmtClock(w.timerSec)}`;
-      setTrayTooltip(this.app, `Spyder — ${w.title} ${timer}`.trim());
+      const status = w.running ? `Block ${fmtClock(w.timerSec)}` : w.notStarted ? 'Not started' : 'Off hours';
+      setTrayTooltip(this.app, `Spyder — ${status}`);
     }
     const p = this.promptState();
     const pj = JSON.stringify(p);
     if (pj !== this.lastPrompt) {
       const wasNull = this.lastPrompt === '' || this.lastPrompt === 'null';
       this.lastPrompt = pj;
+      const count = p?.view === 'account' ? p.blocks.length : 0;
       const win = this.app.prompt;
       if (win && !win.isDestroyed()) win.webContents.send('spyder:prompt', p);
-      if (p && wasNull) showPrompt(this.app);
+      // Pops on top when it appears and whenever another block ends (P60).
+      if (p && (wasNull || count > this.lastPendingCount)) showPrompt(this.app);
       else if (!p) hidePrompt(this.app);
+      this.lastPendingCount = count;
     }
   }
 
   debugState(): Record<string, unknown> {
     return {
       engine: this.state,
-      ringCount: this.ringCount,
       toastCount: this.toastCount,
-      startOpen: this.startOpen,
       widgetVM: this.widget(),
       promptState: this.promptState(),
       today: dateKey(this.app.clock.now()),

@@ -94,9 +94,8 @@ async function boot(): Promise<void> {
   ctx.dashboard = createDashboard(ctx);
   ctx.prompt = createPrompt(ctx);
   ctx.tray = createTray(ctx, {
-    startSession: () => host.openStart(),
-    togglePause: () => host.togglePause(),
-    pauseLabel: () => (host.state.paused ? 'Resume' : 'Pause'),
+    toggleLoop: () => (host.state.loop ? host.dispatch({ type: 'STOP' }) : host.start(ctx.settings.blockLengthSec)),
+    loopLabel: () => (host.state.loop ? 'Stop' : 'Start'),
   });
   const idleSec = startIdle(ctx, host);
   host.boot();

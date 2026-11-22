@@ -2,29 +2,23 @@
 
 A personal Windows app that holds you accountable for your working time.
 
-Most time trackers quietly log what you did. Spyder is stricter: **during work hours, every minute belongs to a labelled session**. If nothing is running, an open session starts on its own, and sooner or later Spyder asks what it was. Time you spend away from the computer is noticed too, and you're asked what it was.
+Most time trackers quietly log what you did. Spyder is stricter: you press **Start**, and every 15 minutes (or whatever block length you pick) it asks **what did you do?**, then the next block starts. Your working day becomes a list of equal blocks, each saying where the time went.
 
 No accounts, no cloud and no AI. Everything stays in a local SQLite file on your machine.
 
 ## What it does
 
-- **Floating widget.** A small always-on-top bar shows the session timer, today's productive time and how much of the workday has passed. It turns red when you're distracted or over time.
-- **Four kinds of session.**
-  - **Planned:** a name and a duration, counting up or down.
-  - **Timed:** just a duration; you name it when the time is up.
-  - **Open:** counts up until you say what you did.
-  - **Break.**
-- **Prompts that don't let time slip.**
-  - The time's-up prompt rings and keeps nagging. If you ignore it, the session runs into overtime.
-  - Open sessions check in every 30 minutes.
-  - When you come back from being idle, asleep or locked, you classify the gap: break, meeting, offline work, not working, or "I was working".
+- **The block loop.** Press Start in the dashboard with a block length (5–180 minutes). When a block ends, the next one starts at once and a prompt asks what the last one was: type it, press **Break**, or **Same as last**. Missed a few? They're all in one prompt.
+- **Nothing starts by itself.** During work hours with no loop running, the bar says *Not started* and a reminder pops up every block length. The loop stops at the end of work hours (*Keep working* carries on).
+- **Floating widget.** A small always-on-top bar shows the time in the current block, today's productive time and how much of the workday has passed. It turns red when you're distracted.
+- **Fix the record.** On Today, re-answer any block, give many blocks one answer, delete blocks (their time becomes untracked) or merge adjacent ones into one longer block, all with Undo.
 - **App and website tracking.** It records the foreground app every 2 seconds, Chrome sites from the address bar and Firefox sites from the window title. No browser extensions needed.
-- **Categories and nudges.** Apps and sites are Productive, Neutral, Distracting or Uncategorized, based on editable rules. After 5 straight minutes on something distracting during a work session, you get a gentle nudge. Nothing is ever blocked.
+- **Categories and nudges.** Apps and sites are Productive, Neutral, Distracting or Uncategorized, based on editable rules. After 5 straight minutes on something distracting while the loop runs, you get a gentle nudge. Nothing is ever blocked.
 - **Reports.**
   - **Today:** your productive time against your goal, a timeline and your top apps.
   - **Week:** stacked bars per day.
   - **Month:** a heatmap and trend lines.
-- **End-of-day review.** When work hours end, you label any leftover time, write *Today's wins* and *How I'll improve*, and record your own daily numbers (KPIs). Meeting your goal on consecutive workdays builds a streak.
+- **End-of-day review.** When work hours end, you answer any blocks still not accounted for, write *Today's wins* and *How I'll improve*, and record your own daily numbers (KPIs). Meeting your goal on consecutive workdays builds a streak.
 - **Export.** Any date range goes out to one `.xlsx` workbook plus matching CSVs.
 
 ## Getting started
@@ -62,7 +56,7 @@ npm run dev            # starts the app with hot reload
 ## How it's built
 
 ```
-src/core/      Pure TypeScript: session engine (a reducer), schedule, nudges, categories, reports
+src/core/      Pure TypeScript: block engine (a reducer), schedule, nudges, categories, reports
 src/main/      Electron main process: runs the engine, idle detection, app/site capture, SQLite, export
 src/preload/   The window.spyder API the UI talks through
 src/renderer/  React UI: widget, prompt window and dashboard (one bundle, hash routes)
@@ -76,7 +70,7 @@ The core logic never reads the real clock. Time is passed in, so tests can run a
 
 | File | Read it for |
 |---|---|
-| [`CONTEXT.md`](CONTEXT.md) | The vocabulary: session, segment, away period, check-in, nudge, review… |
+| [`CONTEXT.md`](CONTEXT.md) | The vocabulary: block, loop, answer, untracked, nudge, review… |
 | [`docs/product-decisions.md`](docs/product-decisions.md) | Every behavior decision and why it was made |
 | [`docs/adr/`](docs/adr/) | Architecture decisions (why Electron, why `node:sqlite`, why no AI, …) |
 | [`SPYDER_PLAN.md`](SPYDER_PLAN.md) | The full original spec and the build log |

@@ -1,14 +1,12 @@
-// Settings keys and defaults (plan §5, P51, P57).
+// Settings keys and defaults (plan §5, P57, P59).
 export interface Settings {
   goalSec: number;
   idleThresholdSec: number;
-  checkInIntervalSec: number;
-  nagIntervalSec: number;
+  /** P59: the block length the loop uses, 5 min to 3 h. */
+  blockLengthSec: number;
   nudgeAfterSec: number;
   nudgeRepeatSec: number;
   nudgeResetSec: number;
-  shortAwayIgnoreSec: number;
-  defaultDirection: 'up' | 'down';
   hotkey: string;
   autostart: boolean;
   sampleIntervalSec: number;
@@ -21,13 +19,10 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   goalSec: 18000,
   idleThresholdSec: 300,
-  checkInIntervalSec: 900,
-  nagIntervalSec: 300,
+  blockLengthSec: 900,
   nudgeAfterSec: 300,
   nudgeRepeatSec: 300,
   nudgeResetSec: 60,
-  shortAwayIgnoreSec: 60,
-  defaultDirection: 'down',
   hotkey: 'Control+Alt+S',
   autostart: true,
   sampleIntervalSec: 2,
@@ -55,23 +50,20 @@ export const DEFAULT_SCHEDULE: ScheduleRow[] = [0, 1, 2, 3, 4, 5, 6].map((weekda
 const MIN: Partial<Record<keyof Settings, number>> = {
   goalSec: 60,
   idleThresholdSec: 60,
-  checkInIntervalSec: 300,
-  nagIntervalSec: 60,
+  blockLengthSec: 300,
   nudgeAfterSec: 30,
   nudgeRepeatSec: 30,
   nudgeResetSec: 5,
-  shortAwayIgnoreSec: 0,
   sampleIntervalSec: 1,
   keepWorkingStepMin: 5,
 };
 
-/** Upper bounds (P51: check-ins from 5 min to 3 h). */
+/** Upper bounds (P59: blocks from 5 min to 3 h). */
 const MAX: Partial<Record<keyof Settings, number>> = {
-  checkInIntervalSec: 10_800,
+  blockLengthSec: 10_800,
 };
 
 const ENUMS: Partial<Record<keyof Settings, readonly unknown[]>> = {
-  defaultDirection: ['up', 'down'],
   appPercentScope: ['work_hours', 'all_day'],
   theme: ['system', 'light', 'dark'],
 };

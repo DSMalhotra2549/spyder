@@ -119,9 +119,9 @@ describe('nudge (18)', () => {
   });
 
   it('message', () => {
-    expect(nudgeMessage('youtube.com', null, 360)).toBe(
-      `You're on youtube.com — "Untitled session" is running (6 min)`,
+    expect(nudgeMessage('youtube.com', 360)).toBe(
+      `You're on youtube.com while your block is running (6 min)`,
     );
-    expect(nudgeMessage('reddit.com', 'Emails', 10)).toContain('(1 min)');
+    expect(nudgeMessage('reddit.com', 10)).toContain('(1 min)');
   });
 });

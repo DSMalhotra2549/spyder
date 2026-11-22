@@ -1,7 +1,6 @@
 // Shared controls (design/DESIGN.md §2–3).
 import clsx from 'clsx';
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import type { Project } from '../../preload/api';
+import { useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 
@@ -36,12 +35,12 @@ export function Btn({
 export const inputCls =
   'no-drag h-8 rounded-control border border-border bg-surface px-2.5 text-[13px] text-text outline-none placeholder:text-faint focus:border-accent focus:ring-2 focus:ring-accent/20';
 
-/** Free-text session name with history autocomplete (P9). */
-export function NameInput({
+/** A block's free-text answer, with earlier answers as autocomplete (P60). */
+export function AnswerInput({
   value,
   onChange,
   onEnter,
-  placeholder = 'What are you working on?',
+  placeholder = 'What did you do?',
   autoFocus,
 }: {
   value: string;
@@ -57,7 +56,7 @@ export function NameInput({
   const suggest = (v: string) => {
     const n = ++seq.current;
     if (!v.trim()) return setItems([]);
-    void window.spyder.nameSuggestions(v).then((r) => {
+    void window.spyder.answerSuggestions(v).then((r) => {
       if (n === seq.current) setItems(r.filter((x) => x.toLowerCase() !== v.toLowerCase()));
     });
   };
@@ -69,7 +68,7 @@ export function NameInput({
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        aria-label="Session name"
+        aria-label="Answer"
         onChange={(e) => {
           onChange(e.target.value);
           suggest(e.target.value);
@@ -115,83 +114,5 @@ export function NameInput({
         </div>
       )}
     </div>
-  );
-}
-
-const SWATCHES = ['#7B61FF', '#22D3EE', '#2DD4BF', '#F59E0B', '#E3A6F2', '#5B7FE0', '#F472B6', '#A3E635'];
-
-/** Optional project (P9), with inline "+ New project". */
-export function ProjectSelect({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState('');
-  const [color, setColor] = useState(SWATCHES[0]);
-  const nameRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    void window.spyder.listProjects().then(setProjects);
-  }, []);
-  useEffect(() => {
-    if (adding) nameRef.current?.focus();
-  }, [adding]);
-  const add = async () => {
-    if (!name.trim()) return;
-    const p = await window.spyder.saveProject({ name, color });
-    setProjects((ps) => [...ps.filter((x) => x.id !== p.id), p]);
-    onChange(p.id);
-    setAdding(false);
-    setName('');
-  };
-  if (adding)
-    return (
-      <div className="flex items-center gap-2">
-        <input
-          ref={nameRef}
-          className={clsx(inputCls, 'min-w-0 flex-1')}
-          placeholder="Project name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              void add();
-            }
-            if (e.key === 'Escape') setAdding(false);
-          }}
-        />
-        <div className="flex gap-1">
-          {SWATCHES.slice(0, 5).map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={`Colour ${c}`}
-              onClick={() => setColor(c)}
-              className={clsx('no-drag h-4 w-4 rounded-full', c === color && 'ring-2 ring-text ring-offset-1 ring-offset-surface')}
-              style={{ background: c }}
-            />
-          ))}
-        </div>
-        <Btn onClick={() => void add()}>Add</Btn>
-      </div>
-    );
-  return (
-    <select
-      aria-label="Project"
-      className={clsx(inputCls, 'w-full cursor-default')}
-      value={value ?? ''}
-      onChange={(e) => {
-        if (e.target.value === '__new') setAdding(true);
-        else onChange(e.target.value || null);
-      }}
-    >
-      <option value="">Project: none</option>
-      {projects
-        .filter((p) => !p.archived)
-        .map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      <option value="__new">+ New project</option>
-    </select>
   );
 }

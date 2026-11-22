@@ -1,9 +1,8 @@
-// Floating widget (plan §12, design/DESIGN.md §2): the bar is the only widget (P43, P46, P49, P50).
+// Floating widget (design/DESIGN.md §2): the bar is the only widget (P43, P49, P50); it counts up within the block (P63).
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
-import { fmtClock } from '../../core/format';
+import { fmtClock, fmtDuration } from '../../core/format';
 import type { WidgetPayload } from '../../preload/api';
-import { playChime } from './ring';
 
 function useWidget(): WidgetPayload | null {
   const [w, setW] = useState<WidgetPayload | null>(null);
@@ -16,7 +15,6 @@ function useWidget(): WidgetPayload | null {
 
 export function Widget() {
   const w = useWidget();
-  useEffect(() => window.spyder.onRing(playChime), []);
   if (!w) return null;
   return (
     <div className="flex flex-col items-start p-2">
@@ -25,20 +23,9 @@ export function Widget() {
   );
 }
 
-const timerText = (w: WidgetPayload) => (w.isOvertime ? `+${fmtClock(w.overtimeSec)}` : fmtClock(w.timerSec));
-
 function offHoursLine(w: WidgetPayload): string {
   if (w.isDayOff) return 'Day off';
   return w.workdayPct >= 100 ? 'Workday done' : 'Before work hours';
-}
-
-/** Two-line caps caption for an unlabelled session (or a state without a label). */
-function stateCaption(w: WidgetPayload): [string, string] {
-  if (w.mode !== 'working' || !w.kind) return ['Tracking', 'Status'];
-  if (w.isOvertime) return ['Overtime', w.title];
-  const remaining = w.kind !== 'open' && w.plannedSec !== null && !(w.kind === 'planned' && w.direction === 'up');
-  const label = { planned: 'Planned', timed: 'Timed', open: 'Session', break: w.isPaused ? 'Paused' : 'Break' }[w.kind];
-  return [label, remaining ? 'Remaining' : 'Elapsed'];
 }
 
 // ---- Bar (P43) ----------------------------------------------------------------------------
@@ -53,14 +40,14 @@ function fmtBarMin(sec: number): string {
 }
 
 function barCaption(w: WidgetPayload): [string, string] {
-  if (w.mode === 'off_hours') {
+  if (w.mode === 'off_hours' && !w.running) {
     const line = offHoursLine(w);
     const i = line.indexOf(' ');
     return [line.slice(0, i), line.slice(i + 1)];
   }
-  if (w.mode === 'away') return ['Away from', 'computer'];
-  if (w.isDistracted) return ['Distracted', w.distractTarget ?? w.title];
-  return stateCaption(w);
+  if (w.notStarted) return ['Press Start', 'in Spyder'];
+  if (w.isDistracted) return ['Distracted', w.distractTarget ?? ''];
+  return ['Block', `of ${fmtDuration(w.blockLengthSec)}`];
 }
 
 function Caps({ lines, className }: { lines: [string, string]; className?: string }) {
@@ -73,13 +60,12 @@ function Caps({ lines, className }: { lines: [string, string]; className?: strin
 }
 
 /**
- * Bar (P43, P46, P49): sharp corners, no panel. The left button opens the dashboard on Today; the
- * cells do nothing on click; everything but the buttons drags; – hides the bar.
+ * Bar (P43, P49, P63): sharp corners, no panel. The left button opens the dashboard on Today; the
+ * cells do nothing on click; everything but the buttons drags; – hides the bar. Not started is
+ * highlighted (P59).
  */
 function Bar({ w }: { w: WidgetPayload }) {
-  const off = w.mode === 'off_hours';
-  const away = w.mode === 'away';
-  const red = w.isOvertime || w.isDistracted;
+  const red = w.isDistracted;
   const met = w.productiveTodaySec >= w.goalSec;
   // Cells are content-sized and spread evenly (P49); they're inert and drag like the gaps.
   const cell = 'flex min-w-0 items-center gap-2';
@@ -87,10 +73,15 @@ function Bar({ w }: { w: WidgetPayload }) {
     <div
       data-testid="pill"
       data-style="bar"
+      data-state={w.running ? 'running' : w.notStarted ? 'not-started' : 'off'}
       className={clsx(
         'drag relative flex h-[34px] w-[512px] items-stretch overflow-hidden border',
-        red ? 'border-red' : 'border-border-strong',
-        w.isDistracted ? 'distracted bg-[color-mix(in_srgb,var(--color-red)_14%,var(--color-surface))]' : 'bg-surface',
+        red ? 'border-red' : w.notStarted ? 'border-orange' : 'border-border-strong',
+        w.isDistracted
+          ? 'distracted bg-[color-mix(in_srgb,var(--color-red)_14%,var(--color-surface))]'
+          : w.notStarted
+            ? 'bg-[color-mix(in_srgb,var(--color-orange)_12%,var(--color-surface))]'
+            : 'bg-surface',
       )}
     >
       <button
@@ -106,37 +97,17 @@ function Bar({ w }: { w: WidgetPayload }) {
       </button>
       <div className="flex min-w-0 flex-1 items-center justify-around px-1">
         <div data-testid="pill-body" className={clsx(cell, 'relative')}>
-          {off || away ? (
-            <span className="text-[15px] font-semibold whitespace-nowrap text-muted">{off ? 'Off hours' : 'Away'}</span>
-          ) : (
-            <span
-              data-testid="timer"
-              className={clsx(
-                'tabular text-[19px] leading-none font-bold whitespace-nowrap',
-                red ? 'text-red' : w.isPaused ? 'text-break' : 'text-text',
-              )}
-            >
-              {timerText(w)}
-            </span>
-          )}
-          {w.label !== null ? (
-            // Same type as the other captions (caps, 9/700, tracking) but wraps onto both lines (P47, P49).
-            <span
-              data-testid="bar-label"
-              title={w.label}
-              className={clsx(
-                'caps line-clamp-2 max-w-[104px] min-w-0 text-left tracking-[.04em] [overflow-wrap:anywhere]',
-                red ? 'text-red' : w.isPaused ? 'text-break' : 'text-muted',
-              )}
-            >
-              {w.label}
+          {w.running ? (
+            <span data-testid="timer" className={clsx('tabular text-[19px] leading-none font-bold whitespace-nowrap', red ? 'text-red' : 'text-text')}>
+              {fmtClock(w.timerSec)}
             </span>
           ) : (
-            <Caps lines={barCaption(w)} className={red ? 'text-red' : undefined} />
+            <span data-testid="bar-status" className={clsx('text-[15px] font-semibold whitespace-nowrap', w.notStarted ? 'text-orange' : 'text-muted')}>
+              {w.notStarted ? 'Not started' : 'Off hours'}
+            </span>
           )}
-          {w.hasPrompt && (
-            <span data-testid="prompt-dot" className="absolute top-0 -right-1 h-1.5 w-1.5 rounded-full bg-orange" />
-          )}
+          <Caps lines={barCaption(w)} className={red ? 'text-red' : w.notStarted ? 'text-orange' : undefined} />
+          {w.pendingCount > 0 && <span data-testid="prompt-dot" className="absolute top-0 -right-1 h-1.5 w-1.5 rounded-full bg-orange" />}
         </div>
         <div data-testid="bar-productive" className={cell}>
           <span className={clsx('tabular text-[19px] leading-none font-bold whitespace-nowrap', met ? 'text-green' : 'text-accent')}>

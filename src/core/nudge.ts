@@ -52,7 +52,7 @@ export function stepNudge(
   return { state: st, nudge, isDistracted };
 }
 
-export function nudgeMessage(target: string, sessionName: string | null, continuousSec: number): string {
+export function nudgeMessage(target: string, continuousSec: number): string {
   const n = Math.max(1, Math.round(continuousSec / 60));
-  return `You're on ${target} — "${sessionName ?? 'Untitled session'}" is running (${n} min)`;
+  return `You're on ${target} while your block is running (${n} min)`;
 }

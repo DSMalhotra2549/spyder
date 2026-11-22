@@ -5,7 +5,8 @@ import type { Rule } from '../core/categorize';
 import { cleanSettings, type ScheduleRow } from '../core/settings';
 import type { DayOverride } from '../core/schedule';
 import type { TitlePattern } from '../core/titlePatterns';
-import type { Answer, AwayClassification, EngineError, Kind, StartInput } from '../core/types';
+import type { EngineError } from '../core/types';
+import type { BlockAnswer } from '../preload/api';
 import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
@@ -15,7 +16,7 @@ import { registerHotkey } from './hotkey';
 import * as report from './report';
 import { dateKey } from '../core/schedule';
 import { loadSettings, saveSettings } from './settings';
-import { SessionEditor } from './sessionEdit';
+import { BlockEditor } from './blockEdit';
 import { applyTheme } from './theme';
 import { hideWidget, openDashboard, resizePrompt, showWidget } from './windows';
 
@@ -41,6 +42,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     if ('autostart' in partial) applyAutostart(ctx);
     if ('theme' in partial) applyTheme(ctx);
     if ('goalSec' in partial || 'appPercentScope' in partial) host.reloadRules();
+    if (partial.blockLengthSec !== undefined) host.setLength(partial.blockLengthSec);
     host.push();
     return { ...ctx.settings, hotkeyOk: ctx.hotkeyOk, dataDir: ctx.dataDir, today: dateKey(ctx.clock.now()) };
   });
@@ -82,34 +84,24 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   });
   h('showInFolder', (path: string) => shell.showItemInFolder(path));
 
-  // Engine
+  // The block loop (P58–P62)
   h('getWidget', () => host.widget());
-  h('start', (input: StartInput) => host.start(input));
-  h('done', () => result(host.dispatch({ type: 'DONE' })));
-  h('extend', (sec: number) => result(host.dispatch({ type: 'EXTEND', sec })));
-  h('pause', () => result(host.dispatch({ type: 'PAUSE' })));
-  h('resume', () => result(host.dispatch({ type: 'RESUME' })));
-  h('label', (sessionId: string, name: string, projectId: string | null) =>
-    result(host.dispatch({ type: 'LABEL', sessionId, name, projectId })),
-  );
+  h('start', (lengthSec: number) => host.start(lengthSec));
+  h('stop', () => result(host.dispatch({ type: 'STOP' })));
+  h('setBlockLength', (lengthSec: number) => host.setLength(lengthSec));
+  h('dismissReminder', () => result(host.dispatch({ type: 'DISMISS_REMINDER' })));
   h('keepWorking', () => result(host.dispatch({ type: 'KEEP_WORKING' })));
+  h('answerBlocks', (answers: BlockAnswer[]) => host.answer(answers));
+  h('answerSuggestions', (prefix: string) => repo.answerSuggestions(ctx.db, prefix));
+  h('getPrompt', () => host.promptState());
 
-  // Editing sessions after the fact (P52–P54)
-  const editor = new SessionEditor(ctx, host);
-  h('deleteSession', (id: string) => editor.delete(id));
-  h('mergeSessions', (keepId: string, ids: string[]) => editor.merge(keepId, ids));
+  // Editing blocks after the fact (P64)
+  const editor = new BlockEditor(ctx, host);
+  h('deleteBlocks', (ids: string[]) => editor.delete(ids));
+  h('mergeBlocks', (ids: string[], answer: string | null) => editor.merge(ids, answer));
   h('undoEdit', (undoId: string) => editor.undo(undoId));
 
-  // Prompts
-  h('getPrompt', () => host.promptState());
-  h('answer', (promptId: string, a: Answer) => host.answer(promptId, a));
-  h('openStart', (tab?: Kind) => host.openStart(tab));
-  h('closeStart', () => host.closeStart());
-
   // Data
-  h('nameSuggestions', (prefix: string) => repo.nameSuggestions(ctx.db, prefix));
-  h('listProjects', () => repo.listProjects(ctx.db));
-  h('saveProject', (p: { id?: string; name: string; color?: string; archived?: boolean }) => repo.saveProject(ctx.db, p, ctx.clock.now()));
   h('getDay', (date?: string) => report.dayVM(ctx.db, date, ctx.clock.now(), ctx.settings));
   h('getRange', (from: string, to: string) => report.rangeVM(ctx.db, from, to, ctx.clock.now(), ctx.settings));
   h('listUncategorized', (date?: string) => report.listUncategorized(ctx.db, date, ctx.clock.now(), ctx.settings));
@@ -142,7 +134,6 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('listKpis', () => report.listKpis(ctx.db));
   h('saveKpi', (k: Parameters<typeof report.saveKpi>[1]) => report.saveKpi(ctx.db, k));
   h('setKpiValue', (date: string, kpiId: string, value: number | null) => report.setKpiValue(ctx.db, date, kpiId, value));
-  h('classifyAway', (awayId: string, c: AwayClassification, label: string | null) => host.classifyAway(awayId, c, label));
 
   // Windows
   h('hideWidget', () => hideWidget(ctx));

@@ -17,12 +17,11 @@ import {
   useLoader,
 } from './parts';
 
-type Tab = 'rules' | 'patterns' | 'inbox' | 'projects' | 'kpis';
+type Tab = 'rules' | 'patterns' | 'inbox' | 'kpis';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'rules', label: 'Rules' },
   { value: 'patterns', label: 'Title patterns' },
   { value: 'inbox', label: 'Uncategorized' },
-  { value: 'projects', label: 'Projects' },
   { value: 'kpis', label: 'KPIs' },
 ];
 const CATS: Category[] = ['productive', 'neutral', 'distracting'];
@@ -41,7 +40,6 @@ export function Rules() {
           {tab === 'rules' && <RulesTab />}
           {tab === 'patterns' && <PatternsTab />}
           {tab === 'inbox' && <InboxTab />}
-          {tab === 'projects' && <ProjectsTab />}
           {tab === 'kpis' && <KpisTab />}
         </div>
       </div>
@@ -353,97 +351,6 @@ function InboxTab() {
 }
 
 // ---- projects ----------------------------------------------------------------------------
-const SWATCHES = ['#7B61FF', '#22D3EE', '#2DD4BF', '#F59E0B', '#E3A6F2', '#5B7FE0', '#F472B6', '#A3E635'];
-
-function Swatches({ value, onChange }: { value: string; onChange: (c: string) => void }) {
-  return (
-    <div className="flex gap-1">
-      {SWATCHES.map((c) => (
-        <button
-          key={c}
-          type="button"
-          aria-label={`Colour ${c}`}
-          onClick={() => onChange(c)}
-          className={clsx(
-            'h-4 w-4 rounded-full',
-            c.toLowerCase() === value.toLowerCase() && 'ring-2 ring-text ring-offset-1 ring-offset-surface',
-          )}
-          style={{ background: c }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ProjectsTab() {
-  const [rows, reload] = useLoader(() => window.spyder.listProjects(), 'projects');
-  const [name, setName] = useState('');
-  const [color, setColor] = useState(SWATCHES[0]);
-  const add = async () => {
-    if (!name.trim()) return;
-    await window.spyder.saveProject({ name, color });
-    setName('');
-    await reload();
-  };
-  return (
-    <Card title="Projects">
-      <div className="mb-3 flex items-center gap-3" data-testid="project-add">
-        <input
-          className={clsx(inp, 'w-[280px]')}
-          placeholder="Project name"
-          aria-label="Project name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void add()}
-        />
-        <Swatches value={color} onChange={setColor} />
-        <Btn variant="primary" onClick={() => void add()} disabled={!name.trim()}>
-          + Add project
-        </Btn>
-      </div>
-      {!rows ? null : rows.length === 0 ? (
-        <Empty>No projects yet</Empty>
-      ) : (
-        rows.map((p) => <ProjectRow key={p.id} p={p} reload={reload} />)
-      )}
-    </Card>
-  );
-}
-
-function ProjectRow({
-  p,
-  reload,
-}: {
-  p: { id: string; name: string; color: string; archived: boolean };
-  reload: () => Promise<void>;
-}) {
-  const [name, setName] = useState(p.name);
-  const save = async (o: Partial<typeof p>) => {
-    const next = { ...p, name, ...o };
-    if (!next.name.trim()) return;
-    await window.spyder.saveProject(next);
-    await reload();
-  };
-  return (
-    <Row testId="project-row" muted={p.archived}>
-      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: p.color }} />
-      <input
-        className={clsx(inp, 'w-[280px]')}
-        aria-label="Project name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={() => name !== p.name && void save({})}
-      />
-      <Swatches value={p.color} onChange={(c) => void save({ color: c })} />
-      <span className="ml-auto flex items-center gap-2 text-[12px] text-muted">
-        Archived
-        <Toggle label="Archived" on={p.archived} onChange={(v) => void save({ archived: v })} />
-      </span>
-    </Row>
-  );
-}
-
-// ---- KPIs --------------------------------------------------------------------------------
 function KpisTab() {
   const [rows, reload] = useLoader(() => window.spyder.listKpis(), 'kpis');
   const [name, setName] = useState('');

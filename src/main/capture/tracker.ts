@@ -63,7 +63,7 @@ export class Tracker {
     try {
       const now = this.app.clock.now();
       const idle = this.idleSec();
-      if (this.host.state.mode === 'away' || idle >= this.app.settings.idleThresholdSec) {
+      if (this.host.state.away !== null || idle >= this.app.settings.idleThresholdSec) {
         this.close(now - idle * 1000);
         return;
       }

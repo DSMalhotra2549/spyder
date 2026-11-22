@@ -1,12 +1,12 @@
-// Test harness for the session engine: plays the role of the main-process host (applies day overrides).
+// Test harness for the block engine: plays the role of the main-process host (applies day overrides).
 import { DEFAULT_SCHEDULE, DEFAULT_SETTINGS } from './settings';
 import { dateKey, mergeOverride, minutesOfDay, workWindow, type DayOverride } from './schedule';
-import { initialState, reduce, widgetView } from './sessionEngine';
+import { initialState, reduce, widgetView } from './blockEngine';
 import type { Ctx, Effect, EngineEvent, EngineState, ReduceResult, WorkWindow } from './types';
 
 type DbEffect = Extract<Effect, { db: string }>;
-type DbOp = DbEffect['db'];
-type RowOf = { [E in DbEffect as E['db']]: E['row'] };
+type RowOf = { [E in Extract<DbEffect, { row: unknown }> as E['db']]: E['row'] };
+type DbOp = keyof RowOf;
 
 /** 2026-11-24 is a Tuesday (work day 10:00–17:00). */
 export const T = (h: number, m = 0, s = 0, day = 24) => new Date(2026, 10, day, h, m, s).getTime();
@@ -15,8 +15,7 @@ export class Sim {
   state: EngineState = initialState();
   now = T(11);
   overrides = new Map<string, DayOverride>();
-  /** The plan's scenarios (§13 Phase 2) were written for 30-min check-ins; P51's 15-min default has its own test. */
-  settings = { ...DEFAULT_SETTINGS, checkInIntervalSec: 1800 };
+  settings = { ...DEFAULT_SETTINGS };
   log: Effect[] = [];
   last: ReduceResult | null = null;
   windowFn: ((ms: number) => WorkWindow | null) | null = null;
@@ -59,15 +58,16 @@ export class Sim {
     return this.last?.effects ?? [];
   }
 
-  rings(effects = this.fx) {
-    return effects.filter((e) => 'ring' in e).length;
+  /** Blocks that ended in the last reduce (or in `effects`). */
+  ended(effects = this.fx): string[] {
+    return effects.flatMap((e) => ('blockEnded' in e ? [e.blockEnded] : []));
   }
 
   db<K extends DbOp>(op: K, effects = this.fx): RowOf[K][] {
-    return effects.filter((e) => 'db' in e && e.db === op).map((e) => (e as DbEffect).row as RowOf[K]);
+    return effects.filter((e) => 'db' in e && e.db === op).map((e) => (e as DbEffect & { row: RowOf[K] }).row);
   }
 
-  view(extras = { productiveTodaySec: 0, goalSec: 18000, isDistracted: false }) {
+  view(extras = { productiveTodaySec: 0, goalSec: 18000, isDistracted: false, pendingCount: 0 }) {
     return widgetView(this.state, this.ctx(), extras);
   }
 

@@ -1,4 +1,4 @@
-// Day timeline, one track (P55): sessions by project colour, breaks and away muted, untracked hatched,
+// Day timeline, one track (P55, P64): blocks by whether they're accounted for, breaks and away muted, untracked hatched,
 // a thin activity-category strip under it, distraction flags above. Hover shows details; clicking a
 // session picks it (Today highlights its row in the session log).
 import { useId, useLayoutEffect, useRef, useState } from 'react';
@@ -36,11 +36,14 @@ interface Tip {
   lines: string[];
 }
 
-/** The colour a session gets everywhere on Today: its project's, else purple when named, grey when not. */
-export function sessionColor(x: { kind: string; name: string | null; projectColor: string | null }): string {
+/** The colour a block gets everywhere on Today: purple when accounted for, grey when not, break muted. */
+export function blockColor(x: { kind: string; name: string | null }): string {
   if (x.kind === 'break') return 'var(--color-break)';
-  return x.projectColor ?? (x.name ? 'var(--color-accent)' : 'var(--color-open)');
+  return x.name ? 'var(--color-accent)' : 'var(--color-open)';
 }
+
+/** What a block was spent on, as shown everywhere (P60). */
+export const answerText = (x: { kind: string; name: string | null }) => (x.kind === 'break' ? 'Break' : (x.name ?? 'Not accounted for'));
 
 export function Timeline({
   s,
@@ -89,7 +92,6 @@ export function Timeline({
   };
   const span = (a: number, b: number) => `${fmtTime(a)}–${fmtTime(b)} · ${fmtDuration((b - a) / 1000)}`;
   const showNow = nowMs >= t0 && nowMs <= t1;
-  const byId = new Map(s.sessions.map((x) => [x.id, x]));
   const { y: ty, h: th } = L.track;
 
   return (
@@ -148,8 +150,7 @@ export function Timeline({
           />
         ))}
         {tl.segments.map((b, i) => {
-          const ses = byId.get(b.sessionId);
-          const name = b.name ?? (b.kind === 'break' ? 'Break' : 'Unlabelled');
+          const name = answerText(b);
           const isSel = selected === b.sessionId;
           const dim = selected !== null && !isSel;
           const isBreak = b.kind === 'break';
@@ -163,13 +164,13 @@ export function Timeline({
               width={w(b.startMs, b.endMs)}
               height={th}
               rx={2}
-              fill={sessionColor({ kind: b.kind, name: b.name, projectColor: ses?.projectColor ?? null })}
+              fill={blockColor(b)}
               opacity={(isBreak ? 0.4 : 1) * (dim ? 0.35 : 1)}
               stroke={isSel ? 'var(--color-text)' : 'var(--color-bg)'}
               strokeWidth={isSel ? 1.5 : 1}
               className={onPick ? 'cursor-pointer' : undefined}
               onClick={onPick ? () => onPick(b.sessionId) : undefined}
-              onMouseMove={(e) => show(e, [ses?.projectName ? `${name} · ${ses.projectName}` : name, span(b.startMs, b.endMs)])}
+              onMouseMove={(e) => show(e, [name, span(b.startMs, b.endMs)])}
             />
           );
         })}

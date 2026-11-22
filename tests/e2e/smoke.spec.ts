@@ -29,7 +29,7 @@ test('widget and dashboard windows exist', async () => {
 test('tray exists', async () => {
   const t = await s.debug.trayInfo();
   expect(t.exists).toBe(true);
-  expect(t.menu).toEqual(['Show widget', 'Open dashboard', 'Start session…', 'Pause', 'Quit']);
+  expect(t.menu).toEqual(['Show widget', 'Open dashboard', 'Start', 'Quit']);
 });
 
 test('every table exists', async () => {

@@ -1,86 +1,71 @@
-// Prompt view model and copy (plan §12 "Prompt copy"; strings are exact).
+// Prompt view models and copy for the block loop (P59, P60).
 import { fmtDuration, fmtTime } from './format';
-import type { Prompt, PromptType } from './types';
 
-export interface SessionInfo {
-  name: string | null;
-  elapsedSec: number;
-  plannedSec: number | null;
+/** An ended block waiting to be accounted for, with its hints. */
+export interface PendingBlock {
+  id: string;
+  startMs: number;
+  endMs: number;
+  /** Minutes the user was away within the block (P61). */
+  awaySec: number;
+  /** Top apps or sites used in the block, most time first. */
+  apps: string[];
 }
 
-export type PromptForm = 'none' | 'label' | 'checkIn' | 'away';
+export interface AccountBlockVM extends PendingBlock {
+  range: string;
+  length: string;
+  hint: string | null;
+}
 
-export interface PromptVM {
-  id: string;
-  type: PromptType;
-  /** Caps header label. */
+export interface AccountVM {
+  view: 'account';
   heading: string;
   title: string;
-  body: string | null;
-  form: PromptForm;
-  sessionId: string | null;
-  /** checkIn: the session already has a name ("Still on X?"). */
-  labelled: boolean;
-  name: string | null;
-  index: number;
-  count: number;
+  blocks: AccountBlockVM[];
+  /** The latest answer today, for "Same as last". */
+  lastAnswer: string | null;
+  /** The loop was cut by the end of work hours: offer Keep working (P62). */
+  canContinue: boolean;
 }
 
-const HEADINGS: Record<PromptType, string> = {
-  timeUp: "Time's up",
-  label: 'Label',
-  checkIn: 'Check-in',
-  away: 'Away',
-  recovery: 'Not running',
-  breakEnd: "Break's over",
-};
+export interface ReminderVM {
+  view: 'reminder';
+  heading: string;
+  title: string;
+  body: string;
+  lengthSec: number;
+}
 
-export function promptView(p: Prompt, count: number, info: SessionInfo | null): PromptVM {
-  const name = info?.name ?? null;
-  const elapsed = fmtDuration(info?.elapsedSec ?? 0);
-  const planned = fmtDuration(info?.plannedSec ?? 0);
-  const base = {
-    id: p.id,
-    type: p.type,
-    heading: HEADINGS[p.type],
-    sessionId: p.sessionId ?? null,
-    labelled: false,
-    name,
-    index: 1,
-    count,
+export type PromptVM = AccountVM | ReminderVM;
+
+const range = (b: PendingBlock) => `${fmtTime(b.startMs)}–${fmtTime(b.endMs)}`;
+
+export function blockHint(b: PendingBlock): string | null {
+  const parts: string[] = [];
+  if (b.awaySec >= 60) parts.push(`Away ${fmtDuration(b.awaySec)}`);
+  if (b.apps.length) parts.push(b.apps.join(', '));
+  return parts.length ? parts.join(' · ') : null;
+}
+
+export function accountView(blocks: PendingBlock[], lastAnswer: string | null, canContinue: boolean): AccountVM {
+  const one = blocks.length === 1;
+  return {
+    view: 'account',
+    heading: one ? 'Block ended' : `${blocks.length} blocks`,
+    title: one ? `What did you do ${range(blocks[0])}?` : `What did you do in these ${blocks.length} blocks?`,
+    blocks: blocks.map((b) => ({ ...b, range: range(b), length: fmtDuration(Math.round((b.endMs - b.startMs) / 1000)), hint: blockHint(b) })),
+    lastAnswer,
+    canContinue,
   };
-  switch (p.type) {
-    case 'timeUp':
-      return {
-        ...base,
-        title: `Time's up: ${name ?? 'Untitled session'}`,
-        body: `Planned ${planned}. Done, or need more time?`,
-        form: 'none',
-      };
-    case 'label':
-      return { ...base, title: `What did you do for the last ${elapsed}?`, body: null, form: 'label' };
-    case 'checkIn':
-      return name
-        ? { ...base, labelled: true, title: `Still on ${name}?`, body: null, form: 'checkIn' }
-        : { ...base, title: `What have you been doing for the last ${elapsed}?`, body: null, form: 'checkIn' };
-    case 'away': {
-      const s = p.awayStartMs ?? 0;
-      const e = p.awayEndMs ?? 0;
-      return {
-        ...base,
-        title: `You were away ${fmtDuration((e - s) / 1000)}`,
-        body: `${fmtTime(s)}–${fmtTime(e)}`,
-        form: 'away',
-      };
-    }
-    case 'recovery':
-      return {
-        ...base,
-        title: `Spyder wasn't running from ${fmtTime(p.awayStartMs ?? 0)} to ${fmtTime(p.awayEndMs ?? 0)}`,
-        body: null,
-        form: 'away',
-      };
-    case 'breakEnd':
-      return { ...base, title: `Break's over (${planned})`, body: null, form: 'none' };
-  }
+}
+
+export function reminderView(lengthSec: number): ReminderVM {
+  return {
+    view: 'reminder',
+    heading: 'Not started',
+    title: 'Work hours have started',
+    body: `Press Start to begin ${fmtDuration(lengthSec)} blocks.`,
+    lengthSec,
+  };
 }

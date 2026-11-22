@@ -1,24 +1,26 @@
-// Today page (plan §12, P55): stat row → session log → one-track timeline → apps & sites → distractions.
+// Today page (plan §12, P55, P64): stat row → block log → one-track timeline → apps & sites → distractions.
 import clsx from 'clsx';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { dayLog, type AppRow, type LogEntry, type SessionLine } from '../../core/aggregate';
 import type { ActivityCategory } from '../../core/categorize';
 import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
-import { Btn, NameInput, ProjectSelect } from '../ui/controls';
+import type { EngineError } from '../../core/types';
+import type { EditResult, Ok } from '../../preload/api';
+import { AnswerInput, Btn } from '../ui/controls';
 import { ExportButton } from './Export';
-import { AWAY_LABEL, sessionColor, Timeline } from './Timeline';
+import { answerText, blockColor, Timeline } from './Timeline';
 import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, TopBar, useLoader } from './parts';
 import { appTexts, dur, statTexts } from './stats';
 import { showEditResult } from './toast';
 
 export function Today({ date, onDate }: { date?: string; onDate: (d: string) => void }) {
   const [vm, reload] = useLoader(() => window.spyder.getDay(date), date ?? '', true);
-  // Reload as soon as the running session changes (started, labelled, paused, ended), not on the next poll.
+  // Reload as soon as a block starts or ends or an answer lands, not on the next poll.
   useEffect(() => {
     let last = '';
     return window.spyder.onWidget((w) => {
-      const k = [w.mode, w.sessionId, w.kind, w.label, w.isPaused].join('|');
+      const k = [w.mode, w.blockId, w.pendingCount].join('|');
       if (k !== last) void reload(); // the first push too: the page may have loaded before it
       last = k;
     });
@@ -40,7 +42,7 @@ function TodayBody({ vm, reload }: { vm: DayVM; reload: () => Promise<void> }) {
     <div className="flex-1 overflow-x-hidden overflow-y-auto" data-testid="today">
       <div className="mx-auto flex max-w-[960px] flex-col gap-8 px-8 pt-6 pb-16">
         <StatRow vm={vm} t={t} />
-        <SessionLog vm={vm} reload={reload} picked={picked} onPick={setPicked} />
+        <BlockLog vm={vm} reload={reload} picked={picked} onPick={setPicked} />
 
         <section data-testid="timeline-card">
           <SectionHead title="Timeline" right={<TimelineLegend />} />
@@ -130,33 +132,38 @@ function StatCell({
   );
 }
 
-// ---- session log (P52–P55) ------------------------------------------------------------------
+// ---- block log (P64) ------------------------------------------------------------------------
 
-const KIND_LABEL = { planned: 'Planned', timed: 'Timed', open: 'Open', break: 'Break' };
 const span = (a: number, b: number | null, running = false) => `${fmtTime(a)}–${running ? 'now' : b !== null ? fmtTime(b) : ''}`;
+/** Blocks this close count as adjacent (matches the merge rule in main). */
+const ADJACENT_MS = 1000;
+const adjacent = (a: SessionLine, b: SessionLine) => a.endMs !== null && Math.abs(b.startMs - a.endMs) <= ADJACENT_MS;
+const sameAnswer = (a: SessionLine, b: SessionLine) => a.kind === b.kind && (a.kind === 'break' || (a.name !== null && a.name === b.name));
 
-function SessionLog({
-  vm,
-  reload,
-  picked,
-  onPick,
-}: {
-  vm: DayVM;
-  reload: () => Promise<void>;
-  picked: string | null;
-  onPick: (id: string | null) => void;
-}) {
+/** Why the chosen blocks can't be merged, or null when they can. */
+function mergeProblem(chosen: SessionLine[]): string | null {
+  if (chosen.length < 2) return 'Pick at least two blocks';
+  if (chosen.some((x) => x.running)) return 'The running block can’t be edited until it ends';
+  for (let i = 1; i < chosen.length; i++) if (!adjacent(chosen[i - 1], chosen[i])) return 'Only blocks next to each other can be merged';
+  const breaks = chosen.filter((x) => x.kind === 'break').length;
+  if (breaks && breaks !== chosen.length) return 'A break can’t be merged with work blocks';
+  return null;
+}
+
+type Panel = { type: 'answer' } | { type: 'merge' } | null;
+
+function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Promise<void>; picked: string | null; onPick: (id: string | null) => void }) {
   const s = vm.summary;
   const log = dayLog(s);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
-  const [merging, setMerging] = useState(false);
-  const sessions = s.sessions;
-  const chosen = sessions.filter((x) => checked.has(x.id));
+  const [panel, setPanel] = useState<Panel>(null);
+  const blocks = s.sessions;
+  // `chosen` ignores ticks of blocks that are gone (deleted, merged); it's in time order.
+  const chosen = blocks.filter((x) => checked.has(x.id));
 
-  // `chosen` ignores ticks of sessions that are gone (deleted, merged).
   const toggle = (id: string) => {
-    setMerging(false);
+    setPanel(null);
     setChecked((c) => {
       const n = new Set(c);
       if (n.has(id)) n.delete(id);
@@ -164,31 +171,45 @@ function SessionLog({
       return n;
     });
   };
-  const del = async (id: string) => {
-    const r = await window.spyder.deleteSession(id);
-    showEditResult(r, () => void reload());
-    if (picked === id) onPick(null);
-    await reload();
-  };
-  const merge = async (keepId: string) => {
-    const r = await window.spyder.mergeSessions(keepId, chosen.map((x) => x.id));
-    showEditResult(r, () => void reload());
+  const after = async (r: EditResult | Ok | EngineError) => {
+    if ('undoId' in r || 'error' in r) showEditResult(r, () => void reload());
     if (!('error' in r)) {
       setChecked(new Set());
-      setMerging(false);
+      setPanel(null);
     }
     await reload();
   };
+  const del = async (ids: string[]) => {
+    if (picked && ids.includes(picked)) onPick(null);
+    await after(await window.spyder.deleteBlocks(ids));
+  };
 
-  const workCount = sessions.filter((x) => x.kind !== 'break').length;
+  // Consecutive blocks with the same answer are shown joined (P64).
+  const joinedWithPrev = new Set<string>();
+  const groupOf = new Map<string, { count: number; sec: number }>();
+  let head: SessionLine | null = null;
+  let prev: SessionLine | null = null;
+  for (const x of blocks) {
+    if (prev && !x.running && !prev.running && adjacent(prev, x) && sameAnswer(prev, x)) {
+      joinedWithPrev.add(x.id);
+      const g = groupOf.get(head!.id) ?? { count: 1, sec: head!.daySec };
+      groupOf.set(head!.id, { count: g.count + 1, sec: g.sec + x.daySec });
+    } else head = x;
+    prev = x;
+  }
+
+  const workCount = blocks.filter((x) => x.kind !== 'break').length;
+  const pending = blocks.filter((x) => x.kind !== 'break' && x.name === null && !x.running).length;
+  const problem = mergeProblem(chosen);
   return (
-    <section data-testid="session-log">
+    <section data-testid="block-log">
       <SectionHead
-        title="Sessions"
+        title="Blocks"
         right={
           chosen.length === 0 ? (
             <>
-              {workCount} {workCount === 1 ? 'session' : 'sessions'}
+              {workCount} {workCount === 1 ? 'block' : 'blocks'}
+              {pending > 0 && <span className="text-orange"> · {pending} not accounted for</span>}
               {s.untrackedSec >= 60 && <span className="text-faint"> · {dur(s.untrackedSec)} untracked</span>}
             </>
           ) : undefined
@@ -197,8 +218,14 @@ function SessionLog({
         {chosen.length > 0 && (
           <div data-testid="selection-bar" className="ml-auto flex items-center gap-1.5">
             <span className="mr-1 text-[12px] text-muted tabular">{chosen.length} selected</span>
-            <Btn size="sm" data-testid="merge-open" disabled={chosen.length < 2} onClick={() => setMerging(true)}>
+            <Btn size="sm" data-testid="answer-open" onClick={() => setPanel({ type: 'answer' })}>
+              Answer…
+            </Btn>
+            <Btn size="sm" data-testid="merge-open" disabled={chosen.length < 2} title={problem ?? undefined} onClick={() => setPanel({ type: 'merge' })}>
               Merge…
+            </Btn>
+            <Btn size="sm" variant="danger" data-testid="delete-selected" onClick={() => void del(chosen.map((x) => x.id))}>
+              Delete
             </Btn>
             <Btn size="sm" variant="ghost" onClick={() => setChecked(new Set())}>
               Clear
@@ -206,40 +233,57 @@ function SessionLog({
           </div>
         )}
       </SectionHead>
-      {merging && chosen.length >= 2 && <MergePanel chosen={chosen} onMerge={merge} onCancel={() => setMerging(false)} />}
+      {panel && chosen.length > 0 && (
+        <AnswerPanel
+          key={panel.type}
+          chosen={chosen}
+          merge={panel.type === 'merge'}
+          problem={panel.type === 'merge' ? problem : null}
+          onCancel={() => setPanel(null)}
+          onSave={async (answer) =>
+            after(
+              panel.type === 'merge'
+                ? await window.spyder.mergeBlocks(chosen.map((x) => x.id), answer)
+                : await window.spyder.answerBlocks(chosen.map((x) => ({ id: x.id, answer }))),
+            )
+          }
+        />
+      )}
       {log.length === 0 ? (
         <div className="rounded-card border border-border">
-          <Empty>No sessions yet</Empty>
+          <Empty>No blocks yet. Press Start in the sidebar.</Empty>
         </div>
       ) : (
         <ul className="overflow-hidden rounded-card border border-border bg-surface">
-          {log.map((e) =>
-            e.type === 'session' ? (
-              editing === e.id ? (
-                <EditRow
-                  key={e.id}
-                  x={e}
-                  onDone={async (saved) => {
-                    setEditing(null);
-                    if (saved) await reload();
-                  }}
-                />
-              ) : (
-                <SessionRow
-                  key={e.id}
-                  x={e}
-                  checked={checked.has(e.id)}
-                  picked={picked === e.id}
-                  onCheck={() => toggle(e.id)}
-                  onPick={() => onPick(picked === e.id ? null : e.id)}
-                  onEdit={() => setEditing(e.id)}
-                  onDelete={() => void del(e.id)}
-                />
-              )
+          {log.map((e, i) => {
+            if (e.type !== 'session') return <QuietRow key={`${e.type}${e.startMs}`} e={e} />;
+            const next = log[i + 1];
+            const joinedNext = next?.type === 'session' && joinedWithPrev.has(next.id);
+            return editing === e.id ? (
+              <EditRow
+                key={e.id}
+                x={e}
+                onDone={async (saved) => {
+                  setEditing(null);
+                  if (saved) await reload();
+                }}
+              />
             ) : (
-              <QuietRow key={`${e.type}${e.startMs}`} e={e} />
-            ),
-          )}
+              <BlockRow
+                key={e.id}
+                x={e}
+                joinedPrev={joinedWithPrev.has(e.id)}
+                joinedNext={joinedNext}
+                group={groupOf.get(e.id) ?? null}
+                checked={checked.has(e.id)}
+                picked={picked === e.id}
+                onCheck={() => toggle(e.id)}
+                onPick={() => onPick(picked === e.id ? null : e.id)}
+                onEdit={() => setEditing(e.id)}
+                onDelete={() => void del([e.id])}
+              />
+            );
+          })}
         </ul>
       )}
     </section>
@@ -248,20 +292,21 @@ function SessionLog({
 
 const rowCls = 'group flex h-10 items-center gap-3 border-b border-border pr-2 pl-3 text-[13px] last:border-0';
 
-function Check({ on, onChange, label }: { on: boolean; onChange: () => void; label: string }) {
+function Check({ on, onChange, label, disabled }: { on: boolean; onChange: () => void; label: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={on}
       aria-label={label}
-      data-testid="session-check"
+      disabled={disabled}
+      data-testid="block-check"
       onClick={(e) => {
         e.stopPropagation();
         onChange();
       }}
       className={clsx(
-        'flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors',
+        'flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors disabled:invisible',
         on ? 'border-accent bg-accent text-on-accent' : 'border-border-strong bg-surface group-hover:border-muted',
       )}
     >
@@ -285,18 +330,18 @@ function IconBtn({ label, testId, onClick, children, danger }: { label: string; 
         e.stopPropagation();
         onClick();
       }}
-      className={clsx(
-        'flex h-7 w-7 items-center justify-center rounded-control text-muted hover:bg-surface-2',
-        danger ? 'hover:text-red' : 'hover:text-text',
-      )}
+      className={clsx('flex h-7 w-7 items-center justify-center rounded-control text-muted hover:bg-surface-2', danger ? 'hover:text-red' : 'hover:text-text')}
     >
       {children}
     </button>
   );
 }
 
-function SessionRow({
+function BlockRow({
   x,
+  joinedPrev,
+  joinedNext,
+  group,
   checked,
   picked,
   onCheck,
@@ -305,6 +350,9 @@ function SessionRow({
   onDelete,
 }: {
   x: SessionLine;
+  joinedPrev: boolean;
+  joinedNext: boolean;
+  group: { count: number; sec: number } | null;
   checked: boolean;
   picked: boolean;
   onCheck: () => void;
@@ -316,171 +364,191 @@ function SessionRow({
   useEffect(() => {
     if (picked) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [picked]);
-  const over = x.deltaSec !== null && !!x.plannedSec && x.deltaSec > x.plannedSec * 0.1;
-  const name = x.name ?? (x.kind === 'break' ? 'Break' : 'Unlabelled');
+  const text = answerText(x);
+  const unanswered = x.kind !== 'break' && x.name === null;
   return (
     <li
       ref={ref}
-      data-testid="session-row"
+      data-testid="block-row"
       data-session={x.id}
       data-picked={picked || undefined}
+      data-joined={joinedPrev || undefined}
       onClick={onPick}
-      className={clsx(rowCls, 'cursor-default', picked ? 'bg-accent/8' : checked ? 'bg-surface-2/60' : 'hover:bg-surface-2/50')}
+      className={clsx(
+        rowCls,
+        'cursor-default',
+        joinedNext && 'border-b-transparent',
+        picked ? 'bg-accent/8' : checked ? 'bg-surface-2/60' : 'hover:bg-surface-2/50',
+      )}
     >
-      <Check on={checked} onChange={onCheck} label={`Select ${name}`} />
+      <Check on={checked} onChange={onCheck} label={`Select ${text}`} disabled={x.running} />
       <span className="w-[92px] shrink-0 text-muted tabular">{span(x.startMs, x.endMs, x.running)}</span>
-      <span className="h-4 w-[3px] shrink-0 rounded-pill" style={{ background: sessionColor(x), opacity: x.kind === 'break' ? 0.5 : 1 }} />
+      <span
+        className={clsx('w-[3px] shrink-0', joinedPrev || joinedNext ? 'self-stretch' : 'h-4 rounded-pill', joinedPrev && !joinedNext && 'mb-2', joinedNext && !joinedPrev && 'mt-2')}
+        style={{ background: blockColor(x), opacity: x.kind === 'break' ? 0.5 : 1 }}
+      />
       <span className="flex min-w-0 flex-1 items-center gap-2">
-        <button
-          data-testid="session-name"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          title="Rename"
-          className={clsx('min-w-0 truncate text-left hover:underline hover:decoration-border-strong hover:underline-offset-4', !x.name && 'text-muted')}
-        >
-          {name}
-        </button>
-        {x.projectName && <span className="shrink-0 truncate text-[12px] text-muted">{x.projectName}</span>}
-        {x.running && (
-          <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-accent">
+        {x.running ? (
+          <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
             Running
           </span>
+        ) : (
+          <button
+            data-testid="block-answer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            title="Change the answer"
+            className={clsx(
+              'min-w-0 truncate text-left hover:underline hover:decoration-border-strong hover:underline-offset-4',
+              unanswered ? 'text-orange' : joinedPrev ? 'text-faint' : undefined,
+            )}
+          >
+            {text}
+          </button>
+        )}
+        {group && (
+          <span data-testid="block-group" className="shrink-0 text-[11px] text-faint tabular">
+            {group.count} blocks · {dur(group.sec)}
+          </span>
         )}
       </span>
-      <span className={clsx('w-[104px] shrink-0 text-right text-[12px] tabular', over ? 'text-red' : 'text-faint')}>
-        {x.plannedSec !== null ? `${KIND_LABEL[x.kind]} · ${dur(x.plannedSec)}` : KIND_LABEL[x.kind]}
-      </span>
-      <span data-testid="session-dur" className="w-[64px] shrink-0 text-right tabular">
+      <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
         {dur(x.daySec)}
       </span>
       <span className="flex w-[60px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
-        <IconBtn label="Rename" testId="session-rename" onClick={onEdit}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M10.5 2.5l3 3L6 13H3v-3z" />
-          </svg>
-        </IconBtn>
-        <IconBtn label="Delete" testId="session-delete" onClick={onDelete} danger>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4" />
-          </svg>
-        </IconBtn>
+        {!x.running && (
+          <>
+            <IconBtn label="Change the answer" testId="block-edit" onClick={onEdit}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M10.5 2.5l3 3L6 13H3v-3z" />
+              </svg>
+            </IconBtn>
+            <IconBtn label="Delete" testId="block-delete" onClick={onDelete} danger>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4" />
+              </svg>
+            </IconBtn>
+          </>
+        )}
       </span>
     </li>
   );
 }
 
-/** Rename: name + project in one inline edit (P52). Enter saves, Escape cancels. */
+/** Re-answer one block inline (P64): text, or Break. Enter saves, Escape cancels. */
 function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Promise<void> }) {
-  const [name, setName] = useState(x.name ?? '');
-  const [project, setProject] = useState<string | null>(x.projectId);
-  const save = async () => {
-    if (!name.trim()) return;
-    await window.spyder.label(x.id, name.trim(), project);
+  const [text, setText] = useState(x.kind === 'break' ? '' : (x.name ?? ''));
+  const [error, setError] = useState<string | null>(null);
+  const save = async (answer: string | null) => {
+    if (answer !== null && !answer.trim()) return setError('Say what you did, or pick Break');
+    const r = await window.spyder.answerBlocks([{ id: x.id, answer }]);
+    if ('error' in r) return setError(r.message);
     await onDone(true);
   };
   return (
     <li
-      data-testid="session-edit"
-      className="flex items-center gap-2 border-b border-border bg-surface-2/50 py-2 pr-2 pl-3 last:border-0"
+      data-testid="block-edit-row"
+      className="flex flex-col gap-1 border-b border-border bg-surface-2/50 py-2 pr-2 pl-3 last:border-0"
       onKeyDown={(e) => {
         if (e.key === 'Escape') void onDone(false);
       }}
     >
-      <span className="w-[92px] shrink-0 pl-7 text-[13px] text-muted tabular">{fmtTime(x.startMs)}</span>
-      <div className="min-w-0 flex-1">
-        <NameInput value={name} onChange={setName} onEnter={() => void save()} placeholder="Name this session" autoFocus />
+      <div className="flex items-center gap-2">
+        <span className="w-[92px] shrink-0 pl-7 text-[13px] text-muted tabular">{span(x.startMs, x.endMs)}</span>
+        <div className="min-w-0 flex-1">
+          <AnswerInput value={text} onChange={setText} onEnter={() => void save(text)} autoFocus />
+        </div>
+        <Btn variant="primary" data-testid="edit-save" onClick={() => void save(text)}>
+          Save
+        </Btn>
+        <Btn data-testid="edit-break" onClick={() => void save(null)}>
+          Break
+        </Btn>
+        <Btn variant="ghost" onClick={() => void onDone(false)}>
+          Cancel
+        </Btn>
       </div>
-      <div className="w-[180px] shrink-0">
-        <ProjectSelect value={project} onChange={setProject} />
-      </div>
-      <Btn variant="primary" disabled={!name.trim()} onClick={() => void save()}>
-        Save
-      </Btn>
-      <Btn variant="ghost" onClick={() => void onDone(false)}>
-        Cancel
-      </Btn>
+      {error && <div className="pl-[124px] text-[12px] text-red">{error}</div>}
     </li>
   );
 }
 
-/** Away periods and untracked spans: read-only lines in the log. */
+/** Untracked spans: read-only lines in the log. */
 function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
-  const away = e.type === 'away';
-  const text = away
-    ? e.classification
-      ? `Away · ${e.label ?? AWAY_LABEL[e.classification]}`
-      : 'Away · not classified'
-    : 'Untracked';
   return (
-    <li data-testid={away ? 'log-away' : 'log-untracked'} className={clsx(rowCls, 'text-muted')}>
+    <li data-testid={e.type === 'away' ? 'log-away' : 'log-untracked'} className={clsx(rowCls, 'text-muted')}>
       <span className="w-4 shrink-0" />
       <span className="w-[92px] shrink-0 tabular">{span(e.startMs, e.endMs)}</span>
-      <span
-        className={clsx('h-4 w-[3px] shrink-0 rounded-pill', !away && 'bg-faint/60')}
-        style={away ? { background: 'var(--color-away)', opacity: e.classification ? 0.6 : 0.35 } : undefined}
-      />
-      <span className={clsx('min-w-0 flex-1 truncate', !away && 'text-faint')}>{text}</span>
+      <span className="h-4 w-[3px] shrink-0 rounded-pill bg-faint/60" />
+      <span className="min-w-0 flex-1 truncate text-faint">{e.type === 'away' ? 'Away' : 'Untracked'}</span>
       <span className="w-[64px] shrink-0 text-right tabular">{dur(e.sec)}</span>
       <span className="w-[60px] shrink-0" />
     </li>
   );
 }
 
-/** Pick the session that keeps its name (P54): the longest is pre-picked; a running one is always kept. */
-function MergePanel({ chosen, onMerge, onCancel }: { chosen: SessionLine[]; onMerge: (keepId: string) => Promise<void>; onCancel: () => void }) {
-  const running = chosen.find((x) => x.running);
-  const longest = [...chosen].sort((a, b) => b.elapsedSec - a.elapsedSec)[0];
-  const [keep, setKeep] = useState((running ?? longest).id);
-  const breaks = chosen.filter((x) => x.kind === 'break').length;
-  const mixed = breaks > 0 && breaks < chosen.length;
-  const keepId = running?.id ?? (chosen.some((x) => x.id === keep) ? keep : longest.id);
+/** One answer for the selected blocks, or merging adjacent ones into one longer block (P64). */
+function AnswerPanel({
+  chosen,
+  merge,
+  problem,
+  onSave,
+  onCancel,
+}: {
+  chosen: SessionLine[];
+  merge: boolean;
+  problem: string | null;
+  onSave: (answer: string | null) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const allBreaks = chosen.every((x) => x.kind === 'break');
+  const names = new Set(chosen.map((x) => (x.kind === 'break' ? null : x.name)));
+  const common = names.size === 1 ? [...names][0] : null;
+  const [text, setText] = useState(common ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const total = chosen.reduce((t, x) => t + x.daySec, 0);
+  const save = async (answer: string | null) => {
+    if (answer !== null && !answer.trim()) return setError('Say what you did, or pick Break');
+    setError(null);
+    await onSave(answer);
+  };
   return (
-    <div data-testid="merge-panel" className="mb-3 rounded-card border border-border-strong bg-surface p-4 shadow-pop">
-      <div className="mb-1 section-title">Merge {chosen.length} sessions</div>
+    <div data-testid={merge ? 'merge-panel' : 'answer-panel'} className="mb-3 rounded-card border border-border-strong bg-surface p-4 shadow-pop">
+      <div className="mb-1 section-title">{merge ? `Merge ${chosen.length} blocks` : `Answer ${chosen.length} ${chosen.length === 1 ? 'block' : 'blocks'}`}</div>
       <p className="mb-3 text-[12px] text-muted">
-        {running
-          ? 'The running session is kept and keeps running; the others’ time moves into it.'
-          : 'Keep the name, project and plan of:'}
+        {merge
+          ? `They become one ${dur(total)} block, ${span(chosen[0].startMs, chosen[chosen.length - 1].endMs)}, with one answer.`
+          : 'Every selected block gets this answer.'}
       </p>
-      <div className="mb-4 flex flex-col gap-1">
-        {chosen.map((x) => (
-          <label
-            key={x.id}
-            className={clsx(
-              'flex h-8 items-center gap-2.5 rounded-control px-2 text-[13px]',
-              keepId === x.id ? 'bg-surface-2' : 'hover:bg-surface-2/60',
-              running && x.id !== running.id && 'opacity-50',
-            )}
-          >
-            <input
-              type="radio"
-              name="merge-keep"
-              data-testid="merge-keep"
-              value={x.id}
-              checked={keepId === x.id}
-              disabled={!!running && x.id !== running.id}
-              onChange={() => setKeep(x.id)}
-              className="accent-[var(--color-accent)]"
-            />
-            <span className="w-[92px] text-muted tabular">{span(x.startMs, x.endMs, x.running)}</span>
-            <span className={clsx('min-w-0 flex-1 truncate', !x.name && 'text-muted')}>
-              {x.name ?? (x.kind === 'break' ? 'Break' : 'Unlabelled')}
-            </span>
-            <span className="text-muted tabular">{dur(x.daySec)}</span>
-          </label>
-        ))}
-      </div>
+      {problem ? (
+        <p className="mb-3 text-[12px] text-red">{problem}</p>
+      ) : (
+        <div className="mb-3 flex items-center gap-2">
+          {!(merge && allBreaks) && (
+            <div className="min-w-0 flex-1">
+              <AnswerInput value={text} onChange={setText} onEnter={() => void save(text)} autoFocus />
+            </div>
+          )}
+          {!(merge && allBreaks) && (
+            <Btn variant="primary" data-testid="panel-save" onClick={() => void save(text)}>
+              {merge ? 'Merge' : 'Save'}
+            </Btn>
+          )}
+          {(!merge || allBreaks) && (
+            <Btn variant={merge ? 'primary' : 'secondary'} data-testid="panel-break" onClick={() => void save(null)}>
+              {merge ? 'Merge breaks' : 'Break'}
+            </Btn>
+          )}
+        </div>
+      )}
       <div className="flex items-center gap-2">
-        <Btn variant="primary" data-testid="merge-confirm" disabled={mixed} onClick={() => void onMerge(keepId)}>
-          Merge
-        </Btn>
         <Btn variant="ghost" onClick={onCancel}>
           Cancel
         </Btn>
-        {mixed && <span className="text-[12px] text-red">Breaks merge only with breaks</span>}
+        {error && <span className="text-[12px] text-red">{error}</span>}
       </div>
     </div>
   );
@@ -497,9 +565,9 @@ function TimelineLegend() {
   );
   return (
     <span className="flex items-center gap-4 text-faint">
-      {item(<span className="h-2 w-2 rounded-[2px] bg-accent" />, 'Session')}
+      {item(<span className="h-2 w-2 rounded-[2px] bg-accent" />, 'Accounted for')}
+      {item(<span className="h-2 w-2 rounded-[2px] bg-open" />, 'Not yet')}
       {item(<span className="h-2 w-2 rounded-[2px] bg-break/50" />, 'Break')}
-      {item(<span className="h-2 w-2 rounded-[2px] bg-away/50" />, 'Away')}
       {item(<span className="hatch h-2 w-2 rounded-[2px]" />, 'Untracked')}
     </span>
   );

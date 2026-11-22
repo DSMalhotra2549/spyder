@@ -1,10 +1,10 @@
 // Dashboard shell (design/DESIGN.md §4): sidebar, footer status, and the page for the route.
 import clsx from 'clsx';
 import { useEffect, useState, type ReactNode } from 'react';
-import { fmtClock } from '../../core/format';
+import { fmtClock, fmtDuration } from '../../core/format';
 import type { WidgetPayload } from '../../preload/api';
 import { navigate } from '../router';
-import { Btn } from '../ui/controls';
+import { Btn, inputCls } from '../ui/controls';
 import { Month } from './Month';
 import { Review } from './Review';
 import { Rules } from './Rules';
@@ -98,59 +98,39 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
   );
 }
 
-const KIND_DOT: Record<string, string> = {
-  planned: 'var(--color-planned)',
-  timed: 'var(--color-timed)',
-  open: 'var(--color-open)',
-  break: 'var(--color-break)',
-};
-
-/** Session buttons that depend on the state (P46); none off hours or while away. */
-function SessionControls({ w }: { w: WidgetPayload }) {
-  if (w.mode !== 'working' || !w.kind) return null;
-  const run = (fn: () => unknown) => () => void fn();
-  const b = 'flex-1 px-0';
-  let buttons: ReactNode;
-  if (w.isPaused) {
-    buttons = (
-      <>
-        <Btn size="sm" variant="outline" className={b} onClick={run(() => window.spyder.resume())}>
-          Resume
-        </Btn>
-        <Btn size="sm" className={b} onClick={run(() => window.spyder.done())}>
-          Done
-        </Btn>
-      </>
-    );
-  } else if (w.kind === 'break') {
-    buttons = (
-      <Btn size="sm" className={b} onClick={run(() => window.spyder.done())}>
-        End break
-      </Btn>
-    );
-  } else {
-    buttons = (
-      <>
-        <Btn size="sm" className={b} onClick={run(() => window.spyder.pause())}>
-          Pause
-        </Btn>
-        <Btn size="sm" className={b} onClick={run(() => window.spyder.openStart('break'))}>
-          Break
-        </Btn>
-        <Btn size="sm" className={b} onClick={run(() => window.spyder.done())}>
-          Done
-        </Btn>
-      </>
-    );
+/** Minutes box for the block length (P59): 5–180, applied on Enter or blur, from the next block. */
+function LengthBox({ sec }: { sec: number }) {
+  const [v, setV] = useState(String(sec / 60));
+  const [shown, setShown] = useState(sec);
+  if (sec !== shown) {
+    setShown(sec);
+    setV(String(sec / 60));
   }
+  const commit = () => {
+    const min = Math.min(180, Math.max(5, Math.round(Number(v) || sec / 60)));
+    setV(String(min));
+    if (min * 60 !== sec) void window.spyder.setBlockLength(min * 60);
+  };
   return (
-    <div data-testid="session-controls" className="flex gap-1">
-      {buttons}
-    </div>
+    <label className="flex items-center gap-1.5 text-[12px] text-muted">
+      <input
+        data-testid="block-length"
+        aria-label="Block length in minutes"
+        type="number"
+        min={5}
+        max={180}
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && commit()}
+        className={clsx(inputCls, 'h-7 w-14 px-1.5 text-center tabular')}
+      />
+      min blocks
+    </label>
   );
 }
 
-/** Status like the bar (dot, timer, caption) and the session controls. Start session is always there while working. */
+/** The loop's status like the bar, Start/Stop and the block length (P59); Keep working off hours (P62). */
 function Footer() {
   const [w, setW] = useState<WidgetPayload | null>(null);
   const [step, setStep] = useState(30);
@@ -160,28 +140,31 @@ function Footer() {
     return window.spyder.onWidget(setW);
   }, []);
   if (!w) return null;
-  const dot = w.mode === 'away' ? 'var(--color-away)' : w.mode === 'off_hours' || !w.kind ? 'var(--color-faint)' : KIND_DOT[w.kind];
-  const caption = w.mode === 'off_hours' ? 'Off hours' : w.mode === 'away' ? 'Away' : w.title;
+  const dot = w.running ? 'var(--color-accent)' : w.notStarted ? 'var(--color-orange)' : 'var(--color-faint)';
+  const caption = w.running ? `Block · ${fmtDuration(w.blockLengthSec)}` : w.notStarted ? 'Not started' : 'Off hours';
   return (
     <div className="mt-auto flex flex-col gap-1.5 rounded-card border border-border bg-surface p-2.5">
       <div className="mb-0.5 flex items-center gap-2">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-        <span className="min-w-0 flex-1 truncate text-[12px] text-muted" title={caption}>
+        <span data-testid="sidebar-status" className={clsx('min-w-0 flex-1 truncate text-[12px]', w.notStarted ? 'text-orange' : 'text-muted')}>
           {caption}
         </span>
-        {w.mode === 'working' && (
-          <span data-testid="sidebar-timer" className={clsx('text-[13px] font-semibold tabular', w.isOvertime && 'text-red')}>
-            {w.isOvertime ? '+' : ''}
+        {w.running && (
+          <span data-testid="sidebar-timer" className="text-[13px] font-semibold tabular">
             {fmtClock(w.timerSec)}
           </span>
         )}
       </div>
-      {w.mode === 'working' && (
-        <Btn size="sm" variant="primary" data-testid="sidebar-start" className="w-full" onClick={() => void window.spyder.openStart()}>
-          Start session
+      <LengthBox sec={w.nextLengthSec} />
+      {w.running ? (
+        <Btn size="sm" data-testid="sidebar-stop" className="w-full" onClick={() => void window.spyder.stop()}>
+          Stop
+        </Btn>
+      ) : (
+        <Btn size="sm" variant="primary" data-testid="sidebar-start" className="w-full" onClick={() => void window.spyder.start(w.nextLengthSec)}>
+          Start
         </Btn>
       )}
-      <SessionControls w={w} />
       {w.mode === 'off_hours' && (
         <Btn size="sm" data-testid="keep-working" className="w-full" onClick={() => void window.spyder.keepWorking()}>
           Keep working +{step}

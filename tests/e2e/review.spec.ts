@@ -3,26 +3,35 @@ import { expect, test } from '@playwright/test';
 import { launch, shot } from './helpers';
 
 test('review opens at 17:00, gates on leftovers, persists and completes', async () => {
-  const s = await launch(); // 11:00 Tuesday: BOOT starts an unlabelled open session
+  const s = await launch({ now: '2026-11-24T16:30:00' }); // Tuesday, work 10–17
   try {
     const d = s.dashboard;
+    await s.prompt.getByTestId('reminder-start').click();
+    await expect.poll(async () => ((await s.debug.state()).host as { engine: { loop: unknown } }).engine.loop).not.toBeNull();
     await s.debug.setNow(new Date('2026-11-24T17:00:05').getTime());
     await expect.poll(async () => (await s.debug.state()).dashboardVisible, { timeout: 10_000 }).toBe(true);
     await expect.poll(() => d.url()).toContain('#/dashboard/review');
 
-    // Leftover: the 11:00–17:00 open session has no label.
+    // Leftovers: the blocks 16:30–16:45 and 16:45–17:00 aren't accounted for (P60).
     const complete = d.getByTestId('complete-review');
-    await expect(d.getByTestId('leftover-session')).toHaveCount(1);
+    const left = d.getByTestId('leftover-block');
+    await expect(left).toHaveCount(2);
+    await expect(left.first()).toContainText('What did you do 16:30–16:45?');
     await expect(complete).toBeDisabled();
-    await expect(d.getByTestId('review-badge')).toHaveText('1');
+    await expect(d.getByTestId('review-badge')).toHaveText('2');
     await shot(d, 'review-leftovers');
 
-    await d.getByTestId('leftover-session').locator('input').first().fill('Planning the week');
-    await d.getByTestId('leftover-session').getByRole('button', { name: 'Save' }).click();
+    await left.first().getByLabel('Answer').fill('Planning the week');
+    await left.first().getByRole('button', { name: 'Save' }).click();
+    await expect(left).toHaveCount(1);
+    await left.first().getByTestId('leftover-break').click();
     await expect(d.getByTestId('all-accounted')).toBeVisible();
     await expect(complete).toBeEnabled();
-    const named = s.db().prepare("SELECT name FROM sessions WHERE kind = 'open' ORDER BY started_ms").all() as { name: string }[];
-    expect(named[0].name).toBe('Planning the week');
+    const named = s.db().prepare('SELECT kind, name FROM sessions ORDER BY started_ms').all();
+    expect(named).toEqual([
+      { kind: 'open', name: 'Planning the week' },
+      { kind: 'break', name: 'Break' },
+    ]);
 
     // A win, an improvement and a KPI value.
     await d.getByTestId('add-win').click();
@@ -55,10 +64,10 @@ test('review opens at 17:00, gates on leftovers, persists and completes', async 
     await expect(d.getByTestId('reviewed-chip')).toContainText('Reviewed at 17:00');
     const row = s.db().prepare('SELECT * FROM reviews WHERE date = ?').get('2026-11-24') as Record<string, number>;
     expect(row.completed_ms).toBeGreaterThan(0);
-    expect(row.work_sec).toBe(6 * 3600);
+    expect(row.work_sec).toBe(15 * 60);
     expect(row.scheduled_sec).toBe(7 * 3600);
     expect(row.goal_sec).toBe(18_000);
-    expect(row.goal_met).toBe(1);
+    expect(row.goal_met).toBe(0);
     await d.mouse.move(0, 0);
     await shot(d, 'review');
   } finally {

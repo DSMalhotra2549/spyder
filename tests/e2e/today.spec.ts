@@ -58,10 +58,10 @@ test('Today matches aggregate(); a category change creates a user rule', async (
         pct: await r.locator('[data-k=pct]').innerText(),
       }).toEqual(want[i]);
     }
-    // Only the top 5 show until "Show all"; every session is in the log right under the stats (P55).
+    // Only the top 5 show until "Show all"; every block is in the log right under the stats (P55, P64).
     expect(vm.summary.apps.length).toBeGreaterThan(5);
     await expect(rows).toHaveCount(5);
-    await expect(d.getByTestId('session-row')).toHaveCount(vm.summary.sessions.length);
+    await expect(d.getByTestId('block-row')).toHaveCount(vm.summary.sessions.length);
     await d.mouse.move(0, 0);
     await shot(d, 'today');
     await d.getByTestId('apps-show-all').click();

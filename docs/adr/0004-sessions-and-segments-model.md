@@ -1,6 +1,6 @@
 # Sessions are split into segments
 
-**Status:** accepted (2026-11-21)
+**Status:** superseded by ADR-0011 (accepted 2026-11-21)
 
 A **session** is the logical unit of work: name, project, kind, planned duration. A **segment** is one continuous interval during which that session was actually running. Away periods and pauses close the current segment, and resuming opens a new one in the same session. A session's elapsed time is the sum of its segments.
 

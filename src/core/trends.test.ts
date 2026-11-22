@@ -93,11 +93,11 @@ describe('cleanSettings', () => {
   it('keeps valid values, clamps numbers, drops the rest', () => {
     expect(
       cleanSettings({
-        idleThresholdSec: 10, checkInIntervalSec: 600.4, goalSec: 'x', defaultDirection: 'up', appPercentScope: 'bad',
+        idleThresholdSec: 10, blockLengthSec: 600.4, goalSec: 'x', appPercentScope: 'bad',
         theme: 'dark', hotkey: ' Control+Alt+K ', autostart: false, widgetPos: { x: 1, y: 2 }, nope: 1,
       }),
     ).toEqual({
-      idleThresholdSec: 60, checkInIntervalSec: 600, defaultDirection: 'up', theme: 'dark',
+      idleThresholdSec: 60, blockLengthSec: 600, theme: 'dark',
       hotkey: 'Control+Alt+K', autostart: false, widgetPos: { x: 1, y: 2 },
     });
     expect(cleanSettings({ hotkey: '  ', widgetPos: null, autostart: 'yes' })).toEqual({ widgetPos: null });
@@ -108,10 +108,11 @@ describe('cleanSettings', () => {
     expect(cleanSettings({ widgetStyle: 'compact', theme: 'sepia' })).toEqual({});
   });
 
-  it('P51: check-ins default to 15 min and stay between 5 min and 3 h', () => {
-    expect(DEFAULT_SETTINGS.checkInIntervalSec).toBe(900);
-    expect(cleanSettings({ checkInIntervalSec: 60 })).toEqual({ checkInIntervalSec: 300 });
-    expect(cleanSettings({ checkInIntervalSec: 4 * 3600 })).toEqual({ checkInIntervalSec: 10_800 });
-    expect(cleanSettings({ checkInIntervalSec: 1800 })).toEqual({ checkInIntervalSec: 1800 });
+  it('P59: blocks default to 15 min and stay between 5 min and 3 h; the old session settings are gone', () => {
+    expect(DEFAULT_SETTINGS.blockLengthSec).toBe(900);
+    expect(cleanSettings({ blockLengthSec: 60 })).toEqual({ blockLengthSec: 300 });
+    expect(cleanSettings({ blockLengthSec: 4 * 3600 })).toEqual({ blockLengthSec: 10_800 });
+    expect(cleanSettings({ blockLengthSec: 1800 })).toEqual({ blockLengthSec: 1800 });
+    expect(cleanSettings({ checkInIntervalSec: 600, nagIntervalSec: 60, defaultDirection: 'up', shortAwayIgnoreSec: 5 })).toEqual({});
   });
 });

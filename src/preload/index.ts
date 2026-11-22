@@ -13,11 +13,11 @@ const on = (channel: string) => (cb: (v: unknown) => void) => {
 };
 
 const methods = [
-  'getSettings', 'setSettings', 'getWidget', 'start', 'done', 'extend', 'pause', 'resume', 'label', 'keepWorking',
-  'getPrompt', 'answer', 'openStart', 'closeStart', 'nameSuggestions', 'listProjects', 'saveProject',
+  'getSettings', 'setSettings', 'getWidget', 'start', 'stop', 'setBlockLength', 'dismissReminder', 'keepWorking',
+  'answerBlocks', 'answerSuggestions', 'deleteBlocks', 'mergeBlocks', 'undoEdit', 'getPrompt',
   'hideWidget', 'openDashboard', 'resizePrompt',
   'getDay', 'saveRule', 'getReview', 'saveReviewItem', 'deleteReviewItem', 'completeReview', 'listKpis', 'saveKpi',
-  'setKpiValue', 'classifyAway', 'showWidget', 'deleteSession', 'mergeSessions', 'undoEdit',
+  'setKpiValue', 'showWidget',
   'getRange', 'listUncategorized', 'listRules', 'deleteRule', 'listTitlePatterns', 'saveTitlePattern', 'deleteTitlePattern',
   'getSchedule', 'setSchedule', 'setDayOverride', 'openDataFolder', 'exportData', 'showInFolder',
 ] as const;
@@ -28,7 +28,6 @@ const debugNames = ['state', 'setNow', 'advance', 'setScale', 'tick', 'simulateI
 const api = {
   ...Object.fromEntries(methods.map((m) => [m, invoke(m)])),
   onWidget: on('widget'),
-  onRing: on('ring'),
   onPrompt: on('prompt'),
   debug:
     process.env.SPYDER_DEBUG === '1'

@@ -1,9 +1,9 @@
 // The renderer-facing API exposed on window.spyder (plan §11). Grows phase by phase.
+import type { WidgetVM } from '../core/blockEngine';
 import type { PromptVM } from '../core/promptView';
-import type { WidgetVM } from '../core/sessionEngine';
 import type { Settings } from '../core/settings';
 import type { Category, MatchType } from '../core/defaults';
-import type { Answer, AwayClassification, EngineError, Kind, StartInput } from '../core/types';
+import type { EngineError } from '../core/types';
 import type { DayVM, Kpi, ReviewItem, ReviewVM } from '../core/review';
 import type { AppRow } from '../core/aggregate';
 import type { ScheduleRow } from '../core/settings';
@@ -44,22 +44,17 @@ export interface WidgetPayload extends WidgetVM {
   distractSec: number;
 }
 
-export type PromptWindowState =
-  | { view: 'start'; defaultDirection: 'up' | 'down'; tab: Kind }
-  | { view: 'prompt'; prompt: PromptVM }
-  | null;
+export type PromptWindowState = PromptVM | null;
+
+/** One block's answer: free text, or null for Break (P60). */
+export interface BlockAnswer {
+  id: string;
+  answer: string | null;
+}
 
 export type Ok = { ok: true };
-/** A delete or merge (P52): `undoId` undoes it while it's the latest edit. */
+/** A delete or merge (P64): `undoId` undoes it while it's the latest edit. */
 export type EditResult = { ok: true; undoId: string; message: string } | EngineError;
-export type StartResult = Ok | (EngineError & { elapsedSec?: number });
-
-export interface Project {
-  id: string;
-  name: string;
-  color: string;
-  archived: boolean;
-}
 
 export interface DebugApi {
   state(): Promise<Record<string, unknown>>;
@@ -91,27 +86,23 @@ export interface SpyderApi {
 
   getWidget(): Promise<WidgetPayload>;
   onWidget(cb: (w: WidgetPayload) => void): () => void;
-  onRing(cb: () => void): () => void;
-  start(input: StartInput): Promise<StartResult>;
-  done(): Promise<Ok | EngineError>;
-  extend(sec: number): Promise<Ok | EngineError>;
-  pause(): Promise<Ok | EngineError>;
-  resume(): Promise<Ok | EngineError>;
-  label(sessionId: string, name: string, projectId: string | null): Promise<Ok | EngineError>;
+  /** P59: starts the loop with this block length (seconds). */
+  start(lengthSec: number): Promise<Ok | EngineError>;
+  stop(): Promise<Ok | EngineError>;
+  /** P59: remembered, and used from the next block. */
+  setBlockLength(lengthSec: number): Promise<Ok | EngineError>;
+  dismissReminder(): Promise<Ok | EngineError>;
   keepWorking(): Promise<Ok | EngineError>;
-  deleteSession(id: string): Promise<EditResult>;
-  mergeSessions(keepId: string, ids: string[]): Promise<EditResult>;
+  /** P60, P64: answer ended blocks (also re-answer). */
+  answerBlocks(answers: BlockAnswer[]): Promise<Ok | EngineError>;
+  deleteBlocks(ids: string[]): Promise<EditResult>;
+  /** P64: adjacent blocks become one block with `answer` (null = Break). */
+  mergeBlocks(ids: string[], answer: string | null): Promise<EditResult>;
   undoEdit(undoId: string): Promise<Ok | EngineError>;
 
+  answerSuggestions(prefix: string): Promise<string[]>;
   getPrompt(): Promise<PromptWindowState>;
   onPrompt(cb: (p: PromptWindowState) => void): () => void;
-  answer(promptId: string, answer: Answer): Promise<Ok | EngineError>;
-  openStart(tab?: Kind): Promise<void>;
-  closeStart(): Promise<void>;
-
-  nameSuggestions(prefix: string): Promise<string[]>;
-  listProjects(): Promise<Project[]>;
-  saveProject(p: { id?: string; name: string; color?: string; archived?: boolean }): Promise<Project>;
 
   getDay(date?: string): Promise<DayVM>;
   getRange(from: string, to: string): Promise<RangeVM>;
@@ -138,7 +129,6 @@ export interface SpyderApi {
   listKpis(): Promise<Kpi[]>;
   saveKpi(k: { id?: string; name: string; unit?: string | null; archived?: boolean }): Promise<Kpi>;
   setKpiValue(date: string, kpiId: string, value: number | null): Promise<void>;
-  classifyAway(awayId: string, classification: AwayClassification, label: string | null): Promise<Ok | EngineError>;
 
   hideWidget(): Promise<void>;
   showWidget(): Promise<void>;

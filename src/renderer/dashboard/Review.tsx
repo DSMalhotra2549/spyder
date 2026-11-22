@@ -4,8 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DaySummary } from '../../core/aggregate';
 import { fmtDuration, fmtTime } from '../../core/format';
 import type { Kpi, ReviewItem } from '../../core/review';
-import type { AwayClassification } from '../../core/types';
-import { Btn, inputCls, NameInput, ProjectSelect } from '../ui/controls';
+import { AnswerInput, Btn, inputCls } from '../ui/controls';
 import { Timeline } from './Timeline';
 import { Card, TopBar, useLoader } from './parts';
 import { dur, pct } from './stats';
@@ -99,11 +98,10 @@ function MiniStats({ s }: { s: DaySummary }) {
   );
 }
 
-// ---- leftovers ---------------------------------------------------------------------
+// ---- leftovers (P60): blocks not accounted for -------------------------------------------
 function Leftovers({ s, onChanged }: { s: DaySummary; onChanged: () => Promise<void> }) {
-  const sessions = s.sessions.filter((x) => x.name === null && x.kind !== 'break' && !x.running);
-  const away = s.away.filter((a) => a.classification === null);
-  if (!sessions.length && !away.length)
+  const blocks = s.sessions.filter((x) => x.name === null && x.kind !== 'break' && !x.running);
+  if (!blocks.length)
     return (
       <div data-testid="all-accounted" className="flex items-center gap-2 py-4 text-[13px] text-green">
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green/15">✓</span>
@@ -112,108 +110,51 @@ function Leftovers({ s, onChanged }: { s: DaySummary; onChanged: () => Promise<v
     );
   return (
     <div className="flex flex-col divide-y divide-border">
-      {sessions.map((x) => (
-        <LabelRow key={x.id} id={x.id} startMs={x.startMs} endMs={x.endMs ?? x.startMs} sec={x.elapsedSec} onChanged={onChanged} />
-      ))}
-      {away.map((a) => (
-        <AwayRow key={a.id} id={a.id} startMs={a.startMs} endMs={a.endMs} sec={a.sec} onChanged={onChanged} />
+      {blocks.map((x) => (
+        <LeftoverRow key={x.id} id={x.id} startMs={x.startMs} endMs={x.endMs ?? x.startMs} sec={x.elapsedSec} onChanged={onChanged} />
       ))}
     </div>
   );
 }
 
-function LabelRow({ id, startMs, endMs, sec, onChanged }: { id: string; startMs: number; endMs: number; sec: number; onChanged: () => Promise<void> }) {
-  const [name, setName] = useState('');
-  const [project, setProject] = useState<string | null>(null);
-  const save = async (n: string) => {
-    if (!n.trim()) return;
-    await window.spyder.label(id, n.trim(), project);
+function LeftoverRow({ id, startMs, endMs, sec, onChanged }: { id: string; startMs: number; endMs: number; sec: number; onChanged: () => Promise<void> }) {
+  const [text, setText] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const save = async (answer: string | null) => {
+    if (answer !== null && !answer.trim()) return setError('Say what you did, or pick Break');
+    const r = await window.spyder.answerBlocks([{ id, answer }]);
+    if ('error' in r) return setError(r.message);
     await onChanged();
   };
   return (
-    <div data-testid="leftover-session" className="py-3">
+    <div data-testid="leftover-block" className="py-3">
       <div className="mb-2 text-[13px]">
-        What did you do for the last {fmtDuration(sec)}?{' '}
-        <span className="text-muted tabular">
-          ({fmtTime(startMs)}–{fmtTime(endMs)})
-        </span>
+        What did you do {fmtTime(startMs)}–{fmtTime(endMs)}? <span className="text-muted tabular">({fmtDuration(sec)})</span>
       </div>
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
-          <NameInput value={name} onChange={setName} onEnter={() => void save(name)} placeholder="Name this session" />
+          <AnswerInput value={text} onChange={setText} onEnter={() => void save(text)} />
         </div>
-        <div className="w-[150px]">
-          <ProjectSelect value={project} onChange={setProject} />
-        </div>
-        <Btn variant="primary" disabled={!name.trim()} onClick={() => void save(name)}>
+        <Btn variant="primary" disabled={!text.trim()} onClick={() => void save(text)}>
           Save
         </Btn>
+        <Btn data-testid="leftover-break" onClick={() => void save(null)}>
+          Break
+        </Btn>
       </div>
+      {error && <div className="mt-1 text-[12px] text-red">{error}</div>}
       <button
         data-testid="leftover-delete"
         className="mt-1.5 text-[12px] text-muted hover:text-red"
         onClick={async () => {
-          // P50/P53: a leftover is labelled or deleted; deleting makes its time untracked.
-          const r = await window.spyder.deleteSession(id);
+          // A leftover is answered or deleted; deleting makes its time untracked (P64).
+          const r = await window.spyder.deleteBlocks([id]);
           showEditResult(r, () => void onChanged());
           await onChanged();
         }}
       >
-        Delete session
+        Delete block
       </button>
-    </div>
-  );
-}
-
-const AWAY_BTNS: [AwayClassification, string][] = [
-  ['break', 'Break'],
-  ['meeting', 'Meeting / call'],
-  ['offline_work', 'Offline work…'],
-  ['not_working', 'Not working'],
-  ['working', 'I was working'],
-];
-
-function AwayRow({ id, startMs, endMs, sec, onChanged }: { id: string; startMs: number; endMs: number; sec: number; onChanged: () => Promise<void> }) {
-  const [offline, setOffline] = useState(false);
-  const [label, setLabel] = useState('');
-  const classify = async (c: AwayClassification, l: string | null = null) => {
-    await window.spyder.classifyAway(id, c, l);
-    await onChanged();
-  };
-  return (
-    <div data-testid="leftover-away" className="py-3">
-      <div className="mb-2 text-[13px]">
-        You were away {fmtDuration(sec)}{' '}
-        <span className="text-muted tabular">
-          ({fmtTime(startMs)}–{fmtTime(endMs)})
-        </span>
-      </div>
-      {offline ? (
-        <div className="flex items-center gap-2">
-          <input
-            autoFocus
-            className={clsx(inputCls, 'min-w-0 flex-1')}
-            placeholder="What did you work on?"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && label.trim() && void classify('offline_work', label)}
-          />
-          <Btn variant="primary" disabled={!label.trim()} onClick={() => void classify('offline_work', label)}>
-            Save
-          </Btn>
-          <Btn variant="ghost" onClick={() => setOffline(false)}>
-            Cancel
-          </Btn>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {AWAY_BTNS.map(([c, text]) => (
-            <Btn key={c} onClick={() => (c === 'offline_work' ? setOffline(true) : void classify(c))}>
-              {text}
-            </Btn>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

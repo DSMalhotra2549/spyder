@@ -62,34 +62,10 @@ function applyOne(db: Db, e: DbEffect): void {
     case 'closeSegment':
       db.run('UPDATE segments SET end_ms = ? WHERE id = ?', e.row.endMs, e.row.id);
       return;
-    case 'insertSegment':
-      db.run(
-        'INSERT INTO segments (id, session_id, start_ms, end_ms, source) VALUES (?, ?, ?, ?, ?)',
-        e.row.id, e.row.sessionId, e.row.startMs, e.row.endMs, e.row.source,
-      );
-      // Keep elapsed_sec = Σ closed segments (also for sessions no longer in engine state).
-      db.run(
-        `UPDATE sessions SET elapsed_sec = (SELECT COALESCE(ROUND(SUM(end_ms - start_ms) / 1000.0), 0)
-           FROM segments WHERE session_id = ? AND end_ms IS NOT NULL) WHERE id = ?`,
-        e.row.sessionId, e.row.sessionId,
-      );
+    case 'discardSession':
+      db.run('DELETE FROM segments WHERE session_id = ?', e.id);
+      db.run('DELETE FROM sessions WHERE id = ?', e.id);
       return;
-    case 'insertAway': {
-      const r = e.row;
-      db.run(
-        'INSERT INTO away_periods (id, start_ms, end_ms, reason, interrupted_session_id) VALUES (?, ?, ?, ?, ?)',
-        r.id, r.startMs, r.endMs, r.reason, r.interruptedSessionId,
-      );
-      return;
-    }
-    case 'updateAway': {
-      const r = e.row;
-      db.run(
-        'UPDATE away_periods SET classification = ?, label = ?, classified_ms = ? WHERE id = ?',
-        r.classification, r.label, r.classifiedMs, r.id,
-      );
-      return;
-    }
   }
 }
 
@@ -154,11 +130,58 @@ export function upsertOverride(db: Db, o: DayOverride): void {
 }
 
 // ---- sessions & projects -------------------------------------------------------
+// ---- blocks (ADR-0011: a block is a session row of kind 'open' or 'break') ---------
+/** Ended blocks in [fromMs, toMs) not accounted for yet, oldest first (P60). */
+export function pendingBlocks(db: Db, fromMs: number, toMs: number): { id: string; start_ms: number; end_ms: number }[] {
+  return db.all(
+    `SELECT id, started_ms AS start_ms, ended_ms AS end_ms FROM sessions
+      WHERE kind = 'open' AND name IS NULL AND status = 'done' AND deleted_ms IS NULL AND ended_ms IS NOT NULL
+        AND started_ms >= ? AND started_ms < ? ORDER BY started_ms`,
+    fromMs, toMs,
+  );
+}
+
+/** The most recent work answer, for "Same as last". */
+export function lastAnswer(db: Db): string | null {
+  return (
+    db.get<{ name: string }>(
+      `SELECT name FROM sessions WHERE kind = 'open' AND name IS NOT NULL AND deleted_ms IS NULL ORDER BY COALESCE(ended_ms, started_ms) DESC LIMIT 1`,
+    )?.name ?? null
+  );
+}
+
+/** Apps or sites with the most foreground time in [startMs, endMs), most first. */
+export function topApps(db: Db, startMs: number, endMs: number, limit = 3): string[] {
+  return db
+    .all<{ k: string }>(
+      `SELECT COALESCE(domain, app_name) AS k, SUM(MIN(end_ms, ?) - MAX(start_ms, ?)) AS ms FROM activity
+        WHERE start_ms < ? AND end_ms > ? AND is_private = 0 GROUP BY k ORDER BY ms DESC LIMIT ?`,
+      endMs, startMs, endMs, startMs, limit,
+    )
+    .map((r) => r.k);
+}
+
+/** One block's answer: free text, or null for Break (P60). */
+export interface BlockAnswer {
+  id: string;
+  answer: string | null;
+}
+
+export function writeAnswers(db: Db, answers: BlockAnswer[]): void {
+  db.transaction(() => {
+    for (const a of answers) {
+      if (a.answer === null) db.run(`UPDATE sessions SET kind = 'break', name = 'Break' WHERE id = ?`, a.id);
+      else db.run(`UPDATE sessions SET kind = 'open', name = ? WHERE id = ?`, a.answer, a.id);
+    }
+  });
+}
+
 export function sessionRow(db: Db, id: string): { name: string | null; elapsed_sec: number; planned_sec: number | null } | undefined {
   return db.get('SELECT name, elapsed_sec, planned_sec FROM sessions WHERE id = ?', id);
 }
 
-export function nameSuggestions(db: Db, prefix: string): string[] {
+/** Earlier work answers starting with `prefix`, most recent first. */
+export function answerSuggestions(db: Db, prefix: string): string[] {
   return db
     .all<{ name: string }>(
       `SELECT name FROM sessions WHERE name IS NOT NULL AND deleted_ms IS NULL AND name LIKE ? ESCAPE '\\' AND kind != 'break'

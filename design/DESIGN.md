@@ -51,69 +51,50 @@ Project colours (user-picked): `#7B61FF #22D3EE #2DD4BF #F59E0B #E3A6F2 #5B7FE0 
 
 ## 2. Widget (`#/widget`)
 
-The bar is the only widget (P50; Full and Compact were removed). The BrowserWindow is transparent: the bar plus an 8 px margin on every side, **528 × 50**. It is display-only; session controls live in the dashboard sidebar.
+The bar is the only widget (P50; Full and Compact were removed). The BrowserWindow is transparent: the bar plus an 8 px margin on every side, **528 × 50**. It is display-only; Start, Stop and the block length live in the dashboard sidebar (P59).
 
-### Bar (P43, P46, P49, P50) — 512 × 34, sharp corners
+### Bar (P43, P49, P50, P63) — 512 × 34, sharp corners
 Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`): a flat status strip, no title, no ring, no rounded corners. Window 528 × 50. No hover card and no panel. No drop shadow (the 8 px window margin would clip it into a visible box); the distracted pulse is the 4 px red ring only.
 ```
 ┌──┬───────────────────────────────────────────────────────────────┬───┬──┐
-│▦▦│   24:59 WRITING WEEKLY    0 min PRODUCTIVE    14% PERCENT       │ – │⋮⋮│
-│▦▦│         REPORT                  TODAY               OF DAY      │   │  │
+│▦▦│   04:32 BLOCK        0 min PRODUCTIVE    14% PERCENT            │ – │⋮⋮│
+│▦▦│         OF 15M             TODAY               OF DAY           │   │  │
 └──┴───────────────────────────────────────────────────────────────┴───┴──┘
 ```
 - **Dashboard button** (32 px, left-most, `surface-2` tint, right border, 2×2 grid icon): opens the dashboard on Today. It's the only way in from the bar.
-- Three cells, each as wide as its content and spread evenly (`justify-around`, P49); even a full two-line label leaves ≥ 12 px between cells. Each is a 19/700 tabular number + a two-line `caps` label (muted). **Cells do nothing when clicked**; they drag like the gaps.
-  1. **Session timer.** Label: the session name typeset exactly like the other captions (`caps`: 9/700, uppercase, same tracking and leading), but wrapping across both lines instead of one word per line, max 104 px wide, with `…` only past the second line (`line-clamp-2`); the full name is in the tooltip. The label shows in every working state, including distracted, overtime and paused (the paused session's name). States show by colour only: `text`/`muted` normally, `red` when overtime or distracted, `break` when paused. An unlabelled session shows a two-line caption (`SESSION / ELAPSED`, `DISTRACTED / youtube.com`, …). `Off hours` / `Away` (muted 15/600) replace the timer, captioned `WORKDAY / DONE`, `DAY / OFF`, `BEFORE / WORK HOURS`, `AWAY FROM / COMPUTER`. The prompt dot sits at its top-right.
+- Three cells, each as wide as its content and spread evenly (`justify-around`, P49). Each is a 19/700 tabular number + a two-line `caps` label (muted). **Cells do nothing when clicked**; they drag like the gaps.
+  1. **Block timer**, counting up within the current block (P63), captioned `BLOCK / OF 15M`; `DISTRACTED / youtube.com` in `red` when distracted. Without a loop: `Not started` (15/600 `orange`, captioned `PRESS START / IN SPYDER`) during work hours, with the whole bar tinted orange and an orange border (P59); otherwise `Off hours` (muted) captioned `WORKDAY / DONE`, `DAY / OFF` or `BEFORE / WORK HOURS`. An orange dot at its top-right while blocks wait to be accounted for.
   2. **Productive today** in `accent` (`23 min`, `2h 14m` from an hour); `green` once the goal is met.
   3. **Percent of day** (`14%`, `–` on a day off).
 - **Minimize** (32 px, left border, `–`): hides the bar; the tray or the hotkey brings it back. Not remembered across launches.
 - **Drag handle** (24 px, `surface-2` tint, ⋮⋮ grip, `cursor: move`) at the far right. Everything except the two buttons drags.
-- Red border for overtime/distracted, which also tints the fill red and pulses once.
-- Session controls live in the dashboard sidebar (see Dashboard shell).
+- Red border when distracted, which also tints the fill red and pulses once. No sound anywhere (P60).
 
 ## 3. Prompt window (`#/prompt`)
 
-420 px wide, height = content (main resizes to `document.body.scrollHeight`). Fill `surface`, border 1 px `border-strong`, radius card, `shadow-float`, 20 px padding. Styled like the reference popover card (`rize-autotag-example.png`).
-```
- ╭──────────────────────────────────────────╮
- │ ● TIME'S UP                     1 of 3   │  ← caps, colour of the prompt type; queue count muted
- │ Time's up: Replying to emails            │  ← 17/600 text
- │ Planned 30 min. Done, or need more time? │  ← body muted
- │                                          │
- │ [ name ▾ autocomplete ] [ project ▾ ]    │  ← only for label/check-in/offline work
- │                                          │
- │ [Done] [+5 min] [+15 min] [Custom…]      │
- │ [Switch task]                            │
- ╰──────────────────────────────────────────╯
-```
-- Header strip: a 6 px dot + `caps` label in the type colour: away/recovery `away`, timeUp `planned`, label/checkIn `accent`, breakEnd `break`. A 2 px top border in the same colour.
-- Buttons wrap; height 34, radius pill (as in the reference popover), primary action first with accent fill. The away prompt's five choices are equal-weight secondary pills; `I was working` gets accent outline.
-- Inputs: height 36, `surface-2` fill, 1 px `border`, focus border `accent`. Autocomplete list: surface-2 card under the input, rows 30 px, the matched prefix bold.
-- Draggable by the header strip. Enter submits the primary action; it never closes on Esc (P22: prompts don't auto-dismiss).
+420 px wide, height = content (main resizes to `document.body.scrollHeight`). Fill `surface`, border 1 px `border-strong`, radius card, `shadow-float`, 20 px padding. Styled like the reference popover card (`rize-autotag-example.png`). It pops on top when it appears and again whenever another block ends (P60); it never closes on Esc.
 
-### Start-session popover (rendered in the prompt window)
+### Accounting (P60)
 ```
  ╭──────────────────────────────────────────╮
- │ START A SESSION                          │
- │ ( Planned | Timed | Open | Break )       │  ← segmented control, active = accent fill
- │ What are you working on?                 │
- │ [ Replying to emails            ]        │
- │ [ Project: none ▾ ]                      │
- │ Duration                                 │
- │ (15)(25)(30)(45)(60)(90)( custom __ m )  │  ← chips, selected = accent outline+tint
- │ Count  [↓ down | ↑ up]                   │  ← planned only
- │                        [Cancel] [Start ▶]│
+ │ ● BLOCK ENDED                Keep working│  ← caps accent; Keep working only after a cut at the end of work hours
+ │ What did you do 11:00–11:15?             │  ← 15/600 text
+ │ 11:00–11:15  15m  Away 9m · Code, github │  ← range 12/500, length faint, hints muted
+ │ [ What did you do?  (autocomplete)     ] │
+ │ [Save] [Break] [Same: Replying to emails]│  ← pills: primary, secondary, ghost
  ╰──────────────────────────────────────────╯
 ```
-- Fields hidden per tab: Timed has no name; Open has no duration; Break has an optional duration; direction only on Planned.
-- When `start` returns `needs_label`, a step-0 card appears above: "What were you doing for the last 45m?" with name + project, then the form continues.
-- Project dropdown last item: `+ New project` → inline name + colour swatch row.
+- Several ended blocks: heading `4 BLOCKS`, title `What did you do in these 4 blocks?`, a segmented `One answer for all | Each separately`. All: the block lines, then one input and the same buttons. Each: per block its line, an input and a small `Break` toggle (outline when on); `Save` saves the filled rows, `Blocks left empty stay for later.`
+- Errors 12 px `red` under the buttons.
+
+### Start reminder (P59)
+Heading `NOT STARTED` in `away`, title `Work hours have started`, body `Press Start to begin 15m blocks.`, then `Start` (primary) and `Not now`.
 
 ## 4. Dashboard (`#/dashboard/*`)
 
 1200 × 800, min 960 × 640, framed window, background `bg`.
 - **Sidebar** 216 px, `sidebar` fill, right border. Top: 20 px accent square mark + "Spyder" 14/600. Groups with 11/500 faint headings: Today (Today, Review), Trends (Week, Month), Setup (Rules, Settings). Nav items 32 px tall, 16 px icons (inline SVG, 1.5 px stroke), radius control; active = `surface-2` fill, `text`, 500; inactive `muted`, hover `surface-2` at 60 %. A badge (accent pill) on Review shows pending items.
-- **Sidebar footer** (a small bordered `surface` card): state dot + caption + timer, then `Start session` (primary, full width) whenever working — also while a session runs, so a planned or timed session can start at any time — then the session controls (P46, equal-width 28 px buttons): `Pause` · `Break` (start form on the Break tab) · `Done`; paused → `Resume` (outline) · `Done`; on a break → `End break`. Off hours: `Keep working +N` (P20). None while away. Then a `Show widget` ghost button.
+- **Sidebar footer** (a small bordered `surface` card, P59): state dot + caption (`Block · 15m` with the timer, `Not started` in orange, or `Off hours`), then the block-length box (56 px number input, `min blocks`; Enter or blur applies it from the next block), then `Start` (primary, full width), or `Stop` (secondary) while the loop runs. Off hours: `Keep working +N` (P20, P62). Then a `Show widget` ghost button.
 - **Top bar** (48 px, bottom border): page title `h1`, `‹ ›` (28 px ghost) and the date, right side page actions (`Export…` secondary; Review: `Complete review` primary).
 - **Content:** padding 24, 12-column grid, gap 16. Cards: `surface`, 1 px `border`, radius card, padding 16, header = `section-title` + optional right-aligned muted total.
 - **Toast** (P52): bottom centre, `surface` card with `shadow-pop`, one line + `Undo` (accent text) + ×; gone after 8 s. Errors show in `red` without Undo.
@@ -121,11 +102,11 @@ Modelled on the real Rize widget (`design/reference/rize floating widget.jpeg`):
 ### Today (P55 — core first)
 One centred column, max 960 px, 32 px between sections. Section heads: `section-title` left, muted totals right.
 1. **Stat row**: one bordered strip of 4 cells divided by hairlines: Productive (green when the goal is met, a 4 px progress bar, `of 5h goal · met`), Worked (`1h break`), Day score (`of 7h scheduled`), Streak (`goal met in a row`). Values `stat`, labels `section-label`.
-2. **Session log**: a bordered table of sessions, away periods and untracked spans in time order, 40 px rows: checkbox · time range (`11:00–now` while running) · 3 px colour bar (project colour, else accent when named, `open` grey when unlabelled, break 50 %) · name (click to rename; `Unlabelled` muted) + project in muted 12 px + `● Running` · kind (and plan, red when > 10 % over) · duration · on hover, rename ✎ and delete 🗑 icon buttons. Away and untracked rows are muted and read-only, without a checkbox. Header right: `8 sessions · 30m untracked`; with ticks: `2 selected · Merge… · Clear`.
-   - **Rename** turns the row into name input (autocomplete) + project select + Save / Cancel; Enter saves, Esc cancels.
-   - **Merge…** opens a panel above the table: radio list of the ticked sessions (longest pre-picked; a running one is forced and the others disabled), `Merge` primary, `Breaks merge only with breaks` in red when mixed.
+2. **Block log** (P64): a bordered table of blocks and untracked spans in time order, 40 px rows: checkbox (hidden on the running block) · time range (`11:00–now` while running) · 3 px colour bar (accent when answered, `open` grey when not, break 50 %) · answer (click to re-answer; `Not accounted for` in orange; `● Running` on the running block) · duration · on hover, ✎ and 🗑 icon buttons. Consecutive blocks with the same answer are joined: no divider between them, the colour bar runs through, later rows' answers in `faint`, and the first carries `3 blocks · 45m` (11 px faint). Untracked rows are muted and read-only. Header right: `22 blocks · 2 not accounted for · 15m untracked`; with ticks: `2 selected · Answer… · Merge… · Delete · Clear`.
+   - **Re-answer** turns the row into the answer input + `Save` / `Break` / `Cancel`; Enter saves, Esc cancels.
+   - **Answer…** and **Merge…** open a panel above the table: an answer input (Merge pre-fills a shared answer and says `They become one 45m block, 12:45–13:30, with one answer.`), `Save`/`Merge` primary and `Break`. When a merge isn't allowed, its reason shows in red instead of the input: `Only blocks next to each other can be merged`, `A break can’t be merged with work blocks`.
    - Delete and merge apply at once and show the toast with Undo.
-3. **Timeline**, one track (P55): 30 px track; work hours lit (`surface-2`), the rest at 45 %. Sessions in their log colour, breaks and classified away at 35–40 %, pending away hatched lilac, untracked hatched `faint`. A 4 px category strip under the track, small red triangles above it for flags, an accent `now` line. Hour labels 11 px `faint`. Hover: tooltip card (name · project, time range · duration). Clicking a session outlines it, dims the rest and highlights its log row. Legend (Session · Break · Away · Untracked) at the right of the head.
+3. **Timeline**, one track (P55): 30 px track; work hours lit (`surface-2`), the rest at 45 %. Blocks in their log colour, breaks at 40 %, untracked hatched `faint`. A 4 px category strip under the track, small red triangles above it for flags, an accent `now` line. Hour labels 11 px `faint`. Hover: tooltip card (answer, time range · duration). Clicking a block outlines it, dims the rest and highlights its log row. Legend (Accounted for · Not yet · Break · Untracked) at the right of the head.
 4. **Apps & sites** (scope right): a 6 px stacked category bar with an inline legend, then the top 5 in a bordered table: category square · name · `h:mm` · faint `%` · quiet category label (click opens the 3-option menu). `Show all N` reveals the rest.
 5. **Distractions**, only when there is distracting time or a flag: head right `1 flag · 7m distracting`, then one row per flag (red dot · time · target · `5m straight`).
 6. Off-hours note, 12 px faint.
@@ -137,13 +118,13 @@ Stat row (total work, productive, avg score, goals hit `3/5`). Stacked bar chart
 Calendar heatmap (custom SVG, 7 columns Mon–Sun, 44 px cells, radius 6): fill = accent at opacity scaled by productive hours (0 h → `surface-2`, ≥ goal → 100 %), day number top-left 11 px (`on-accent` above half the goal), a green dot ringed in `surface` if goal met; unscheduled days outlined only. Right: trend line charts (productive hours, score) and one small line chart per KPI.
 
 ### Review
-Two columns. Left (7 cols): "Leftover" card listing unlabelled sessions and pending away periods, each with inline label / classification controls; an unlabelled session also has a `Delete session` ghost link (P50, P53); a check-mark empty state "All time accounted for". Day summary card (mini stats + small timeline). Right (5 cols): "Today's wins" and "How I'll improve" bullet editors (each item a row with drag handle `⋮⋮`, text input without border until focus, delete ×; `Enter` adds a row), KPI inputs (label + number input + unit). `Complete review` primary in the top bar, disabled with a tooltip while leftovers exist; completed state shows a green "Reviewed at 17:12" chip.
+Two columns. Left (7 cols): "Leftover" card listing blocks not accounted for (`What did you do 16:30–16:45? (15m)`), each with the answer input, `Save`, `Break` and a `Delete block` ghost link (P60, P64); a check-mark empty state "All time accounted for". Day summary card (mini stats + small timeline). Right (5 cols): "Today's wins" and "How I'll improve" bullet editors (each item a row with drag handle `⋮⋮`, text input without border until focus, delete ×; `Enter` adds a row), KPI inputs (label + number input + unit). `Complete review` primary in the top bar, disabled with a tooltip while leftovers exist; completed state shows a green "Reviewed at 17:12" chip.
 
 ### Rules
-Tabs (segmented): Rules · Title patterns · Uncategorized · Projects · KPIs. Each is an editable table with an `+ Add` row at top. Default rows show a muted `default` chip; user rows win. Uncategorized inbox: rows `key · time today · [Productive][Neutral][Distracting]` one-click buttons.
+Tabs (segmented): Rules · Title patterns · Uncategorized · KPIs. Each is an editable table with an `+ Add` row at top. Default rows show a muted `default` chip; user rows win. Uncategorized inbox: rows `key · time today · [Productive][Neutral][Distracting]` one-click buttons.
 
 ### Settings
-Sections as cards: Work hours (7-row grid: toggle, start time, end time; plus "Today only" override row), Timers (check-in, nag, nudge, idle, short-away, keep-working step — number inputs with unit suffix), Goal, Widget & hotkey (Theme System / Light / Dark segmented control, P57; count direction; hotkey field; orange warning banner if registration failed), Tracking (sample interval, app % scope radio), System (autostart toggle, data folder path + `Open folder`), Export (`Export…` button). Capture-unavailable banner: orange, top of page.
+Sections as cards: Work hours (7-row grid: toggle, start time, end time; plus "Today only" override row), Timers (block length, idle, nudge, keep-working step — number inputs with unit suffix), Goal, Widget & hotkey (Theme System / Light / Dark segmented control, P57; hotkey field; orange warning banner if registration failed), Tracking (sample interval, app % scope radio), System (autostart toggle, data folder path + `Open folder`), Export (`Export…` button). Capture-unavailable banner: orange, top of page.
 
 Toggles: 32 × 18 track, `surface-2` off / `accent` on, white 14 px knob.
 

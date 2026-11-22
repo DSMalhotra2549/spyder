@@ -64,6 +64,7 @@ test('title pattern re-labels past Firefox rows; inbox and editors work', async 
     expect(after.some((a) => a.key.endsWith('| Hacker News'))).toBe(false);
     expect(after.find((a) => a.key === 'news.ycombinator.com')?.sec).toBe(hnBefore + 20 * 60);
     await d.evaluate(() => window.spyder.openDashboard('today'));
+    await d.getByTestId('apps-show-all').click(); // the block seed spreads time over more sites than the top 5
     await expect(d.getByTestId('app-row').filter({ hasText: 'news.ycombinator.com' })).toHaveCount(1);
     await expect(d.getByTestId('app-row').filter({ hasText: 'Hacker News' })).toHaveCount(0);
 
@@ -95,28 +96,7 @@ test('title pattern re-labels past Firefox rows; inbox and editors work', async 
     await d.getByLabel('Filter rules').fill('');
     await shot(d, 'rules');
 
-    // Projects and KPIs.
-    await d.getByTestId('rules-tabs').locator('[data-value=projects]').click();
-    await d.getByTestId('project-add').getByLabel('Project name').fill('Client B');
-    await d.getByTestId('project-add').getByRole('button', { name: '+ Add project' }).click();
-    await expect(d.getByTestId('project-row')).toHaveCount(3);
-    await d
-      .getByTestId('project-row')
-      .filter({ has: d.locator('input[value="Client A"]') })
-      .getByRole('switch')
-      .click();
-    await expect
-      .poll(
-        () =>
-          (
-            s.db().prepare("SELECT archived FROM projects WHERE name = 'Client A'").get() as {
-              archived: number;
-            }
-          ).archived,
-      )
-      .toBe(1);
-    await expect(d.getByTestId('project-row').filter({ has: d.locator('input[value="Client A"]') }).getByRole('switch')).toHaveAttribute('aria-checked', 'true');
-    await shot(d, 'rules-projects');
+    // KPIs.
     await d.getByTestId('rules-tabs').locator('[data-value=kpis]').click();
     await d.getByTestId('kpi-add').getByLabel('KPI name').fill('Calls made');
     await d.getByTestId('kpi-add').getByRole('button', { name: '+ Add KPI' }).click();

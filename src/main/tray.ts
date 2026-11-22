@@ -5,9 +5,8 @@ import { resourcesDir } from './paths';
 import { openDashboard, showWidget } from './windows';
 
 export interface TrayHandlers {
-  startSession: () => void;
-  togglePause: () => void;
-  pauseLabel: () => string;
+  toggleLoop: () => void;
+  loopLabel: () => string;
 }
 
 let menuLabels: string[] = [];
@@ -21,8 +20,7 @@ export function createTray(ctx: AppCtx, h: TrayHandlers): Tray {
       { label: 'Show widget', click: () => showWidget(ctx) },
       { label: 'Open dashboard', click: () => openDashboard(ctx) },
       { type: 'separator' as const },
-      { label: 'Start session…', click: h.startSession },
-      { label: h.pauseLabel(), click: h.togglePause },
+      { label: h.loopLabel(), click: h.toggleLoop },
       { type: 'separator' as const },
       { label: 'Quit', click: () => app.quit() },
     ];

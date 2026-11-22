@@ -1,46 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { T } from './engine.testkit';
-import { promptView } from './promptView';
-import type { Prompt } from './types';
+import { accountView, reminderView } from './promptView';
 
-const p = (type: Prompt['type'], extra: Partial<Prompt> = {}): Prompt => ({
-  id: 'p1',
-  type,
-  sessionId: 's1',
-  createdMs: 0,
-  ...extra,
-});
+const blk = (h: number, m: number, extra = {}) => ({ id: `b${h}${m}`, startMs: T(h, m), endMs: T(h, m + 15), awaySec: 0, apps: [], ...extra });
 
-describe('promptView (§12 copy)', () => {
-  it('timeUp', () => {
-    const v = promptView(p('timeUp'), 3, { name: 'Replying to emails', elapsedSec: 1800, plannedSec: 1800 });
-    expect(v.title).toBe("Time's up: Replying to emails");
-    expect(v.body).toBe('Planned 30m. Done, or need more time?');
-    expect(v.count).toBe(3);
+describe('prompt copy (P59, P60)', () => {
+  it('one block asks about its time range, with away minutes and apps as hints', () => {
+    const v = accountView([blk(10, 7, { awaySec: 9 * 60, apps: ['Code', 'github.com'] })], 'Emails', false);
+    expect(v.heading).toBe('Block ended');
+    expect(v.title).toBe('What did you do 10:07–10:22?');
+    expect(v.blocks[0]).toMatchObject({ range: '10:07–10:22', length: '15m', hint: 'Away 9m · Code, github.com' });
+    expect(v.lastAnswer).toBe('Emails');
   });
 
-  it('label and check-in', () => {
-    expect(promptView(p('label'), 1, { name: null, elapsedSec: 600, plannedSec: 600 }).title).toBe(
-      'What did you do for the last 10m?',
-    );
-    const un = promptView(p('checkIn'), 1, { name: null, elapsedSec: 1800, plannedSec: null });
-    expect(un.title).toBe('What have you been doing for the last 30m?');
-    expect(un.labelled).toBe(false);
-    const lab = promptView(p('checkIn'), 1, { name: 'Planning', elapsedSec: 3600, plannedSec: null });
-    expect(lab.title).toBe('Still on Planning?');
-    expect(lab.labelled).toBe(true);
+  it('several blocks share one prompt; under a minute away is no hint', () => {
+    const v = accountView([blk(10, 0, { awaySec: 30 }), blk(10, 15)], null, true);
+    expect(v.heading).toBe('2 blocks');
+    expect(v.title).toBe('What did you do in these 2 blocks?');
+    expect(v.blocks.map((b) => b.hint)).toEqual([null, null]);
+    expect(v.canContinue).toBe(true);
   });
 
-  it('away, recovery, breakEnd', () => {
-    const away = promptView(p('away', { awayStartMs: T(11), awayEndMs: T(12, 12) }), 1, null);
-    expect(away.title).toBe('You were away 1h 12m');
-    expect(away.body).toBe('11:00–12:12');
-    expect(promptView(p('recovery', { awayStartMs: T(11), awayEndMs: T(11, 40) }), 1, null).title).toBe(
-      "Spyder wasn't running from 11:00 to 11:40",
-    );
-    expect(promptView(p('breakEnd'), 1, { name: 'Break', elapsedSec: 900, plannedSec: 900 }).title).toBe(
-      "Break's over (15m)",
-    );
-    expect(promptView(p('timeUp'), 1, null).title).toBe("Time's up: Untitled session");
+  it('the start reminder names the block length', () => {
+    expect(reminderView(900)).toMatchObject({ heading: 'Not started', title: 'Work hours have started', body: 'Press Start to begin 15m blocks.' });
   });
 });

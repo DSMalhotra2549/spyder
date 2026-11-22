@@ -26,7 +26,7 @@ export function startIdle(app: AppCtx, host: EngineHost): IdleSource {
     host.dispatch({ type: 'AWAY_BEGIN', atMs: Math.max(atMs, lastAwayEndMs), reason });
   };
   const end = () => {
-    if (host.state.mode !== 'away') return;
+    if (!host.state.away) return;
     lastAwayEndMs = app.clock.now();
     host.dispatch({ type: 'AWAY_END' });
   };
@@ -35,8 +35,8 @@ export function startIdle(app: AppCtx, host: EngineHost): IdleSource {
     const idle = idleSec();
     const threshold = app.settings.idleThresholdSec;
     const st = host.state;
-    if (idle >= threshold && st.mode === 'working') begin('idle', app.clock.now() - idle * 1000);
-    else if (idle < threshold && st.mode === 'away' && st.away?.reason === 'idle') end();
+    if (idle >= threshold && !st.away) begin('idle', app.clock.now() - idle * 1000);
+    else if (idle < threshold && st.away?.reason === 'idle') end();
   };
   setInterval(poll, POLL_MS);
 
