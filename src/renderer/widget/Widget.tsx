@@ -1,4 +1,4 @@
-// Floating widget (plan §12, design/DESIGN.md §2): Full and Compact styles (P31), expanded panel, hover card.
+// Floating widget (plan §12, design/DESIGN.md §2): Bar, Full and Compact styles (P31, P43), expanded panel, hover card.
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
 import { fmtClock, fmtDuration, fmtHM } from '../../core/format';
@@ -30,7 +30,7 @@ export function Widget() {
   const [hovered, setHovered] = useState(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const style = w?.style;
-  const hover = hovered && !expanded && style === 'compact';
+  const hover = hovered && !expanded && style !== 'full';
 
   useEffect(() => window.spyder.onRing(playChime), []);
   useEffect(() => {
@@ -58,8 +58,10 @@ export function Widget() {
   if (!w) return null;
   const toggle = () => setExpanded((x) => !x);
   return (
-    <div className="flex flex-col items-start gap-2 p-2" onMouseLeave={leave}>
-      {w.style === 'full' ? (
+    <div data-testid="widget-root" className="flex flex-col items-start gap-2 p-2" onMouseLeave={leave}>
+      {w.style === 'bar' ? (
+        <Bar w={w} onToggle={toggle} onEnter={enter} />
+      ) : w.style === 'full' ? (
         <FullPill w={w} onToggle={toggle} />
       ) : (
         <CompactPill w={w} onToggle={toggle} onEnter={enter} />
@@ -323,6 +325,120 @@ function HoverCard({ w }: { w: WidgetPayload }) {
   );
 }
 
+// ---- Bar style (P43) ----------------------------------------------------------------------
+// Rize-style status strip: three metrics with two-line caps labels, then a ☰ segment.
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** `23 min` under an hour, `2h 14m` above (the reference shows minutes). */
+function fmtBarMin(sec: number): string {
+  const m = Math.floor(Math.max(0, sec) / 60);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${pad2(m % 60)}m`;
+}
+
+function barCaption(w: WidgetPayload): [string, string] {
+  if (w.mode === 'off_hours') {
+    const line = offHoursLine(w);
+    const i = line.indexOf(' ');
+    return [line.slice(0, i), line.slice(i + 1)];
+  }
+  if (w.mode === 'away') return ['Away from', 'computer'];
+  if (w.isDistracted) return ['Distracted', w.distractTarget ?? w.title];
+  return compactCaption(w);
+}
+
+/** Bottom strip: state colour; its length is the session's progress when it has a target. */
+function barStrip(w: WidgetPayload): { color: string; pct: number } | null {
+  if (w.isOvertime || w.isDistracted) return { color: 'var(--color-red)', pct: 100 };
+  if (w.mode !== 'working' || !w.kind) return null;
+  const pct = w.kind !== 'open' && w.progress !== null ? Math.min(100, w.progress * 100) : 100;
+  return { color: KIND_COLOR[w.kind], pct };
+}
+
+function Caps({ lines, className }: { lines: [string, string]; className?: string }) {
+  return (
+    <span className={clsx('caps max-w-[88px] min-w-0 text-left tracking-[.04em]', className ?? 'text-muted')}>
+      <span className="block truncate">{lines[0]}</span>
+      <span className="block truncate">{lines[1]}</span>
+    </span>
+  );
+}
+
+function Bar({ w, onToggle, onEnter }: { w: WidgetPayload; onToggle: () => void; onEnter: () => void }) {
+  const off = w.mode === 'off_hours';
+  const away = w.mode === 'away';
+  const red = w.isOvertime || w.isDistracted;
+  const met = w.productiveTodaySec >= w.goalSec;
+  const strip = barStrip(w);
+  return (
+    <div
+      data-testid="pill"
+      data-style="bar"
+      onMouseEnter={onEnter}
+      className={clsx(
+        'drag relative flex h-[34px] w-[468px] items-stretch overflow-hidden rounded-[7px] border shadow-[var(--shadow-float)]',
+        red ? 'border-red' : 'border-border-strong',
+        w.isDistracted ? 'distracted bg-[color-mix(in_srgb,#f04452_14%,var(--color-surface))]' : 'bg-surface',
+      )}
+    >
+      <button
+        type="button"
+        data-testid="pill-body"
+        onClick={onToggle}
+        className="no-drag flex w-[160px] shrink-0 cursor-default items-center justify-center gap-2 px-2 outline-none"
+      >
+        {off || away ? (
+          <span className="text-[15px] font-semibold whitespace-nowrap text-muted">{off ? 'Off hours' : 'Away'}</span>
+        ) : (
+          <span
+            data-testid="timer"
+            className={clsx(
+              'tabular text-[19px] leading-none font-bold whitespace-nowrap',
+              red ? 'text-red' : w.isPaused ? 'text-break' : 'text-text',
+            )}
+          >
+            {timerText(w)}
+          </span>
+        )}
+        <Caps lines={barCaption(w)} className={red ? 'text-red' : undefined} />
+      </button>
+      <div className="flex flex-[1.25] items-center justify-center gap-2" data-testid="bar-productive">
+        <span className={clsx('tabular text-[19px] leading-none font-bold whitespace-nowrap', met ? 'text-green' : 'text-accent')}>
+          {fmtBarMin(w.productiveTodaySec)}
+        </span>
+        <Caps lines={['Productive', 'today']} />
+      </div>
+      <div className="flex flex-1 items-center justify-center gap-2" data-testid="bar-day">
+        <span className="tabular text-[19px] leading-none font-bold whitespace-nowrap">
+          {w.isDayOff ? '–' : `${Math.round(w.workdayPct)}%`}
+        </span>
+        <Caps lines={['Percent', 'of day']} />
+      </div>
+      <button
+        type="button"
+        aria-label="Menu"
+        title="Menu"
+        onClick={onToggle}
+        className="no-drag relative flex w-10 shrink-0 cursor-default items-center justify-center outline-none border-l border-border-strong bg-surface-2/60 text-muted hover:text-text"
+      >
+        <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden>
+          <path d="M1 1.5h12M1 6h12M1 10.5h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+        {w.hasPrompt && (
+          <span data-testid="prompt-dot" className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-orange" />
+        )}
+      </button>
+      {strip && (
+        <div
+          data-testid="bar-strip"
+          className="pointer-events-none absolute bottom-0 left-0 h-[2px]"
+          style={{ width: `${strip.pct}%`, background: strip.color }}
+        />
+      )}
+    </div>
+  );
+}
+
 // ---- Expanded panel ---------------------------------------------------------------------
 
 function Panel({ w, onCollapse }: { w: WidgetPayload; onCollapse: () => void }) {
@@ -331,7 +447,8 @@ function Panel({ w, onCollapse }: { w: WidgetPayload; onCollapse: () => void }) 
   const act = (fn: () => unknown) => () => {
     void fn();
   };
-  const next = w.style === 'full' ? 'compact' : 'full';
+  // ⇄ cycles compact → full → bar → compact.
+  const next = ({ compact: 'full', full: 'bar', bar: 'compact' } as const)[w.style];
   return (
     <div
       data-testid="panel"

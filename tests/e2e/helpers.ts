@@ -16,6 +16,8 @@ export interface LaunchOpts {
   scale?: number;
   dataDir?: string;
   env?: Record<string, string>;
+  /** Switch the widget style right after launch (the default is `bar`, P43). */
+  widgetStyle?: 'bar' | 'full' | 'compact';
 }
 
 export interface Launched {
@@ -68,6 +70,10 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
   const prompt = await windowByHash(app, 'prompt');
   await widget.waitForLoadState('domcontentloaded');
   await widget.waitForFunction(() => !!window.spyder?.debug);
+  if (opts.widgetStyle) {
+    await widget.evaluate((st) => window.spyder.setSettings({ widgetStyle: st }), opts.widgetStyle);
+    await widget.locator(`[data-style=${opts.widgetStyle}]`).waitFor();
+  }
 
   const debug = new Proxy({} as DebugApi, {
     get:

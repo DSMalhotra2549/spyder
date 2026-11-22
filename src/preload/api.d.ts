@@ -40,7 +40,7 @@ export type SettingsVM = Settings & { hotkeyOk: boolean; dataDir: string; today:
 export type ExportResult = { ok: true; xlsxPath: string; csvDir: string } | { canceled: true } | { error: 'range' };
 
 export interface WidgetPayload extends WidgetVM {
-  style: 'full' | 'compact';
+  style: Settings['widgetStyle'];
   distractTarget: string | null;
   distractSec: number;
 }

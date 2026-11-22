@@ -71,7 +71,7 @@ async function startFromWidget(
 const title = (p: Page) => p.getByTestId('prompt-title');
 
 test('1. planned countdown → timeUp → overtime → re-nag → +15', async () => {
-  s = await launch({ scale: 600 });
+  s = await launch({ scale: 600, widgetStyle: 'full' });
   await shot(s.widget, 'widget-full-collapsed');
   await expand(s);
   await shot(s.widget, 'widget-full-expanded');
@@ -144,7 +144,7 @@ test('3. open session → check-in → Log & continue', async () => {
 });
 
 test('4. suspend 72 min → away prompt → Break', async () => {
-  s = await launch();
+  s = await launch({ widgetStyle: 'full' });
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
   await s.debug.simulateSuspend();
   expect((await host(s)).engine.mode).toBe('away');
@@ -209,7 +209,7 @@ test('6. position persists; hide and hotkey', async () => {
 });
 
 test('7a. distracted, paused and break-end states', async () => {
-  s = await launch({ scale: 1 });
+  s = await launch({ scale: 1, widgetStyle: 'full' });
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
   const yt = { exe: 'chrome.exe', appName: 'Google Chrome', domain: 'youtube.com', title: 'Lofi - YouTube', browser: 'chrome' as const };
   expect(await s.debug.injectActivity(yt)).toBe('distracting');
@@ -275,4 +275,68 @@ test('7b. compact running and off-hours states', async () => {
   await shot(s.widget, 'widget-full-offhours-expanded');
   await s.widget.getByTestId('panel').getByRole('button', { name: 'Keep working +30' }).click();
   await expect.poll(async () => (await host(s!)).engine.mode).toBe('working');
+});
+
+/** The pointer leaving the window (React reads a mouseout with no relatedTarget). */
+const unhover = (l: Launched) => l.widget.getByTestId('widget-root').dispatchEvent('mouseout', { relatedTarget: null });
+
+test('7c. bar style (default): metrics, states, hover card, panel', async () => {
+  s = await launch({ scale: 1 });
+  const bar = s.widget.getByTestId('pill');
+  await expect(bar).toHaveAttribute('data-style', 'bar');
+  await expect.poll(async () => (await widgetBounds(s!)).width).toBe(484);
+  // Tue 11:00, work 10–17 → 14% of day; an open session auto-started.
+  await expect(s.widget.getByTestId('bar-day')).toContainText('14%');
+  await expect(s.widget.getByTestId('bar-productive')).toContainText(/^\d+ min/);
+  await expect(bar).toContainText(/session\s*elapsed/i);
+  await shot(s.widget, 'widget-bar-open');
+
+  await startFromWidget(s, { tab: 'Planned', name: 'Deep work', minutes: 25 });
+  await unhover(s);
+  await expect(bar).toContainText(/planned\s*remaining/i);
+  await expect(s.widget.getByTestId('bar-strip')).toBeVisible();
+  await shot(s.widget, 'widget-bar-planned');
+
+  // Hover card carries the session name.
+  await s.widget.getByTestId('pill-body').hover();
+  await expect(s.widget.getByTestId('hover-card')).toContainText('Deep work');
+  await shot(s.widget, 'widget-bar-hover');
+  await unhover(s);
+
+  // ☰ opens the panel; ⇄ goes on to compact.
+  await s.widget.getByRole('button', { name: 'Menu' }).click();
+  await expect(s.widget.getByTestId('panel')).toBeVisible();
+  await expect.poll(async () => (await widgetBounds(s!)).height).toBe(168);
+  await shot(s.widget, 'widget-bar-expanded');
+  await s.widget.keyboard.press('Escape');
+  await unhover(s);
+
+  // Distracted: red timer + caption with the site.
+  const yt = { exe: 'chrome.exe', appName: 'Google Chrome', domain: 'youtube.com', title: 'Lofi - YouTube', browser: 'chrome' as const };
+  await s.debug.injectActivity(yt);
+  await s.debug.advance(300);
+  await s.debug.injectActivity(yt);
+  await expect(bar).toContainText(/distracted\s*youtube\.com/i);
+  await expect(s.widget.getByTestId('timer')).toHaveClass(/text-red/);
+  await s.widget.waitForTimeout(2200);
+  await shot(s.widget, 'widget-bar-distracted');
+
+  // Pause: break colour.
+  await s.debug.injectActivity({ ...yt, exe: 'code.exe', appName: 'VS Code', domain: null, title: 'x', browser: null });
+  await s.widget.evaluate(() => window.spyder.pause());
+  await expect(s.widget.getByTestId('timer')).toHaveClass(/text-break/);
+  await shot(s.widget, 'widget-bar-paused');
+  await s.widget.evaluate(() => window.spyder.resume());
+
+  // Off hours.
+  await s.debug.setNow(new Date(2026, 10, 24, 17, 0, 5).getTime());
+  await s.debug.tick();
+  await expect(bar).toContainText('Off hours');
+  await expect(bar).toContainText(/workday\s*done/i);
+  await expect(s.widget.getByTestId('bar-day')).toContainText('100%');
+  await shot(s.widget, 'widget-bar-offhours');
+
+  await s.widget.getByRole('button', { name: 'Menu' }).click();
+  await s.widget.getByRole('button', { name: 'Switch to compact' }).click();
+  await expect(s.widget.getByTestId('pill')).toHaveAttribute('data-style', 'compact');
 });

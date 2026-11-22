@@ -6,6 +6,7 @@ import { saveSettings } from './settings';
 
 /** Window sizes per design/DESIGN.md §2 (content + 8 px shadow margin). */
 export const WIDGET_SIZE = {
+  bar: { collapsed: { width: 484, height: 50 }, expanded: { width: 484, height: 168 }, hover: { width: 484, height: 184 } },
   full: { collapsed: { width: 336, height: 80 }, expanded: { width: 336, height: 196 }, hover: { width: 336, height: 80 } },
   compact: {
     collapsed: { width: 192, height: 56 },

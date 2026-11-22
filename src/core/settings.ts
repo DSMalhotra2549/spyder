@@ -15,7 +15,7 @@ export interface Settings {
   appPercentScope: 'work_hours' | 'all_day';
   keepWorkingStepMin: number;
   widgetPos: { x: number; y: number } | null;
-  widgetStyle: 'full' | 'compact';
+  widgetStyle: 'bar' | 'full' | 'compact';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   appPercentScope: 'work_hours',
   keepWorkingStepMin: 30,
   widgetPos: null,
-  widgetStyle: 'full',
+  widgetStyle: 'bar',
 };
 
 export interface ScheduleRow {
@@ -68,7 +68,7 @@ const MIN: Partial<Record<keyof Settings, number>> = {
 const ENUMS: Partial<Record<keyof Settings, readonly unknown[]>> = {
   defaultDirection: ['up', 'down'],
   appPercentScope: ['work_hours', 'all_day'],
-  widgetStyle: ['full', 'compact'],
+  widgetStyle: ['bar', 'full', 'compact'],
 };
 
 /** Drops unknown keys and invalid values from a settings change; numbers below their minimum are raised to it. */

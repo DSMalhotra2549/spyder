@@ -57,6 +57,7 @@ export function Settings() {
                   testId="set-widgetStyle"
                   value={s.widgetStyle}
                   options={[
+                    { value: 'bar', label: 'Bar' },
                     { value: 'full', label: 'Full' },
                     { value: 'compact', label: 'Compact' },
                   ]}
