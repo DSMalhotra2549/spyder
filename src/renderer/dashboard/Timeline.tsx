@@ -4,6 +4,7 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { DaySummary } from '../../core/aggregate';
 import { fmtDuration, fmtTime } from '../../core/format';
+import { TAG_LABEL, type Tag } from '../../core/types';
 import { CAT_COLOR, CAT_LABEL } from './parts';
 
 export const AWAY_LABEL: Record<string, string> = {
@@ -36,14 +37,22 @@ interface Tip {
   lines: string[];
 }
 
-/** The colour a block gets everywhere (P67): the work colour when accounted for, grey when not, break blue-grey. */
-export function blockColor(x: { kind: string; name: string | null }): string {
-  if (x.kind === 'break') return 'var(--color-break)';
-  return x.name ? 'var(--color-work)' : 'var(--color-open)';
+/** Each tag's colour (P67, P74); work, gym and food follow Settings. */
+export const TAG_COLOR: Record<Tag, string> = {
+  work: 'var(--color-work)',
+  break: 'var(--color-break)',
+  gym: 'var(--color-gym)',
+  food: 'var(--color-food)',
+};
+
+/** The colour a block gets everywhere (P67, P74): its tag's colour; a work block not accounted for is grey. */
+export function blockColor(x: { tag: Tag; name: string | null }): string {
+  return x.tag === 'work' && !x.name ? 'var(--color-open)' : TAG_COLOR[x.tag];
 }
 
-/** What a block was spent on, as shown everywhere (P60, P66). A break without an answer of its own reads "Break". */
-export const answerText = (x: { kind: string; name: string | null }) => x.name ?? (x.kind === 'break' ? 'Break' : 'Not accounted for');
+/** What a block was spent on, as shown everywhere (P60, P66, P74). A break without an answer of its own reads its tag. */
+export const answerText = (x: { kind: string; tag?: Tag; name: string | null }) =>
+  x.kind === 'break' && (x.name === null || x.name === 'Break') ? TAG_LABEL[x.tag ?? 'break'] : (x.name ?? 'Not accounted for');
 
 /** The block's own answer text, for editing: a break stored as just "Break" has none (P66). */
 export const ownAnswer = (x: { kind: string; name: string | null }) => (x.kind === 'break' && x.name === 'Break' ? null : x.name);

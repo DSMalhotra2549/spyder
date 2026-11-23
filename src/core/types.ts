@@ -2,8 +2,15 @@
 import type { Settings } from './settings';
 
 export type Kind = 'planned' | 'timed' | 'open' | 'break';
-/** P66: a block is Work (kind 'open') or Break (kind 'break'), apart from its answer. */
-export type Tag = 'work' | 'break';
+/**
+ * P66, P74: a block's tag, apart from its answer. Work is kind 'open'; Break, Gym and Food are kind 'break' (they
+ * count as break time), with Gym and Food named in `sessions.tag`.
+ */
+export type Tag = 'work' | 'break' | 'gym' | 'food';
+export const TAGS: Tag[] = ['work', 'break', 'gym', 'food'];
+export const TAG_LABEL: Record<Tag, string> = { work: 'Work', break: 'Break', gym: 'Gym', food: 'Food' };
+/** A block's tag from its stored kind and `sessions.tag`. */
+export const tagOf = (x: { kind: string; tag?: string | null }): Tag => (x.kind === 'break' ? ((x.tag as Tag | null | undefined) ?? 'break') : 'work');
 export type Direction = 'up' | 'down';
 export type AwayReason = 'idle' | 'suspend' | 'lock' | 'not_running';
 export type AwayClassification = 'break' | 'meeting' | 'offline_work' | 'not_working' | 'working';

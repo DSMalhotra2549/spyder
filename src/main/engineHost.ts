@@ -9,7 +9,7 @@ import type { AskRow } from '../core/asks';
 import { accountView, reminderView, type PendingBlock, type PromptVM } from '../core/promptView';
 import { addDays, dateKey, mergeOverride, minutesOfDay, startOfDay, workWindow, type DayOverride } from '../core/schedule';
 import type { ScheduleRow } from '../core/settings';
-import type { Ctx, Effect, EngineError, EngineEvent, EngineState, Tag } from '../core/types';
+import { TAGS, tagOf, type Ctx, type Effect, type EngineError, type EngineEvent, type EngineState, type Tag } from '../core/types';
 import type { WidgetPayload } from '../preload/api';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
@@ -154,9 +154,10 @@ export class EngineHost {
     const running = this.state.loop?.block.id;
     for (const a of answers) {
       if (a.id === running) return { error: 'invalid', message: 'The running block can’t be answered until it ends' };
-      const row = this.app.db.get<{ kind: string; deleted_ms: number | null }>('SELECT kind, deleted_ms FROM sessions WHERE id = ?', a.id);
+      const row = this.app.db.get<{ kind: string; tag: string | null; deleted_ms: number | null }>('SELECT kind, tag, deleted_ms FROM sessions WHERE id = ?', a.id);
       if (!row || row.deleted_ms !== null) return { error: 'invalid', message: 'No such block' };
-      const tag: Tag = a.tag ?? (row.kind === 'break' ? 'break' : 'work');
+      if (a.tag !== undefined && !TAGS.includes(a.tag)) return { error: 'invalid', message: 'No such tag' };
+      const tag: Tag = a.tag ?? tagOf(row);
       const text = a.answer?.trim() || null;
       if (tag === 'work' && text === null) return { error: 'invalid', message: 'Say what you did, or pick Break' };
       clean.push({ id: a.id, answer: text, tag });

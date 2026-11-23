@@ -25,6 +25,9 @@
   --color-away: #c99cf0;
   /* P67: work blocks; the user's pick from Settings replaces it on :root at runtime. */
   --color-work: #3fb27f;
+  /* P74: gym and food blocks; Settings can replace them the same way. */
+  --color-gym: #e8853d;
+  --color-food: #d9669b;
 
   --color-productive: #2dd4bf;
   --color-neutral: #71717a;

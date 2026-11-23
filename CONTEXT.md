@@ -53,14 +53,14 @@ The free text that says what a block was spent on. Consecutive blocks with the s
 _Avoid_: label, name
 
 **Tag**:
-Whether a block is Work or Break. Every block has exactly one tag, set apart from its answer and changeable after the fact.
+Whether a block is Work, Break, Gym or Food. Every block has exactly one tag, set apart from its answer and changeable after the fact. Gym and Food are kinds of break: their time counts as break time (P74).
 _Avoid_: kind, type, category (categories are for activity)
 
 **Work block**:
 A block tagged Work. Its time is work time.
 
 **Break block**:
-A block tagged Break. It may have an answer (e.g. "took a nap") or none, in which case it reads "Break". It isn't work time.
+A block tagged Break, Gym or Food. It may have an answer (e.g. "took a nap") or none, in which case it reads its tag ("Break", "Gym", "Food"). It isn't work time.
 _Avoid_: pause
 
 **Away time** (in a block):

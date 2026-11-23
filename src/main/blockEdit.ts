@@ -1,9 +1,9 @@
-// Editing blocks after the fact (P64, P66): delete, merge and tag, each with one-step Undo. Answering and
+// Editing blocks after the fact (P64, P66, P73, P74): delete, merge and tag, each with one-step Undo. Answering and
 // re-answering go through EngineHost.answer. The running block can't be edited until it ends.
 import { randomUUID } from 'node:crypto';
 import { alikeRuns, dayLog, neighbours } from '../core/aggregate';
 import { dateKey } from '../core/schedule';
-import type { EngineError, Tag } from '../core/types';
+import { TAG_LABEL, tagOf, type EngineError, type Tag } from '../core/types';
 import type { AppCtx } from './context';
 import type { Db, Row } from './db/db';
 import { BREAK_NAME } from './db/repo';
@@ -22,11 +22,13 @@ interface Undo {
   dates: string[];
 }
 
-const COLUMNS = ['kind', 'name', 'status', 'started_ms', 'ended_ms', 'elapsed_sec', 'deleted_ms'] as const;
+const COLUMNS = ['kind', 'tag', 'name', 'status', 'started_ms', 'ended_ms', 'elapsed_sec', 'deleted_ms'] as const;
 
 const marks = (n: number) => Array.from({ length: n }, () => '?').join(',');
 const invalid = (message: string): EngineError => ({ error: 'invalid', message });
-const answerOf = (r: Row) => (r.name as string | null) ?? 'Unanswered block';
+const answerOf = (r: Row) =>
+  r.kind === 'break' && r.name === BREAK_NAME ? TAG_LABEL[tagOf(r as { kind: string; tag: string | null })] : ((r.name as string | null) ?? 'Unanswered block');
+const rowTag = (r: Row) => tagOf(r as { kind: string; tag: string | null });
 
 export class BlockEditor {
   private last: Undo | null = null;
@@ -74,25 +76,26 @@ export class BlockEditor {
     return dayLog(summaryFor(this.db, date, this.app.clock.now(), this.app.settings));
   }
 
-  /** Neighbouring blocks of one tag (P72) become the earliest one, longer, with one answer (a break's may be null). */
+  /** Neighbouring blocks of one tag (P73) become the earliest one, longer, with one answer (a break's may be null). */
   merge(ids: string[], answer: string | null): EditResult {
     const rows = this.load(ids);
     if (!Array.isArray(rows)) return rows;
     if (rows.length < 2) return invalid('Pick at least two blocks');
     const date = dateKey(rows[0].started_ms as number);
     if (!neighbours(this.log(date), rows.map((r) => r.id as string))) return invalid('Only blocks next to each other can be merged');
-    const breaks = rows.filter((r) => r.kind === 'break').length;
-    if (breaks && breaks !== rows.length) return invalid('A break can’t be merged with work blocks. Change their tags first.');
-    const isBreak = breaks > 0;
-    // A work block needs an answer; a break may have none (P66).
+    const tags = new Set(rows.map(rowTag));
+    if (tags.has('work') && tags.size > 1) return invalid('A break can’t be merged with work blocks. Change their tags first.');
+    if (tags.size > 1) return invalid('Blocks with different tags can’t be merged. Change their tags first.');
+    const tag = rowTag(rows[0]);
+    // A work block needs an answer; a break, gym or food block may have none (P66, P74).
     const text = answer?.trim() || null;
-    if (!isBreak && text === null) return invalid('Say what you did, or pick Break');
-    const name = text ?? (isBreak ? BREAK_NAME : null);
-    const moved = this.db.transaction(() => this.combine(rows, name as string, isBreak));
-    return this.finish({ id: randomUUID(), blocks: rows, ...moved, dates: [date] }, `Merged ${rows.length} blocks into “${name}”`);
+    if (tag === 'work' && text === null) return invalid('Say what you did, or pick Break');
+    const name = text ?? BREAK_NAME;
+    const moved = this.db.transaction(() => this.combine(rows, name));
+    return this.finish({ id: randomUUID(), blocks: rows, ...moved, dates: [date] }, `Merged ${rows.length} blocks into “${text ?? TAG_LABEL[tag]}”`);
   }
 
-  /** P72: every run of neighbouring blocks with the same tag and answer on `date` becomes one block; one Undo. */
+  /** P73: every run of neighbouring blocks with the same tag and answer on `date` becomes one block; one Undo. */
   mergeRepeats(date: string): EditResult {
     const runs = alikeRuns(this.log(date)).map((ids) => this.load(ids));
     const bad = runs.find((r) => !Array.isArray(r));
@@ -101,7 +104,7 @@ export class BlockEditor {
     const u: Undo = { id: randomUUID(), blocks: [], segments: [], flags: [], dates: [date] };
     this.db.transaction(() => {
       for (const rows of runs as Row[][]) {
-        const moved = this.combine(rows, rows[0].name as string, rows[0].kind === 'break');
+        const moved = this.combine(rows, rows[0].name as string);
         u.blocks.push(...rows);
         u.segments.push(...moved.segments);
         u.flags.push(...moved.flags);
@@ -112,7 +115,7 @@ export class BlockEditor {
   }
 
   /** Moves the later blocks' time into the first one; call inside a transaction. Returns the links it changed. */
-  private combine(rows: Row[], name: string, isBreak: boolean): Pick<Undo, 'segments' | 'flags'> {
+  private combine(rows: Row[], name: string): Pick<Undo, 'segments' | 'flags'> {
     const db = this.db;
     const keep = rows[0];
     const rest = rows.slice(1).map((r) => r.id as string);
@@ -124,15 +127,15 @@ export class BlockEditor {
     db.run(`UPDATE distraction_flags SET session_id = ? WHERE session_id ${inList}`, keep.id, ...rest);
     db.run(`UPDATE sessions SET deleted_ms = ? WHERE id ${inList}`, this.app.clock.now(), ...rest);
     db.run(
-      `UPDATE sessions SET kind = ?, name = ?, ended_ms = ?,
+      `UPDATE sessions SET name = ?, ended_ms = ?,
          elapsed_sec = (SELECT COALESCE(ROUND(SUM(end_ms - start_ms) / 1000.0), 0) FROM segments WHERE session_id = ?) WHERE id = ?`,
-      isBreak ? 'break' : 'open', name, end, keep.id, keep.id,
+      name, end, keep.id, keep.id,
     );
     return { segments, flags };
   }
 
   /**
-   * Sets the blocks' tag (P66). Answers stay; a break without an answer of its own that becomes work isn't
+   * Sets the blocks' tag (P66, P74). Answers stay; a break without an answer of its own that becomes work isn't
    * accounted for any more, and an unanswered block that becomes a break is.
    */
   tag(ids: string[], tag: Tag): EditResult {
@@ -140,10 +143,13 @@ export class BlockEditor {
     if (!Array.isArray(rows)) return rows;
     const list = `IN (${marks(rows.length)})`;
     const rowIds = rows.map((r) => r.id);
-    if (tag === 'break') this.db.run(`UPDATE sessions SET kind = 'break', name = COALESCE(name, ?) WHERE id ${list}`, BREAK_NAME, ...rowIds);
-    else this.db.run(`UPDATE sessions SET name = CASE WHEN kind = 'break' AND name = ? THEN NULL ELSE name END, kind = 'open' WHERE id ${list}`, BREAK_NAME, ...rowIds);
-    const what = tag === 'break' ? 'Break' : 'Work';
-    const message = rows.length === 1 ? `“${answerOf(rows[0])}” is now ${tag === 'break' ? 'a break' : 'work'}` : `Tagged ${rows.length} blocks ${what}`;
+    if (tag !== 'work') {
+      this.db.run(`UPDATE sessions SET kind = 'break', tag = ?, name = COALESCE(name, ?) WHERE id ${list}`, tag === 'break' ? null : tag, BREAK_NAME, ...rowIds);
+    } else {
+      this.db.run(`UPDATE sessions SET name = CASE WHEN kind = 'break' AND name = ? THEN NULL ELSE name END, kind = 'open', tag = NULL WHERE id ${list}`, BREAK_NAME, ...rowIds);
+    }
+    const as: Record<Tag, string> = { work: 'work', break: 'a break', gym: 'gym', food: 'food' };
+    const message = rows.length === 1 ? `“${answerOf(rows[0])}” is now ${as[tag]}` : `Tagged ${rows.length} blocks ${TAG_LABEL[tag]}`;
     return this.finish({ id: randomUUID(), blocks: rows, segments: [], flags: [], dates: [...new Set(rows.map((r) => dateKey(r.started_ms as number)))] }, message);
   }
 

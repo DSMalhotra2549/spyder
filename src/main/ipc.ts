@@ -5,7 +5,7 @@ import type { Rule } from '../core/categorize';
 import { cleanSettings, type ScheduleRow } from '../core/settings';
 import type { DayOverride } from '../core/schedule';
 import type { TitlePattern } from '../core/titlePatterns';
-import type { EngineError, Tag } from '../core/types';
+import { TAGS, type EngineError, type Tag } from '../core/types';
 import type { BlockAnswer } from '../preload/api';
 import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
@@ -110,7 +110,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('deleteBlocks', (ids: string[]) => editor.delete(ids));
   h('mergeBlocks', (ids: string[], answer: string | null) => editor.merge(ids, answer));
   h('mergeRepeats', (date: string) => editor.mergeRepeats(date));
-  h('tagBlocks', (ids: string[], tag: Tag) => (tag === 'work' || tag === 'break' ? editor.tag(ids, tag) : { error: 'invalid', message: 'Pick Work or Break' }));
+  h('tagBlocks', (ids: string[], tag: Tag) => (TAGS.includes(tag) ? editor.tag(ids, tag) : { error: 'invalid', message: 'Pick Work, Break, Gym or Food' }));
   h('undoEdit', (undoId: string) => editor.undo(undoId));
 
   // Data

@@ -274,6 +274,63 @@ test('tags: Work/Break apart from the answer, per row and in bulk; merge needs o
   await shot(d, 'review-pie');
 });
 
+test('Gym and Food: break tags with their own colours, label and slices (P74)', async () => {
+  const dir = freshDataDir();
+  seed(dir, 1, DATE);
+  s = await launch({ dataDir: dir, now: `${DATE}T18:00:00` });
+  const d = s.dashboard;
+  await d.evaluate(() => window.spyder.openDashboard('today'));
+  await d.getByTestId('block-log').waitFor();
+  const firstBreak = (await rows(d, 'Break').first().getAttribute('data-session'))!;
+
+  // A break tagged Gym reads "Gym", stays a break, and takes the gym colour.
+  await rows(d, 'Break').first().getByTestId('block-tag').selectOption('gym');
+  await expect(d.getByTestId('toast')).toContainText('“Break” is now gym');
+  await expect(rows(d, 'Gym').getByTestId('block-tag')).toHaveValue('gym');
+  expect(s.db().prepare('SELECT kind, tag, name FROM sessions WHERE id = ?').get(firstBreak)).toEqual({ kind: 'break', tag: 'gym', name: 'Break' });
+  await expect(d.locator(`[data-block=session][data-session="${firstBreak}"]`).first()).toHaveAttribute('fill', 'var(--color-gym)');
+  await rows(d, 'Break').first().getByTestId('block-tag').selectOption('food');
+  await expect(rows(d, 'Food').getByTestId('block-tag')).toHaveValue('food');
+
+  // Gym and Food are different tags: they don't join, and can't be merged.
+  await expect(rows(d, 'Gym').getByTestId('block-group')).toHaveCount(0);
+  await rows(d, 'Gym').getByTestId('block-check').click();
+  await rows(d, 'Food').getByTestId('block-check').click();
+  await d.getByTestId('merge-open').click();
+  await expect(d.getByTestId('merge-panel')).toContainText('Blocks with different tags can’t be merged. Change their tags first.');
+  await d.getByRole('button', { name: 'Clear' }).click();
+
+  // Answering a gym block with Save keeps it Gym; the time still counts as break.
+  await rows(d, 'Gym').getByTestId('block-answer').click();
+  await d.getByTestId('block-edit-row').getByLabel('Answer').fill('leg day');
+  await d.getByTestId('edit-save').click();
+  await expect(rows(d, 'leg day').getByTestId('block-tag')).toHaveValue('gym');
+  const nowMs = (await s.debug.state()).now as number;
+  const vm = await expected(dir, nowMs);
+  await expect(d.getByTestId('stat-work')).toHaveText(statTexts(vm.summary, vm.streak).work);
+  await d.mouse.move(0, 0);
+  await shot(d, 'today-gym-food');
+
+  // Colours come from Settings: orange and pink by default.
+  const color = (v: string) => () => d.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim().toLowerCase(), v);
+  await d.evaluate(() => window.spyder.openDashboard('settings'));
+  expect(await color('--color-gym')()).toBe('#e8853d');
+  expect(await color('--color-food')()).toBe('#d9669b');
+  await d.getByTestId('set-gymColor').fill('#ff0000');
+  await expect.poll(color('--color-gym')).toBe('#ff0000');
+  await d.getByTestId('reset-gymColor').click();
+  await expect.poll(color('--color-gym')).toBe('#e8853d');
+
+  // Where the day went has Gym and Food slices.
+  await d.evaluate(() => window.spyder.openDashboard('review'));
+  const parts = timeSplit(vm.summary);
+  expect(parts.map((p) => p.key)).toEqual(['work', 'break', 'gym', 'food', 'unanswered', 'untracked']);
+  const pie = d.getByTestId('time-split');
+  for (const p of parts) await expect(pie.getByTestId(`split-${p.key}`)).toContainText(dur(p.sec));
+  await pie.locator('[data-slice=gym]').hover();
+  await shot(d, 'review-pie-gym-food');
+});
+
 test('the prompt’s Break keeps typed text as the break’s answer (P66)', async () => {
   s = await launch({ scale: 1 });
   await s.prompt.getByTestId('reminder-start').click();
