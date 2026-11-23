@@ -17,16 +17,16 @@ No accounts, no cloud and no AI. Everything stays in a local SQLite file on your
 - **The block loop.** Press Start in the dashboard with a block length (5–180 minutes). When a block ends, the next one starts at once and a prompt asks what the last one was: type it, press **Break** (anything you typed is kept as the break's answer), or **Same as last**. Missed a few? They're all in one prompt.
 - **Nothing starts by itself.** During work hours with no loop running, the bar says *Not started* and a reminder pops up every block length. The loop stops at the end of work hours (*Keep working* carries on).
 - **Floating widget.** A small always-on-top bar shows the time in the current block, today's productive time and how much of the workday has passed. It turns red when you're distracted.
-- **Fix the record.** On Today, re-answer any block, give many blocks one answer, delete blocks (their time becomes untracked) or merge adjacent ones into one longer block, all with Undo.
-- **Work or break.** Every block is tagged Work or Break, separate from its answer. Change a tag from the dropdown on each row, or for many blocks at once. Work blocks use a colour you pick in Settings (green by default); breaks are blue-grey.
-- **App and website tracking.** It records the foreground app every 2 seconds, Chrome sites from the address bar and Firefox sites from the window title. No browser extensions needed.
-- **Categories and nudges.** Apps and sites are Productive, Neutral, Distracting or Uncategorized, based on editable rules. After 5 straight minutes on something distracting while the loop runs, you get a gentle nudge. Nothing is ever blocked.
+- **Fix the record.** On Today, re-answer any block, give many blocks one answer, delete blocks (their time becomes untracked) or merge neighbouring ones into one longer block, all with Undo. **Merge repeats** merges every run of neighbouring blocks with the same tag and answer in one click.
+- **Tags.** Every block is tagged Work, Break, Gym or Food, separate from its answer. Gym and Food count as break time. Change a tag from the dropdown on each row, or for many blocks at once. Work, Gym and Food each use a colour you pick in Settings (green, orange and pink by default); breaks are blue-grey.
+- **App and website tracking.** It records the foreground app every 2 seconds, Chrome and Edge sites from the address bar, and Firefox and Zen sites from the window title. No browser extensions needed.
+- **Categories and nudges.** Apps and sites are Productive, Neutral, Distracting or Uncategorized, based on editable rules. Anything you've used for 3 minutes or more that you haven't labelled yourself is asked about, in Rules → To sort and in the end-of-block prompt. After 5 straight minutes on something distracting while the loop runs, you get a gentle nudge. Nothing is ever blocked.
 - **Reports.**
   - **Today:** your productive time against your goal, a timeline and your top apps.
   - **Week:** stacked bars per day.
   - **Month:** a heatmap and trend lines.
-- **End-of-day review.** When work hours end, you answer any blocks still not accounted for, see a pie chart of where the day went (work, break, not accounted for, untracked), write *Today's wins* and *How I'll improve*, and record your own daily numbers (KPIs). Meeting your goal on consecutive workdays builds a streak.
-- **Export.** Any date range goes out to one `.xlsx` workbook plus matching CSVs.
+- **End-of-day review.** When work hours end, you answer any blocks still not accounted for, see a chart of where the day went (work, break, gym, food, not accounted for, untracked), write *Today's wins* and *How I'll improve*, and record your own daily numbers (KPIs). Meeting your goal on consecutive workdays builds a streak.
+- **Export.** From Settings, any date range goes out to one `.xlsx` workbook plus matching CSVs.
 
 ## Privacy
 
@@ -35,7 +35,7 @@ Spyder makes no network requests. Nothing leaves your machine unless you export 
 What it stores, in `%APPDATA%\Spyder\spyder.db`:
 
 - **The foreground app every 2 seconds**: its exe name, app name and **window title**. Window titles often contain document names, email subjects and page titles.
-- **Websites**: for Chrome and Edge, the site's domain from the address bar (not the full URL). For Firefox, the page title and site, parsed from the window title.
+- **Websites**: for Chrome and Edge, the site's domain from the address bar (not the full URL). For Firefox and Zen, the page title and site, parsed from the window title.
 - **Private windows**: Firefox private windows are stored as *Private browsing*, with no title or site. **Chrome Incognito and Edge InPrivate windows can't be reliably told apart from normal ones, so they are recorded like any other window** ([ADR-0007](docs/adr/0007-browser-site-detection.md)).
 - What you type: block answers, review notes and KPI values.
 

@@ -1,0 +1,25 @@
+name: Feature idea
+description: Suggest a change to how Spyder works
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Spyder is a small tool with firm opinions. Settled behaviour is in `docs/product-decisions.md`, and AI or LLM features are out of scope (ADR-0009).
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What gets in your way today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Other ways you considered
