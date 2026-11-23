@@ -1,5 +1,8 @@
 import { BrowserWindow, screen } from 'electron';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { helperPath } from './capture/chromeUrl';
 import type { AppCtx } from './context';
 import { rendererUrl } from './paths';
 import { saveSettings } from './settings';
@@ -138,6 +141,18 @@ export function showPrompt(ctx: AppCtx): void {
   p.show();
   p.setAlwaysOnTop(true, 'floating');
   p.focus();
+  takeForeground(p);
+}
+
+/**
+ * P71: Windows won't let a background app take keyboard focus while the user types elsewhere, so
+ * focus() alone leaves the typing in the other app. The helper shares that app's input to hand it over.
+ */
+function takeForeground(win: BrowserWindow): void {
+  const exe = helperPath();
+  if (process.platform !== 'win32' || !existsSync(exe)) return;
+  const hwnd = win.getNativeWindowHandle().readBigUInt64LE().toString();
+  spawn(exe, ['focus', hwnd], { windowsHide: true }).on('error', (e) => console.warn('[spyder] focus helper', e.message));
 }
 
 export function hidePrompt(ctx: AppCtx): void {
