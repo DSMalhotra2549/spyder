@@ -1,6 +1,8 @@
 // Chrome/Edge omnibox reader (plan §9.2, ADR-0008). One JSON line per stdin request.
 //   ping -> {"ok":true}
 //   fg   -> {"ok":true,"hwnd":<int>,"value":"..."} | {"ok":false,"error":"..."}
+// One-shot mode (P71): `UrlHelper.exe focus <hwnd>` brings that window to the front with keyboard
+// focus, even while the user is typing in another app; exit code 0 when it worked.
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -10,6 +12,16 @@ static class UrlHelper
 {
     [DllImport("user32.dll")]
     static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")]
+    static extern bool BringWindowToTop(IntPtr hwnd);
+    [DllImport("user32.dll")]
+    static extern uint GetWindowThreadProcessId(IntPtr hwnd, IntPtr pid);
+    [DllImport("user32.dll")]
+    static extern bool AttachThreadInput(uint from, uint to, bool attach);
+    [DllImport("kernel32.dll")]
+    static extern uint GetCurrentThreadId();
 
     static IntPtr cachedHwnd = IntPtr.Zero;
     static AutomationElement cachedEdit;
@@ -19,8 +31,9 @@ static class UrlHelper
         new PropertyCondition(AutomationElement.IsValuePatternAvailableProperty, true));
 
     [STAThread]
-    static int Main()
+    static int Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "focus") return Focus(new IntPtr(long.Parse(args[1])));
         var stdout = Console.Out;
         string line;
         while ((line = Console.ReadLine()) != null)
@@ -35,6 +48,26 @@ static class UrlHelper
             stdout.Flush();
         }
         return 0;
+    }
+
+    /** Windows only lets the app that has the user's input take the foreground, so share its input for a moment. */
+    static int Focus(IntPtr target)
+    {
+        IntPtr fg = GetForegroundWindow();
+        if (fg == target) return 0;
+        uint me = GetCurrentThreadId();
+        uint fgThread = fg == IntPtr.Zero ? 0 : GetWindowThreadProcessId(fg, IntPtr.Zero);
+        bool attached = fgThread != 0 && fgThread != me && AttachThreadInput(me, fgThread, true);
+        try
+        {
+            BringWindowToTop(target);
+            SetForegroundWindow(target);
+        }
+        finally
+        {
+            if (attached) AttachThreadInput(me, fgThread, false);
+        }
+        return GetForegroundWindow() == target ? 0 : 1;
     }
 
     static string Foreground()
