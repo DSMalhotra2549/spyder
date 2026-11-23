@@ -16,6 +16,7 @@ const BROWSERS: Record<string, ActivitySampleRow['browser']> = {
   'chrome.exe': 'chrome',
   'msedge.exe': 'edge',
   'firefox.exe': 'firefox',
+  'zen.exe': 'firefox', // Zen is built on Firefox: same title-based sites (P69)
 };
 
 export class Tracker {

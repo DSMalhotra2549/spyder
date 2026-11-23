@@ -196,6 +196,8 @@ describe('daySummary', () => {
 
   it('appKey', () => {
     expect(appKey(act(0, 1, { browser: 'chrome', domain: null, appName: 'Google Chrome' }))).toBe('Google Chrome');
+    expect(appKey(act(0, 1, { browser: 'firefox', exe: 'zen.exe', domain: null, title: 'GetHookd AI' }))).toBe('Zen: GetHookd AI');
+    expect(appKey(act(0, 1, { browser: 'firefox', exe: 'firefox.exe', domain: null, title: 'GetHookd AI' }))).toBe('Firefox: GetHookd AI');
   });
 });
 
