@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appKey, dayLog, daySummary, gaps, timeSplit, type DayActivity, type DayData, type DaySession } from './aggregate';
+import { alikeRuns, appKey, dayLog, daySummary, gaps, neighbours, timeSplit, type DayActivity, type DayData, type DaySession, type LogEntry } from './aggregate';
 import type { Rule } from './categorize';
 import { DEFAULT_RULES } from './defaults';
 import { leftovers } from './review';
@@ -262,5 +262,27 @@ describe('untracked time and the day log (P53, P55)', () => {
       'away', 'away', 'away', 'away', 'away', 'away', 'untracked', 'session',
     ]);
     expect(log.map((e) => e.startMs)).toEqual([...log.map((e) => e.startMs)].sort((a, b) => a - b));
+  });
+});
+
+describe('neighbours and repeats in the day log (P72)', () => {
+  const b = (id: string, kind: 'open' | 'break', name: string | null, startMs: number, running = false) =>
+    ({ type: 'session', id, kind, name, startMs, endMs: startMs + 900_000, running }) as LogEntry;
+  const gap = (startMs: number) => ({ type: 'untracked', startMs, endMs: startMs + 120_000, sec: 120 }) as LogEntry;
+  // A 40 s gap between b1 and b2 is too short to show as untracked: they are still neighbours.
+  const log = [b('a', 'open', 'code', 0), b('b', 'open', 'code', 900_000), b('b1', 'break', 'breakfast', 1_800_000), b('b2', 'break', 'breakfast', 2_740_000), gap(3_640_000), b('c', 'break', 'breakfast', 3_760_000), b('d', 'open', null, 4_660_000), b('e', 'open', null, 5_560_000)];
+
+  it('blocks with nothing shown between them are neighbours, whatever the gap', () => {
+    expect(neighbours(log, ['b1', 'b2'])).toBe(true);
+    expect(neighbours(log, ['b2', 'b1', 'b'])).toBe(true);
+    expect(neighbours(log, ['b2', 'c'])).toBe(false); // an untracked span between
+    expect(neighbours(log, ['a', 'b1'])).toBe(false); // a block between
+    expect(neighbours(log, ['a', 'nope'])).toBe(false);
+  });
+
+  it('repeats are runs of neighbours with one tag and one answer; unanswered and running blocks never count', () => {
+    expect(alikeRuns(log)).toEqual([['a', 'b'], ['b1', 'b2']]);
+    expect(alikeRuns([b('x', 'open', 'code', 0), b('y', 'break', 'code', 900_000)])).toEqual([]);
+    expect(alikeRuns([b('x', 'open', 'code', 0), b('y', 'open', 'code', 900_000, true)])).toEqual([]);
   });
 });

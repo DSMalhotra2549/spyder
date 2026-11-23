@@ -126,6 +126,46 @@ test('joined answers, re-answer, answer many, delete → undo, merge → undo on
   await shot(d, 'today-timeline');
 });
 
+test('neighbours merge across a gap too short to show; Merge repeats merges every run with one Undo (P73)', async () => {
+  const dir = freshDataDir();
+  seed(dir, 1, DATE);
+  // Start the second Code review block 30 s late: nothing shows between the two, so they're still neighbours.
+  const db = new Db(join(dir, 'spyder.db'));
+  const second = (db.all("SELECT id FROM sessions WHERE name = 'Code review' ORDER BY started_ms") as { id: string }[])[1].id;
+  db.run('UPDATE sessions SET started_ms = started_ms + 30000 WHERE id = ?', second);
+  db.run('UPDATE segments SET start_ms = start_ms + 30000 WHERE session_id = ?', second);
+  db.close();
+  s = await launch({ dataDir: dir, now: `${DATE}T18:00:00` });
+  const d = s.dashboard;
+  await d.evaluate(() => window.spyder.openDashboard('today'));
+  await d.getByTestId('block-log').waitFor();
+  await expect(rows(d, 'Code review').first().getByTestId('block-group')).toContainText('3 blocks');
+  for (const r of (await rows(d, 'Code review').all()).slice(0, 2)) await r.getByTestId('block-check').click();
+  await d.getByTestId('merge-open').click();
+  await expect(d.getByTestId('merge-panel')).toContainText('They become one');
+  await d.getByRole('button', { name: 'Cancel' }).click();
+  await d.getByRole('button', { name: 'Clear' }).click();
+
+  // Merge repeats: every joined run becomes one block; Undo splits them all again.
+  const before = await d.getByTestId('block-row').count();
+  const joined = await d.locator('[data-testid=block-row][data-joined=true]').count();
+  expect(joined).toBeGreaterThan(1);
+  const runs = await d.getByTestId('block-group').count();
+  await expect(d.getByRole('button', { name: 'Export…' })).toHaveCount(0); // P72: export lives in Settings
+  await d.mouse.move(0, 0);
+  await shot(d, 'today-merge-repeats');
+  await d.getByTestId('merge-repeats').click();
+  await expect(d.getByTestId('toast')).toContainText(`Merged ${joined + runs} blocks into ${runs}`);
+  await expect(d.getByTestId('block-row')).toHaveCount(before - joined);
+  await expect(d.getByTestId('merge-repeats')).toHaveCount(0);
+  await expect(rows(d, 'Code review')).toHaveCount(1);
+  const vm = await expected(dir, (await s.debug.state()).now as number);
+  expect(vm.summary.sessions.filter((x) => x.name === 'Code review')).toHaveLength(1);
+  await d.getByTestId('toast-undo').click();
+  await expect(d.getByTestId('block-row')).toHaveCount(before);
+  await expect(rows(d, 'Code review')).toHaveCount(3);
+});
+
 test('the running block can’t be edited until it ends; an ended one can', async () => {
   s = await launch({ scale: 1 });
   const d = s.dashboard;

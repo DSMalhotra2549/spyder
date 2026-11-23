@@ -1,14 +1,13 @@
 // Today page (plan §12, P55, P64): stat row → block log → one-track timeline → apps & sites → distractions.
 import clsx from 'clsx';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { dayLog, type AppRow, type LogEntry, type SessionLine } from '../../core/aggregate';
+import { alikeRuns, dayLog, neighbours, type AppRow, type LogEntry, type SessionLine } from '../../core/aggregate';
 import type { ActivityCategory } from '../../core/categorize';
 import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
 import type { EngineError, Tag } from '../../core/types';
 import type { EditResult, Ok } from '../../preload/api';
 import { AnswerInput, Btn } from '../ui/controls';
-import { ExportButton } from './Export';
 import { answerText, blockColor, ownAnswer, Timeline } from './Timeline';
 import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, TopBar, useLoader } from './parts';
 import { appTexts, dur, statTexts } from './stats';
@@ -28,7 +27,7 @@ export function Today({ date, onDate }: { date?: string; onDate: (d: string) => 
   if (!vm) return <TopBar title="Today" />;
   return (
     <>
-      <TopBar title="Today" date={vm.date} today={vm.today} onDate={onDate} actions={<ExportButton />} />
+      <TopBar title="Today" date={vm.date} today={vm.today} onDate={onDate} />
       <TodayBody key={vm.date} vm={vm} reload={reload} />
     </>
   );
@@ -135,18 +134,13 @@ function StatCell({
 // ---- block log (P64) ------------------------------------------------------------------------
 
 const span = (a: number, b: number | null, running = false) => `${fmtTime(a)}–${running ? 'now' : b !== null ? fmtTime(b) : ''}`;
-/** Blocks this close count as adjacent (matches the merge rule in main). */
-const ADJACENT_MS = 1000;
-const adjacent = (a: SessionLine, b: SessionLine) => a.endMs !== null && Math.abs(b.startMs - a.endMs) <= ADJACENT_MS;
-const sameAnswer = (a: SessionLine, b: SessionLine) =>
-  a.kind === b.kind && (a.kind === 'break' || a.name !== null) && answerText(a) === answerText(b);
 const tagOf = (x: SessionLine): Tag => (x.kind === 'break' ? 'break' : 'work');
 
 /** Why the chosen blocks can't be merged, or null when they can. */
-function mergeProblem(chosen: SessionLine[]): string | null {
+function mergeProblem(chosen: SessionLine[], log: LogEntry[]): string | null {
   if (chosen.length < 2) return 'Pick at least two blocks';
   if (chosen.some((x) => x.running)) return 'The running block can’t be edited until it ends';
-  for (let i = 1; i < chosen.length; i++) if (!adjacent(chosen[i - 1], chosen[i])) return 'Only blocks next to each other can be merged';
+  if (!neighbours(log, chosen.map((x) => x.id))) return 'Only blocks next to each other can be merged';
   const breaks = chosen.filter((x) => x.kind === 'break').length;
   if (breaks && breaks !== chosen.length) return 'A break can’t be merged with work blocks. Change their tags first.';
   return null;
@@ -186,23 +180,16 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
     await after(await window.spyder.deleteBlocks(ids));
   };
 
-  // Consecutive blocks with the same answer are shown joined (P64).
-  const joinedWithPrev = new Set<string>();
-  const groupOf = new Map<string, { count: number; sec: number }>();
-  let head: SessionLine | null = null;
-  let prev: SessionLine | null = null;
-  for (const x of blocks) {
-    if (prev && !x.running && !prev.running && adjacent(prev, x) && sameAnswer(prev, x)) {
-      joinedWithPrev.add(x.id);
-      const g = groupOf.get(head!.id) ?? { count: 1, sec: head!.daySec };
-      groupOf.set(head!.id, { count: g.count + 1, sec: g.sec + x.daySec });
-    } else head = x;
-    prev = x;
-  }
+  // Neighbouring blocks with the same tag and answer are shown joined (P64), and Merge repeats merges them (P72).
+  const runs = alikeRuns(log);
+  const joinedWithPrev = new Set(runs.flatMap((r) => r.slice(1)));
+  const groupOf = new Map(
+    runs.map((r) => [r[0], { count: r.length, sec: r.reduce((t, id) => t + (blocks.find((x) => x.id === id)?.daySec ?? 0), 0) }]),
+  );
 
   const workCount = blocks.filter((x) => x.kind !== 'break').length;
   const pending = blocks.filter((x) => x.kind !== 'break' && x.name === null && !x.running).length;
-  const problem = mergeProblem(chosen);
+  const problem = mergeProblem(chosen, log);
   return (
     <section data-testid="block-log">
       <SectionHead
@@ -217,6 +204,17 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
           ) : undefined
         }
       >
+        {chosen.length === 0 && runs.length > 0 && (
+          <Btn
+            size="sm"
+            data-testid="merge-repeats"
+            className="order-last"
+            title="Merge neighbouring blocks with the same tag and answer"
+            onClick={() => void window.spyder.mergeRepeats(vm.date).then(after)}
+          >
+            Merge repeats
+          </Btn>
+        )}
         {chosen.length > 0 && (
           <div data-testid="selection-bar" className="ml-auto flex items-center gap-1.5">
             <span className="mr-1 text-[12px] text-muted tabular">{chosen.length} selected</span>

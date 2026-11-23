@@ -109,6 +109,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   const editor = new BlockEditor(ctx, host);
   h('deleteBlocks', (ids: string[]) => editor.delete(ids));
   h('mergeBlocks', (ids: string[], answer: string | null) => editor.merge(ids, answer));
+  h('mergeRepeats', (date: string) => editor.mergeRepeats(date));
   h('tagBlocks', (ids: string[], tag: Tag) => (tag === 'work' || tag === 'break' ? editor.tag(ids, tag) : { error: 'invalid', message: 'Pick Work or Break' }));
   h('undoEdit', (undoId: string) => editor.undo(undoId));
 

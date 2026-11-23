@@ -353,3 +353,22 @@ export function dayLog(s: Pick<DaySummary, 'sessions' | 'away' | 'untracked'>): 
     ...s.untracked.map((x) => ({ type: 'untracked' as const, ...x })),
   ].sort((a, b) => a.startMs - b.startMs);
 }
+
+/** P72: blocks are neighbours when nothing sits between them in the log (no other block, away time or untracked span). */
+export function neighbours(log: LogEntry[], ids: string[]): boolean {
+  const at = ids.map((id) => log.findIndex((e) => e.type === 'session' && e.id === id)).sort((a, b) => a - b);
+  return at[0] >= 0 && at.every((i, k) => k === 0 || i === at[k - 1] + 1);
+}
+
+/** P72: runs of two or more ended neighbours with the same tag and the same answer, in time order. */
+export function alikeRuns(log: LogEntry[]): string[][] {
+  const runs: string[][] = [];
+  let prev: SessionLine | null = null;
+  for (const e of log) {
+    const x = e.type === 'session' && !e.running && e.name !== null ? e : null;
+    if (x && prev && x.kind === prev.kind && x.name === prev.name) runs[runs.length - 1].push(x.id);
+    else if (x) runs.push([x.id]);
+    prev = x;
+  }
+  return runs.filter((r) => r.length > 1);
+}
