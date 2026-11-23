@@ -5,6 +5,7 @@ import { inLoop, initialState, reduce, widgetView } from '../core/blockEngine';
 import { categorize, type ActivityCategory, type ActivityKey, type Rule } from '../core/categorize';
 import { fmtClock } from '../core/format';
 import { initialNudge, nudgeMessage, stepNudge, type NudgeState } from '../core/nudge';
+import type { AskRow } from '../core/asks';
 import { accountView, reminderView, type PendingBlock, type PromptVM } from '../core/promptView';
 import { addDays, dateKey, mergeOverride, minutesOfDay, startOfDay, workWindow, type DayOverride } from '../core/schedule';
 import type { ScheduleRow } from '../core/settings';
@@ -13,7 +14,7 @@ import type { WidgetPayload } from '../preload/api';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
 import { toast } from './notify';
-import { refreshReview, summaryFor } from './report';
+import { listToAsk, refreshReview, summaryFor } from './report';
 import { saveSettings, loadSettings } from './settings';
 import { setTrayTooltip } from './tray';
 import { hidePrompt, openDashboard, showPrompt } from './windows';
@@ -36,6 +37,7 @@ export class EngineHost {
   private awayLog: { startMs: number; endMs: number }[] = [];
   /** Today's blocks waiting for an answer; recomputed when blocks or answers change. */
   private pending: PendingBlock[] = [];
+  private asks: AskRow[] = [];
   private pendingDirty = true;
   private pendingDay = '';
   private lastWidget = '';
@@ -188,6 +190,8 @@ export class EngineHost {
   reloadRules(): void {
     this.rules = repo.loadRules(this.app.db);
     this.productiveCache.atMs = Number.NaN;
+    this.pendingDirty = true; // the prompt's asks (P70)
+    this.push();
   }
 
   /** Blocks were edited outside the engine (P64): recompute and push. */
@@ -230,6 +234,9 @@ export class EngineHost {
         awaySec: this.awaySecIn(b.start_ms, b.end_ms, now),
         apps: repo.topApps(this.app.db, b.start_ms, b.end_ms),
       }));
+      // P70: what these blocks used that still wants the user's label.
+      const span = this.pending.length ? [Math.min(...this.pending.map((b) => b.startMs)), Math.max(...this.pending.map((b) => b.endMs))] : null;
+      this.asks = span ? listToAsk(this.app.db, span[0], span[1]) : [];
       this.pendingDirty = false;
       this.pendingDay = day;
     }
@@ -255,7 +262,7 @@ export class EngineHost {
   promptState(): PromptVM | null {
     const pending = this.pendingBlocks();
     const canContinue = !this.state.loop && !!this.state.cut && dateKey(this.state.cut.atMs) === dateKey(this.app.clock.now());
-    if (pending.length) return accountView(pending, repo.lastAnswer(this.app.db), canContinue);
+    if (pending.length) return accountView(pending, repo.lastAnswer(this.app.db), canContinue, this.asks);
     if (this.state.reminder) return reminderView(this.app.settings.blockLengthSec);
     return null;
   }

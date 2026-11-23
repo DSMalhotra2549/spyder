@@ -18,7 +18,7 @@ const methods = [
   'hideWidget', 'openDashboard', 'resizePrompt',
   'getDay', 'saveRule', 'getReview', 'saveReviewItem', 'deleteReviewItem', 'completeReview', 'listKpis', 'saveKpi',
   'setKpiValue', 'showWidget',
-  'getRange', 'listUncategorized', 'listRules', 'deleteRule', 'listTitlePatterns', 'saveTitlePattern', 'deleteTitlePattern',
+  'getRange', 'listToAsk', 'listRules', 'deleteRule', 'listTitlePatterns', 'saveTitlePattern', 'deleteTitlePattern',
   'getSchedule', 'setSchedule', 'setDayOverride', 'openDataFolder', 'exportData', 'showInFolder',
 ] as const;
 

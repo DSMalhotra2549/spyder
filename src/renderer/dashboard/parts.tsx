@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ActivityCategory } from '../../core/categorize';
 import type { Category } from '../../core/defaults';
+import { Btn } from '../ui/controls';
 import { addDays, dateKey, dayStartFromKey } from '../../core/schedule';
 import { addMonths, weekDates } from '../../core/trends';
 
@@ -38,6 +39,23 @@ export const CAT_LABEL: Record<ActivityCategory, string> = {
   distracting: 'Distracting',
   uncategorized: 'Uncategorized',
 };
+
+/**
+ * P70: one click gives an app or site the user's own label. The label it has now (a default's)
+ * is outlined, so confirming it is the same click.
+ */
+export function CategoryButtons({ current, onPick, size }: { current: ActivityCategory; onPick: (c: Category) => void; size?: 'sm' }) {
+  return (
+    <div className="flex shrink-0 gap-1.5">
+      {(['productive', 'neutral', 'distracting'] as const).map((c) => (
+        <Btn key={c} size={size} data-category={c} aria-pressed={c === current} variant={c === current ? 'outline' : 'secondary'} onClick={() => onPick(c)}>
+          <span className="h-2 w-2 rounded-full" style={{ background: CAT_COLOR[c] }} />
+          {CAT_LABEL[c]}
+        </Btn>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Loads data, reloads when `key` changes, every 15 s while `live`, and when the window regains

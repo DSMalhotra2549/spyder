@@ -1,4 +1,4 @@
-// Rules page (plan §12, design/DESIGN.md §4 Rules): rules, title patterns, Uncategorized inbox,
+// Rules page (plan §12, design/DESIGN.md §4 Rules): rules, title patterns, the To sort list (P70),
 // projects and KPI definitions.
 import clsx from 'clsx';
 import { useState, type ReactNode } from 'react';
@@ -9,6 +9,7 @@ import {
   CAT_COLOR,
   CAT_LABEL,
   Card,
+  CategoryButtons,
   DefaultChip,
   Empty,
   Segmented,
@@ -21,7 +22,7 @@ type Tab = 'rules' | 'patterns' | 'inbox' | 'kpis';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'rules', label: 'Rules' },
   { value: 'patterns', label: 'Title patterns' },
-  { value: 'inbox', label: 'Uncategorized' },
+  { value: 'inbox', label: 'To sort' },
   { value: 'kpis', label: 'KPIs' },
 ];
 const CATS: Category[] = ['productive', 'neutral', 'distracting'];
@@ -316,33 +317,26 @@ function UserPattern({
   );
 }
 
-// ---- uncategorized inbox -----------------------------------------------------------------
+// ---- to sort (P70) ----------------------------------------------------------------------
 function InboxTab() {
-  const [rows, reload] = useLoader(() => window.spyder.listUncategorized(), 'inbox', true);
+  const [rows, reload] = useLoader(() => window.spyder.listToAsk(), 'inbox', true);
   return (
-    <Card title="Uncategorized today" right="one click creates a rule">
+    <Card title="To sort" right="used 3 min or more, no category you picked yet · all time">
       {!rows ? null : rows.length === 0 ? (
-        <Empty>Everything you used today has a category</Empty>
+        <Empty>Everything you use has a category you picked</Empty>
       ) : (
         rows.map((a) => (
           <Row key={a.key} testId="inbox-row">
             <span className="min-w-0 flex-1 truncate">{a.key}</span>
+            {a.category !== 'uncategorized' && <DefaultChip />}
             <span className="w-14 text-right text-muted tabular">{fmtHM(a.sec)}</span>
-            <div className="flex gap-1.5">
-              {CATS.map((c) => (
-                <Btn
-                  key={c}
-                  data-category={c}
-                  onClick={async () => {
-                    await window.spyder.saveRule({ ...a.ruleTarget!, category: c });
-                    await reload();
-                  }}
-                >
-                  <span className="h-2 w-2 rounded-full" style={{ background: CAT_COLOR[c] }} />
-                  {CAT_LABEL[c]}
-                </Btn>
-              ))}
-            </div>
+            <CategoryButtons
+              current={a.category}
+              onPick={async (c) => {
+                await window.spyder.saveRule({ ...a.ruleTarget, category: c });
+                await reload();
+              }}
+            />
           </Row>
         ))
       )}

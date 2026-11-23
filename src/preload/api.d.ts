@@ -6,11 +6,12 @@ import type { Category, MatchType } from '../core/defaults';
 import type { EngineError, Tag } from '../core/types';
 import type { DayVM, Kpi, ReviewItem, ReviewVM } from '../core/review';
 import type { AppRow } from '../core/aggregate';
+import type { AskRow } from '../core/asks';
 import type { ScheduleRow } from '../core/settings';
 import type { PatternMatch } from '../core/defaults';
 import type { RangeVM } from '../core/trends';
 
-export type { AppRow, DayVM, Kpi, RangeVM, ReviewItem, ReviewVM, ScheduleRow };
+export type { AppRow, AskRow, DayVM, Kpi, RangeVM, ReviewItem, ReviewVM, ScheduleRow };
 
 export interface RuleVM {
   id: string;
@@ -109,7 +110,8 @@ export interface SpyderApi {
 
   getDay(date?: string): Promise<DayVM>;
   getRange(from: string, to: string): Promise<RangeVM>;
-  listUncategorized(date?: string): Promise<AppRow[]>;
+  /** P70: every app and site still waiting for the user's own label, all time. */
+  listToAsk(): Promise<AskRow[]>;
   listRules(): Promise<RuleVM[]>;
   saveRule(r: { id?: string; matchType: MatchType; pattern: string; category: Category }): Promise<void>;
   deleteRule(id: string): Promise<void>;

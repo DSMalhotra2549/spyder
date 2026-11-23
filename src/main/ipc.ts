@@ -115,7 +115,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   // Data
   h('getDay', (date?: string) => report.dayVM(ctx.db, date, ctx.clock.now(), ctx.settings));
   h('getRange', (from: string, to: string) => report.rangeVM(ctx.db, from, to, ctx.clock.now(), ctx.settings));
-  h('listUncategorized', (date?: string) => report.listUncategorized(ctx.db, date, ctx.clock.now(), ctx.settings));
+  h('listToAsk', () => report.listToAsk(ctx.db));
   h('listRules', () => repo.listRules(ctx.db));
   h('saveRule', (r: { id?: string; matchType: Rule['matchType']; pattern: string; category: Rule['category'] }) => {
     repo.saveRule(ctx.db, r, ctx.clock.now());
