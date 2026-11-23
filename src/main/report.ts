@@ -7,7 +7,8 @@ import { addDays, dateKey, dayStartFromKey, workWindow } from '../core/schedule'
 import type { Settings } from '../core/settings';
 import { streak } from '../core/streaks';
 import { relabelFirefox } from '../core/titlePatterns';
-import type { AppRow } from '../core/aggregate';
+import type { DayActivity } from '../core/aggregate';
+import { toAsk, type AskRow } from '../core/asks';
 import { dayLite, type RangeVM } from '../core/trends';
 import type { Db } from './db/db';
 import * as repo from './db/repo';
@@ -115,10 +116,16 @@ export function rangeVM(db: Db, from: string, to: string, nowMs: number, setting
   };
 }
 
-/** Rules page inbox: today's apps and sites (whole day) that no rule covers. */
-export function listUncategorized(db: Db, date: string | undefined, nowMs: number, settings: Settings): AppRow[] {
-  const s = summaryFor(db, date ?? dateKey(nowMs), nowMs, { ...settings, appPercentScope: 'all_day' });
-  return s.apps.filter((a) => a.category === 'uncategorized' && a.ruleTarget);
+/** P70: apps and sites still waiting for the user's own label, from their time in [fromMs, toMs) (default: all time). */
+export function listToAsk(db: Db, fromMs = 0, toMs = Number.MAX_SAFE_INTEGER, minSec?: number): AskRow[] {
+  const rows = db
+    .all<{ exe: string; app_name: string; title: string | null; domain: string | null; browser: DayActivity['browser']; is_private: number; ms: number }>(
+      `SELECT exe, app_name, title, domain, browser, is_private, SUM(MIN(end_ms, ?) - MAX(start_ms, ?)) AS ms FROM activity
+        WHERE start_ms < ? AND end_ms > ? GROUP BY exe, app_name, title, domain, browser, is_private`,
+      toMs, fromMs, toMs, fromMs,
+    )
+    .map((r) => ({ exe: r.exe, appName: r.app_name, title: r.title, domain: r.domain, browser: r.browser, isPrivate: !!r.is_private, ms: r.ms }));
+  return toAsk(relabelFirefox(rows, repo.loadTitlePatterns(db)), repo.loadRules(db), minSec);
 }
 
 // ---- review (P24) -------------------------------------------------------------------

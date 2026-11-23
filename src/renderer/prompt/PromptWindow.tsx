@@ -1,9 +1,10 @@
-// Prompt window (#/prompt): accounting for ended blocks (P60) or the start reminder (P59). DESIGN.md §3.
+// Prompt window (#/prompt): accounting for ended blocks (P60, with P70's asks) or the start reminder (P59). DESIGN.md §3.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { AccountBlockVM, AccountVM, ReminderVM } from '../../core/promptView';
 import type { EngineError, Tag } from '../../core/types';
 import type { BlockAnswer, Ok, PromptWindowState } from '../../preload/api';
-import { Segmented } from '../dashboard/parts';
+import { fmtHM } from '../../core/format';
+import { CategoryButtons, Segmented } from '../dashboard/parts';
 import { AnswerInput, Btn } from '../ui/controls';
 
 export function PromptWindow() {
@@ -169,7 +170,36 @@ function AccountCard({ p }: { p: AccountVM }) {
         </>
       )}
       {error && <div className="text-[12px] text-red">{error}</div>}
+      <Asks p={p} />
     </Card>
+  );
+}
+
+/** P70: apps and sites these blocks used that still want the user's label. Optional: answering the block doesn't wait. */
+function Asks({ p }: { p: AccountVM }) {
+  const [done, setDone] = useState<string[]>([]);
+  const asks = p.asks.filter((a) => !done.includes(a.key));
+  if (!asks.length) return null;
+  return (
+    <div data-testid="prompt-asks" className="flex flex-col gap-2 border-t border-border pt-3">
+      <span className="caps text-muted">{p.askTitle}</span>
+      {asks.map((a) => (
+        <div key={a.key} data-testid="ask-row" className="flex flex-col gap-1">
+          <div className="flex min-w-0 items-baseline gap-2 text-[12px]">
+            <span className="truncate text-text">{a.key}</span>
+            <span className="tnum shrink-0 text-faint">{fmtHM(a.sec)}</span>
+          </div>
+          <CategoryButtons
+            size="sm"
+            current={a.category}
+            onPick={(c) => {
+              setDone((d) => [...d, a.key]);
+              void window.spyder.saveRule({ ...a.ruleTarget, category: c });
+            }}
+          />
+        </div>
+      ))}
+    </div>
   );
 }
 

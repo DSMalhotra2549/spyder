@@ -1,4 +1,5 @@
-// Prompt view models and copy for the block loop (P59, P60).
+// Prompt view models and copy for the block loop (P59, P60, P70).
+import type { AskRow } from './asks';
 import { fmtDuration, fmtTime } from './format';
 
 /** An ended block waiting to be accounted for, with its hints. */
@@ -27,7 +28,13 @@ export interface AccountVM {
   lastAnswer: string | null;
   /** The loop was cut by the end of work hours: offer Keep working (P62). */
   canContinue: boolean;
+  /** P70: apps and sites used in these blocks that still want the user's label, most time first. */
+  asks: AskRow[];
+  askTitle: string;
 }
+
+/** P70: the prompt asks about at most this many apps and sites. */
+export const PROMPT_ASKS = 3;
 
 export interface ReminderVM {
   view: 'reminder';
@@ -48,7 +55,7 @@ export function blockHint(b: PendingBlock): string | null {
   return parts.length ? parts.join(' · ') : null;
 }
 
-export function accountView(blocks: PendingBlock[], lastAnswer: string | null, canContinue: boolean): AccountVM {
+export function accountView(blocks: PendingBlock[], lastAnswer: string | null, canContinue: boolean, asks: AskRow[] = []): AccountVM {
   const one = blocks.length === 1;
   return {
     view: 'account',
@@ -57,6 +64,8 @@ export function accountView(blocks: PendingBlock[], lastAnswer: string | null, c
     blocks: blocks.map((b) => ({ ...b, range: range(b), length: fmtDuration(Math.round((b.endMs - b.startMs) / 1000)), hint: blockHint(b) })),
     lastAnswer,
     canContinue,
+    asks: asks.slice(0, PROMPT_ASKS),
+    askTitle: asks.length === 1 ? 'How does this count?' : 'How do these count?',
   };
 }
 

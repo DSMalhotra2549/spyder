@@ -21,21 +21,28 @@ export interface ActivityKey {
 const byStrength = (a: Rule, b: Rule) =>
   Number(a.isDefault) - Number(b.isDefault) || b.pattern.length - a.pattern.length;
 
-export function categorize(row: ActivityKey, rules: Rule[]): ActivityCategory {
+/** Which kind of rule settled a row's category, or none. */
+export type DecidedBy = 'user' | 'default' | 'none';
+
+export function decide(row: ActivityKey, rules: Rule[]): { category: ActivityCategory; by: DecidedBy } {
   const sorted = [...rules].sort(byStrength);
+  const by = (r: Rule | undefined) =>
+    r ? { category: r.category, by: r.isDefault ? ('default' as const) : ('user' as const) } : { category: 'uncategorized' as const, by: 'none' as const };
   const title = row.title?.toLowerCase();
   if (title) {
     const r = sorted.find((x) => x.matchType === 'title' && title.includes(x.pattern));
-    if (r) return r.category;
+    if (r) return by(r);
   }
   if (row.browser) {
-    if (row.domain === null) return 'neutral';
+    if (row.domain === null) return { category: 'neutral', by: 'none' };
     const d = row.domain.toLowerCase();
-    const r = sorted.find((x) => x.matchType === 'domain' && (d === x.pattern || d.endsWith(`.${x.pattern}`)));
     // A site with no rule stays Uncategorized; the browser's own app rule doesn't apply to it (P12).
-    return r ? r.category : 'uncategorized';
+    return by(sorted.find((x) => x.matchType === 'domain' && (d === x.pattern || d.endsWith(`.${x.pattern}`))));
   }
   const exe = row.exe.toLowerCase();
-  const r = sorted.find((x) => x.matchType === 'app' && x.pattern === exe);
-  return r ? r.category : 'uncategorized';
+  return by(sorted.find((x) => x.matchType === 'app' && x.pattern === exe));
+}
+
+export function categorize(row: ActivityKey, rules: Rule[]): ActivityCategory {
+  return decide(row, rules).category;
 }

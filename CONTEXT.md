@@ -95,6 +95,9 @@ _Avoid_: label, type
 **Rule**:
 A user- or default-defined mapping from an app, domain or title keyword to a category.
 
+**To sort**:
+Apps and sites used 3 min or more whose category no rule of the user's decides yet (none, or only a default). Spyder asks about them in Rules and in the end-of-block prompt (P70).
+
 **Title pattern**:
 A mapping from a Firefox window title to the site it shows (e.g. a title ending in "- YouTube" means youtube.com).
 _Avoid_: title rule (rules assign categories; title patterns identify sites)
