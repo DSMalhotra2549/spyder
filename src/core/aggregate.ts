@@ -45,6 +45,9 @@ export interface DayActivity {
   isPrivate: boolean;
 }
 
+/** What an activity row is, without its times. */
+export type ActivityFacts = Omit<DayActivity, 'startMs' | 'endMs'>;
+
 export interface DayFlag {
   tsMs: number;
   target: string;
@@ -152,14 +155,14 @@ export function gaps(from: number, to: number, cover: Block[], minMs = MIN_UNTRA
 }
 
 /** Grouping key for the apps & sites table (§10). */
-export function appKey(a: DayActivity): string {
+export function appKey(a: ActivityFacts): string {
   if (a.isPrivate) return 'Private browsing';
   if (a.domain) return a.domain;
   if (a.browser === 'firefox' && a.title) return `Firefox: ${a.title}`;
   return a.appName;
 }
 
-function ruleTarget(a: DayActivity): AppRow['ruleTarget'] {
+export function ruleTarget(a: ActivityFacts): AppRow['ruleTarget'] {
   if (a.isPrivate) return null;
   if (a.domain) return { matchType: 'domain', pattern: a.domain.toLowerCase() };
   if (a.browser === 'firefox' && a.title) return { matchType: 'title', pattern: a.title.toLowerCase() };
