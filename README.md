@@ -6,6 +6,8 @@ Most time trackers quietly log what you did. Spyder is stricter: you press **Sta
 
 No accounts, no cloud and no AI. Everything stays in a local SQLite file on your machine.
 
+**[Download the latest installer](https://github.com/perplexingpasta/spyder/releases/latest)** (Windows 10/11), or [build it from source](#getting-started).
+
 ![The floating widget: time in the current block, productive time today and percent of the workday](docs/images/widget.png)
 
 ![The Today page: productive time against the goal, and the day's blocks with their answers](docs/images/today.png)
