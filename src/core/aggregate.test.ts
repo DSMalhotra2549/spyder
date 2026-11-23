@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appKey, dayLog, daySummary, gaps, timeSplit, type DayActivity, type DayData, type DaySession } from './aggregate';
+import { alikeRuns, appKey, dayLog, daySummary, gaps, neighbours, timeSplit, type DayActivity, type DayData, type DaySession, type LogEntry } from './aggregate';
 import type { Rule } from './categorize';
 import { DEFAULT_RULES } from './defaults';
 import { leftovers } from './review';
@@ -262,5 +262,60 @@ describe('untracked time and the day log (P53, P55)', () => {
       'away', 'away', 'away', 'away', 'away', 'away', 'untracked', 'session',
     ]);
     expect(log.map((e) => e.startMs)).toEqual([...log.map((e) => e.startMs)].sort((a, b) => a - b));
+  });
+});
+
+describe('neighbours and repeats in the day log (P73)', () => {
+  const b = (id: string, kind: 'open' | 'break', name: string | null, startMs: number, running = false) =>
+    ({ type: 'session', id, kind, tag: kind === 'break' ? 'break' : 'work', name, startMs, endMs: startMs + 900_000, running }) as LogEntry;
+  const gap = (startMs: number) => ({ type: 'untracked', startMs, endMs: startMs + 120_000, sec: 120 }) as LogEntry;
+  // A 40 s gap between b1 and b2 is too short to show as untracked: they are still neighbours.
+  const log = [b('a', 'open', 'code', 0), b('b', 'open', 'code', 900_000), b('b1', 'break', 'breakfast', 1_800_000), b('b2', 'break', 'breakfast', 2_740_000), gap(3_640_000), b('c', 'break', 'breakfast', 3_760_000), b('d', 'open', null, 4_660_000), b('e', 'open', null, 5_560_000)];
+
+  it('blocks with nothing shown between them are neighbours, whatever the gap', () => {
+    expect(neighbours(log, ['b1', 'b2'])).toBe(true);
+    expect(neighbours(log, ['b2', 'b1', 'b'])).toBe(true);
+    expect(neighbours(log, ['b2', 'c'])).toBe(false); // an untracked span between
+    expect(neighbours(log, ['a', 'b1'])).toBe(false); // a block between
+    expect(neighbours(log, ['a', 'nope'])).toBe(false);
+  });
+
+  it('repeats are runs of neighbours with one tag and one answer; unanswered and running blocks never count', () => {
+    expect(alikeRuns(log)).toEqual([['a', 'b'], ['b1', 'b2']]);
+    expect(alikeRuns([b('x', 'open', 'code', 0), b('y', 'break', 'code', 900_000)])).toEqual([]);
+    expect(alikeRuns([b('x', 'open', 'code', 0), b('y', 'open', 'code', 900_000, true)])).toEqual([]);
+  });
+});
+
+describe('gym and food (P74)', () => {
+  it('count as break time, and get their own slices of where the day went', () => {
+    const line = (id: string, kind: 'open' | 'break', tag: 'work' | 'break' | 'gym' | 'food', daySec: number) =>
+      ({ id, kind, tag, name: kind === 'break' ? 'Break' : 'x', daySec, running: false }) as never;
+    const split = timeSplit({
+      workSec: 3600,
+      breakSec: 3000,
+      untrackedSec: 0,
+      sessions: [line('w', 'open', 'work', 3600), line('b', 'break', 'break', 600), line('g', 'break', 'gym', 1800), line('f', 'break', 'food', 600)],
+    });
+    expect(split).toEqual([
+      { key: 'work', sec: 3600 },
+      { key: 'break', sec: 600 },
+      { key: 'gym', sec: 1800 },
+      { key: 'food', sec: 600 },
+    ]);
+  });
+
+  it('a gym block is never joined with a plain break', () => {
+    const e = (id: string, tag: 'break' | 'gym', startMs: number) =>
+      ({ type: 'session', id, kind: 'break', tag, name: 'Break', startMs, endMs: startMs + 900_000, running: false }) as LogEntry;
+    expect(alikeRuns([e('a', 'gym', 0), e('b', 'break', 900_000), e('c', 'gym', 1_800_000), e('d', 'gym', 2_700_000)])).toEqual([['c', 'd']]);
+  });
+
+  it('daySummary reads the tag from the stored session', () => {
+    const d = fixture();
+    d.sessions = d.sessions.map((s) => (s.kind === 'break' ? { ...s, tag: 'food' } : s));
+    const s = daySummary('2026-11-24', d, rules, S);
+    expect(s.sessions.filter((x) => x.kind === 'break').every((x) => x.tag === 'food')).toBe(true);
+    expect(s.sessions.filter((x) => x.kind !== 'break').every((x) => x.tag === 'work')).toBe(true);
   });
 });

@@ -1,15 +1,14 @@
 // Today page (plan §12, P55, P64): stat row → block log → one-track timeline → apps & sites → distractions.
 import clsx from 'clsx';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { dayLog, type AppRow, type LogEntry, type SessionLine } from '../../core/aggregate';
+import { alikeRuns, dayLog, neighbours, type AppRow, type LogEntry, type SessionLine } from '../../core/aggregate';
 import type { ActivityCategory } from '../../core/categorize';
 import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
-import type { EngineError, Tag } from '../../core/types';
+import { TAG_LABEL, TAGS, type EngineError, type Tag } from '../../core/types';
 import type { EditResult, Ok } from '../../preload/api';
 import { AnswerInput, Btn } from '../ui/controls';
-import { ExportButton } from './Export';
-import { answerText, blockColor, ownAnswer, Timeline } from './Timeline';
+import { answerText, blockColor, ownAnswer, TAG_COLOR, Timeline } from './Timeline';
 import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, TopBar, useLoader } from './parts';
 import { appTexts, dur, statTexts } from './stats';
 import { showEditResult } from './toast';
@@ -28,7 +27,7 @@ export function Today({ date, onDate }: { date?: string; onDate: (d: string) => 
   if (!vm) return <TopBar title="Today" />;
   return (
     <>
-      <TopBar title="Today" date={vm.date} today={vm.today} onDate={onDate} actions={<ExportButton />} />
+      <TopBar title="Today" date={vm.date} today={vm.today} onDate={onDate} />
       <TodayBody key={vm.date} vm={vm} reload={reload} />
     </>
   );
@@ -135,20 +134,15 @@ function StatCell({
 // ---- block log (P64) ------------------------------------------------------------------------
 
 const span = (a: number, b: number | null, running = false) => `${fmtTime(a)}–${running ? 'now' : b !== null ? fmtTime(b) : ''}`;
-/** Blocks this close count as adjacent (matches the merge rule in main). */
-const ADJACENT_MS = 1000;
-const adjacent = (a: SessionLine, b: SessionLine) => a.endMs !== null && Math.abs(b.startMs - a.endMs) <= ADJACENT_MS;
-const sameAnswer = (a: SessionLine, b: SessionLine) =>
-  a.kind === b.kind && (a.kind === 'break' || a.name !== null) && answerText(a) === answerText(b);
-const tagOf = (x: SessionLine): Tag => (x.kind === 'break' ? 'break' : 'work');
 
 /** Why the chosen blocks can't be merged, or null when they can. */
-function mergeProblem(chosen: SessionLine[]): string | null {
+function mergeProblem(chosen: SessionLine[], log: LogEntry[]): string | null {
   if (chosen.length < 2) return 'Pick at least two blocks';
   if (chosen.some((x) => x.running)) return 'The running block can’t be edited until it ends';
-  for (let i = 1; i < chosen.length; i++) if (!adjacent(chosen[i - 1], chosen[i])) return 'Only blocks next to each other can be merged';
-  const breaks = chosen.filter((x) => x.kind === 'break').length;
-  if (breaks && breaks !== chosen.length) return 'A break can’t be merged with work blocks. Change their tags first.';
+  if (!neighbours(log, chosen.map((x) => x.id))) return 'Only blocks next to each other can be merged';
+  const tags = new Set(chosen.map((x) => x.tag));
+  if (tags.has('work') && tags.size > 1) return 'A break can’t be merged with work blocks. Change their tags first.';
+  if (tags.size > 1) return 'Blocks with different tags can’t be merged. Change their tags first.';
   return null;
 }
 
@@ -186,23 +180,16 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
     await after(await window.spyder.deleteBlocks(ids));
   };
 
-  // Consecutive blocks with the same answer are shown joined (P64).
-  const joinedWithPrev = new Set<string>();
-  const groupOf = new Map<string, { count: number; sec: number }>();
-  let head: SessionLine | null = null;
-  let prev: SessionLine | null = null;
-  for (const x of blocks) {
-    if (prev && !x.running && !prev.running && adjacent(prev, x) && sameAnswer(prev, x)) {
-      joinedWithPrev.add(x.id);
-      const g = groupOf.get(head!.id) ?? { count: 1, sec: head!.daySec };
-      groupOf.set(head!.id, { count: g.count + 1, sec: g.sec + x.daySec });
-    } else head = x;
-    prev = x;
-  }
+  // Neighbouring blocks with the same tag and answer are shown joined (P64), and Merge repeats merges them (P73).
+  const runs = alikeRuns(log);
+  const joinedWithPrev = new Set(runs.flatMap((r) => r.slice(1)));
+  const groupOf = new Map(
+    runs.map((r) => [r[0], { count: r.length, sec: r.reduce((t, id) => t + (blocks.find((x) => x.id === id)?.daySec ?? 0), 0) }]),
+  );
 
   const workCount = blocks.filter((x) => x.kind !== 'break').length;
   const pending = blocks.filter((x) => x.kind !== 'break' && x.name === null && !x.running).length;
-  const problem = mergeProblem(chosen);
+  const problem = mergeProblem(chosen, log);
   return (
     <section data-testid="block-log">
       <SectionHead
@@ -217,6 +204,17 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
           ) : undefined
         }
       >
+        {chosen.length === 0 && runs.length > 0 && (
+          <Btn
+            size="sm"
+            data-testid="merge-repeats"
+            className="order-last"
+            title="Merge neighbouring blocks with the same tag and answer"
+            onClick={() => void window.spyder.mergeRepeats(vm.date).then(after)}
+          >
+            Merge repeats
+          </Btn>
+        )}
         {chosen.length > 0 && (
           <div data-testid="selection-bar" className="ml-auto flex items-center gap-1.5">
             <span className="mr-1 text-[12px] text-muted tabular">{chosen.length} selected</span>
@@ -426,7 +424,7 @@ function BlockRow({
           </span>
         )}
       </span>
-      <TagSelect testId="block-tag" label={`Tag of ${text}`} value={tagOf(x)} disabled={x.running} onChange={onTag} />
+      <TagSelect testId="block-tag" label={`Tag of ${text}`} value={x.tag} disabled={x.running} onChange={onTag} />
       <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
         {dur(x.daySec)}
       </span>
@@ -455,7 +453,7 @@ function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Pr
   const [text, setText] = useState(ownAnswer(x) ?? '');
   const [error, setError] = useState<string | null>(null);
   const save = async (tag?: Tag) => {
-    if ((tag ?? tagOf(x)) === 'work' && !text.trim()) return setError('Say what you did, or pick Break');
+    if ((tag ?? x.tag) === 'work' && !text.trim()) return setError('Say what you did, or pick Break');
     const r = await window.spyder.answerBlocks([{ id: x.id, answer: text.trim() || null, tag }]);
     if ('error' in r) return setError(r.message);
     await onDone(true);
@@ -565,7 +563,7 @@ function AnswerPanel({
   );
 }
 
-/** P66: a block's tag, Work or Break. With `value` null it's a "Tag…" picker for the selected blocks. */
+/** P66, P74: a block's tag, Work, Break, Gym or Food. With `value` null it's a "Tag…" picker for the selected blocks. */
 function TagSelect({
   testId,
   label,
@@ -584,7 +582,7 @@ function TagSelect({
       {value && (
         <span
           className="pointer-events-none absolute left-2 h-2 w-2 rounded-[2px]"
-          style={{ background: value === 'break' ? 'var(--color-break)' : 'var(--color-work)' }}
+          style={{ background: TAG_COLOR[value] }}
         />
       )}
       <select
@@ -605,8 +603,11 @@ function TagSelect({
             Tag…
           </option>
         )}
-        <option value="work">Work</option>
-        <option value="break">Break</option>
+        {TAGS.map((t) => (
+          <option key={t} value={t}>
+            {TAG_LABEL[t]}
+          </option>
+        ))}
       </select>
       <svg className="pointer-events-none absolute right-2 text-faint" width="10" height="10" viewBox="0 0 10 10" aria-hidden>
         <path d="M2.5 4 5 6.5 7.5 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -629,6 +630,8 @@ function TimelineLegend() {
       {item(<span className="h-2 w-2 rounded-[2px] bg-work" />, 'Work')}
       {item(<span className="h-2 w-2 rounded-[2px] bg-open" />, 'Not yet')}
       {item(<span className="h-2 w-2 rounded-[2px] bg-break/50" />, 'Break')}
+      {item(<span className="h-2 w-2 rounded-[2px] bg-gym/50" />, 'Gym')}
+      {item(<span className="h-2 w-2 rounded-[2px] bg-food/50" />, 'Food')}
       {item(<span className="hatch h-2 w-2 rounded-[2px]" />, 'Untracked')}
     </span>
   );

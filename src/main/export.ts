@@ -67,6 +67,7 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
   const sessions = db.all<{
     id: string;
     kind: string;
+    tag: string | null;
     name: string | null;
     pname: string | null;
     planned_sec: number | null;
@@ -75,7 +76,7 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
     end_reason: string | null;
     actual_ms: number | null;
   }>(
-    `SELECT s.id, s.kind, s.name, p.name AS pname, s.planned_sec, s.started_ms, s.ended_ms, s.end_reason,
+    `SELECT s.id, s.kind, s.tag, s.name, p.name AS pname, s.planned_sec, s.started_ms, s.ended_ms, s.end_reason,
             (SELECT SUM(COALESCE(g.end_ms, MAX(g.start_ms, ?)) - g.start_ms) FROM segments g WHERE g.session_id = s.id) AS actual_ms
        FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
       WHERE s.deleted_ms IS NULL AND s.started_ms >= ? AND s.started_ms < ? ORDER BY s.started_ms`,
@@ -103,8 +104,8 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
         dateKey(s.started_ms),
         s.started_ms,
         s.ended_ms,
-        s.kind,
-        s.name ?? (s.kind === 'break' ? 'Break' : '(unlabelled)'),
+        s.tag ?? s.kind, // P74: gym / food are breaks
+        s.name === 'Break' && s.tag ? s.tag[0].toUpperCase() + s.tag.slice(1) : (s.name ?? (s.kind === 'break' ? 'Break' : '(unlabelled)')),
         s.pname,
         s.planned_sec === null ? null : minutes(s.planned_sec),
         ...dur(actual),

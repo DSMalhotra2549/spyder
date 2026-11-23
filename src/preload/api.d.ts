@@ -98,9 +98,11 @@ export interface SpyderApi {
   /** P60, P64: answer ended blocks (also re-answer). */
   answerBlocks(answers: BlockAnswer[]): Promise<Ok | EngineError>;
   deleteBlocks(ids: string[]): Promise<EditResult>;
-  /** P64: adjacent blocks of one tag become one block with `answer` (null = none, breaks only). */
+  /** P64, P73: neighbouring blocks of one tag become one block with `answer` (null = none, breaks only). */
   mergeBlocks(ids: string[], answer: string | null): Promise<EditResult>;
-  /** P66: set the blocks' tag; answers stay. */
+  /** P73: every run of neighbouring blocks with the same tag and answer on `date` becomes one block (one Undo). */
+  mergeRepeats(date: string): Promise<EditResult>;
+  /** P66, P74: set the blocks' tag (Work, Break, Gym or Food); answers stay. */
   tagBlocks(ids: string[], tag: Tag): Promise<EditResult>;
   undoEdit(undoId: string): Promise<Ok | EngineError>;
 

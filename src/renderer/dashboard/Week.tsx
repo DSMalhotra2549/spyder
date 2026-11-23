@@ -24,7 +24,6 @@ import {
   type RangeVM,
 } from '../../core/trends';
 import { AppsList } from './Today';
-import { ExportButton } from './Export';
 import { CAT_COLOR, Card, Empty, Stat, TopBar, useLoader } from './parts';
 import { pct, rangeTexts } from './stats';
 
@@ -73,7 +72,7 @@ export function Week({ date, onDate }: { date: string; onDate: (d: string) => vo
   const top = topApps(vm.days, 10);
   return (
     <>
-      <TopBar title="Week" date={date} today={vm.today} onDate={onDate} unit="week" actions={<ExportButton preset="week" />} />
+      <TopBar title="Week" date={date} today={vm.today} onDate={onDate} unit="week" />
       <div className="flex-1 overflow-x-hidden overflow-y-auto p-6" data-testid="week">
         <RangeStats vm={vm} />
         <div className="mt-4 grid grid-cols-12 gap-4">

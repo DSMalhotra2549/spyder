@@ -3,7 +3,7 @@ import { categorize, type ActivityCategory, type Rule } from './categorize';
 import { isIgnoredExe, type MatchType } from './defaults';
 import { addDays, dayStartFromKey } from './schedule';
 import type { Settings } from './settings';
-import type { AwayClassification, AwayReason, EndReason, Kind, SessionStatus, WorkWindow } from './types';
+import { tagOf, type AwayClassification, type AwayReason, type EndReason, type Kind, type SessionStatus, type Tag, type WorkWindow } from './types';
 
 export interface DaySession {
   id: string;
@@ -17,6 +17,8 @@ export interface DaySession {
   startedMs: number;
   endedMs: number | null;
   endReason: EndReason | null;
+  /** P74: Gym or Food on a break; left out or null otherwise. */
+  tag?: 'gym' | 'food' | null;
 }
 
 export interface DaySegment {
@@ -82,6 +84,8 @@ export interface SessionLine {
   projectName: string | null;
   projectColor: string | null;
   kind: Kind;
+  /** P66, P74: Work, Break, Gym or Food. */
+  tag: Tag;
   startMs: number;
   endMs: number | null;
   /** Time inside this day. */
@@ -128,7 +132,7 @@ export interface DaySummary {
   untracked: (Block & { sec: number })[];
   untrackedSec: number;
   timeline: {
-    segments: (Block & { sessionId: string; kind: Kind; name: string | null })[];
+    segments: (Block & { sessionId: string; kind: Kind; tag: Tag; name: string | null })[];
     away: (Block & { classification: AwayClassification | null; label: string | null })[];
     activity: (Block & { category: ActivityCategory; key: string })[];
   };
@@ -254,6 +258,7 @@ export function daySummary(
         projectName: s.projectName,
         projectColor: s.projectColor,
         kind: s.kind,
+        tag: tagOf(s),
         startMs: s.startedMs,
         endMs: s.endedMs,
         daySec,
@@ -317,7 +322,7 @@ export function daySummary(
       segments: daySegs
         .map((g) => {
           const s = data.sessions.find((x) => x.id === g.sessionId);
-          return { sessionId: g.sessionId, kind: s?.kind ?? 'open', name: s?.name ?? null, startMs: g.s, endMs: g.e };
+          return { sessionId: g.sessionId, kind: s?.kind ?? 'open', tag: s ? tagOf(s) : 'work', name: s?.name ?? null, startMs: g.s, endMs: g.e };
         })
         .sort((a, b) => a.startMs - b.startMs),
       away: awayDay.map((a) => ({ startMs: a.s, endMs: a.e, classification: a.classification, label: a.label })),
@@ -326,14 +331,22 @@ export function daySummary(
   };
 }
 
-export type TimeSplitKey = 'work' | 'break' | 'unanswered' | 'untracked';
+export type TimeSplitKey = 'work' | 'break' | 'gym' | 'food' | 'unanswered' | 'untracked';
 
-/** Where the day's time went (P68): work blocks, break blocks, ended work blocks not accounted for, untracked. Empty parts are dropped. */
+/**
+ * Where the day's time went (P68, P74): work blocks, breaks, gym, food, ended work blocks not accounted for,
+ * untracked. Empty parts are dropped.
+ */
 export function timeSplit(s: Pick<DaySummary, 'workSec' | 'breakSec' | 'untrackedSec' | 'sessions'>): { key: TimeSplitKey; sec: number }[] {
   const unanswered = s.sessions.filter((x) => x.kind !== 'break' && x.name === null && !x.running).reduce((t, x) => t + x.daySec, 0);
+  const tagged = (t: Tag) => s.sessions.filter((x) => x.tag === t).reduce((n, x) => n + x.daySec, 0);
+  const gym = tagged('gym');
+  const food = tagged('food');
   const parts: { key: TimeSplitKey; sec: number }[] = [
     { key: 'work', sec: s.workSec - unanswered },
-    { key: 'break', sec: s.breakSec },
+    { key: 'break', sec: s.breakSec - gym - food },
+    { key: 'gym', sec: gym },
+    { key: 'food', sec: food },
     { key: 'unanswered', sec: unanswered },
     { key: 'untracked', sec: s.untrackedSec },
   ];
@@ -352,4 +365,23 @@ export function dayLog(s: Pick<DaySummary, 'sessions' | 'away' | 'untracked'>): 
     ...s.away.map((x) => ({ type: 'away' as const, ...x })),
     ...s.untracked.map((x) => ({ type: 'untracked' as const, ...x })),
   ].sort((a, b) => a.startMs - b.startMs);
+}
+
+/** P73: blocks are neighbours when nothing sits between them in the log (no other block, away time or untracked span). */
+export function neighbours(log: LogEntry[], ids: string[]): boolean {
+  const at = ids.map((id) => log.findIndex((e) => e.type === 'session' && e.id === id)).sort((a, b) => a - b);
+  return at[0] >= 0 && at.every((i, k) => k === 0 || i === at[k - 1] + 1);
+}
+
+/** P73: runs of two or more ended neighbours with the same tag and the same answer, in time order. */
+export function alikeRuns(log: LogEntry[]): string[][] {
+  const runs: string[][] = [];
+  let prev: SessionLine | null = null;
+  for (const e of log) {
+    const x = e.type === 'session' && !e.running && e.name !== null ? e : null;
+    if (x && prev && x.tag === prev.tag && x.name === prev.name) runs[runs.length - 1].push(x.id);
+    else if (x) runs.push([x.id]);
+    prev = x;
+  }
+  return runs.filter((r) => r.length > 1);
 }

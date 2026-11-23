@@ -1,10 +1,11 @@
-// Where the day's time went (P68): a donut of work, break, not accounted for and untracked, with a legend.
+// Where the day's time went (P68, P74): a donut of work, break, gym, food, not accounted for and untracked, with a legend.
 import { useId, useState } from 'react';
 import { timeSplit, type DaySummary, type TimeSplitKey } from '../../core/aggregate';
 import { Empty } from './parts';
+import { TAG_COLOR } from './Timeline';
 import { dur } from './stats';
 
-const LABEL: Record<TimeSplitKey, string> = { work: 'Work', break: 'Break', unanswered: 'Not accounted for', untracked: 'Untracked' };
+const LABEL: Record<TimeSplitKey, string> = { work: 'Work', break: 'Break', gym: 'Gym', food: 'Food', unanswered: 'Not accounted for', untracked: 'Untracked' };
 const SIZE = 132;
 const R = 62;
 const INNER = 42;
@@ -24,7 +25,7 @@ export function TimeSplit({ s }: { s: DaySummary }) {
   const total = parts.reduce((t, p) => t + p.sec, 0);
   if (!total) return <Empty>No blocks this day</Empty>;
   const fill = (k: TimeSplitKey) =>
-    k === 'work' ? 'var(--color-work)' : k === 'break' ? 'var(--color-break)' : k === 'unanswered' ? 'var(--color-open)' : `url(#un${uid})`;
+    k === 'unanswered' ? 'var(--color-open)' : k === 'untracked' ? `url(#un${uid})` : TAG_COLOR[k];
   const share = (sec: number) => `${Math.round((sec / total) * 100)}%`;
   const shown = parts.find((p) => p.key === hover);
   // Each slice's start and end angle, clockwise from 12 o'clock.

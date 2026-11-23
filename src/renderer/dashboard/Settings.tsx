@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, type Settings as S } from '../../core/settings';
 import type { ScheduleRow, SettingsVM } from '../../preload/api';
 import { Btn, inputCls } from '../ui/controls';
 import { ExportButton } from './Export';
-import { applyWorkColor, Card, Segmented, Toggle, TopBar, useLoader } from './parts';
+import { applyTagColors, Card, Segmented, Toggle, TopBar, useLoader } from './parts';
 
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
 const DAY_NAME = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -23,7 +23,7 @@ export function Settings() {
   }, []);
   const set = async (p: Partial<S>) => {
     const next = await window.spyder.setSettings(p);
-    applyWorkColor(next.workColor);
+    applyTagColors(next);
     setS(next);
   };
   if (!s) return <TopBar title="Settings" />;
@@ -68,23 +68,31 @@ export function Settings() {
                   onChange={(v) => void set({ theme: v })}
                 />
               </Field>
-              <Field label="Work colour" hint="for work blocks">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    data-testid="set-workColor"
-                    aria-label="Work colour"
-                    value={s.workColor}
-                    onChange={(e) => void set({ workColor: e.target.value })}
-                    className="h-8 w-10 cursor-pointer rounded-control border border-border bg-surface p-0.5"
-                  />
-                  {s.workColor !== DEFAULT_SETTINGS.workColor && (
-                    <Btn size="sm" variant="ghost" data-testid="reset-workColor" onClick={() => void set({ workColor: DEFAULT_SETTINGS.workColor })}>
-                      Reset to default
-                    </Btn>
-                  )}
-                </div>
-              </Field>
+              {(
+                [
+                  ['workColor', 'Work colour', 'for work blocks'],
+                  ['gymColor', 'Gym colour', 'for gym blocks'],
+                  ['foodColor', 'Food colour', 'for food blocks'],
+                ] as const
+              ).map(([key, label, hint]) => (
+                <Field key={key} label={label} hint={hint}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      data-testid={`set-${key}`}
+                      aria-label={label}
+                      value={s[key]}
+                      onChange={(e) => void set({ [key]: e.target.value })}
+                      className="h-8 w-10 cursor-pointer rounded-control border border-border bg-surface p-0.5"
+                    />
+                    {s[key] !== DEFAULT_SETTINGS[key] && (
+                      <Btn size="sm" variant="ghost" data-testid={`reset-${key}`} onClick={() => void set({ [key]: DEFAULT_SETTINGS[key] })}>
+                        Reset to default
+                      </Btn>
+                    )}
+                  </div>
+                </Field>
+              ))}
               <Field label="Widget hotkey" hint="shows / hides the widget">
                 <TextInput testId="set-hotkey" value={s.hotkey} onCommit={(v) => void set({ hotkey: v })} />
               </Field>

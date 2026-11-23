@@ -126,6 +126,46 @@ test('joined answers, re-answer, answer many, delete → undo, merge → undo on
   await shot(d, 'today-timeline');
 });
 
+test('neighbours merge across a gap too short to show; Merge repeats merges every run with one Undo (P73)', async () => {
+  const dir = freshDataDir();
+  seed(dir, 1, DATE);
+  // Start the second Code review block 30 s late: nothing shows between the two, so they're still neighbours.
+  const db = new Db(join(dir, 'spyder.db'));
+  const second = (db.all("SELECT id FROM sessions WHERE name = 'Code review' ORDER BY started_ms") as { id: string }[])[1].id;
+  db.run('UPDATE sessions SET started_ms = started_ms + 30000 WHERE id = ?', second);
+  db.run('UPDATE segments SET start_ms = start_ms + 30000 WHERE session_id = ?', second);
+  db.close();
+  s = await launch({ dataDir: dir, now: `${DATE}T18:00:00` });
+  const d = s.dashboard;
+  await d.evaluate(() => window.spyder.openDashboard('today'));
+  await d.getByTestId('block-log').waitFor();
+  await expect(rows(d, 'Code review').first().getByTestId('block-group')).toContainText('3 blocks');
+  for (const r of (await rows(d, 'Code review').all()).slice(0, 2)) await r.getByTestId('block-check').click();
+  await d.getByTestId('merge-open').click();
+  await expect(d.getByTestId('merge-panel')).toContainText('They become one');
+  await d.getByRole('button', { name: 'Cancel' }).click();
+  await d.getByRole('button', { name: 'Clear' }).click();
+
+  // Merge repeats: every joined run becomes one block; Undo splits them all again.
+  const before = await d.getByTestId('block-row').count();
+  const joined = await d.locator('[data-testid=block-row][data-joined=true]').count();
+  expect(joined).toBeGreaterThan(1);
+  const runs = await d.getByTestId('block-group').count();
+  await expect(d.getByRole('button', { name: 'Export…' })).toHaveCount(0); // P72: export lives in Settings
+  await d.mouse.move(0, 0);
+  await shot(d, 'today-merge-repeats');
+  await d.getByTestId('merge-repeats').click();
+  await expect(d.getByTestId('toast')).toContainText(`Merged ${joined + runs} blocks into ${runs}`);
+  await expect(d.getByTestId('block-row')).toHaveCount(before - joined);
+  await expect(d.getByTestId('merge-repeats')).toHaveCount(0);
+  await expect(rows(d, 'Code review')).toHaveCount(1);
+  const vm = await expected(dir, (await s.debug.state()).now as number);
+  expect(vm.summary.sessions.filter((x) => x.name === 'Code review')).toHaveLength(1);
+  await d.getByTestId('toast-undo').click();
+  await expect(d.getByTestId('block-row')).toHaveCount(before);
+  await expect(rows(d, 'Code review')).toHaveCount(3);
+});
+
 test('the running block can’t be edited until it ends; an ended one can', async () => {
   s = await launch({ scale: 1 });
   const d = s.dashboard;
@@ -232,6 +272,63 @@ test('tags: Work/Break apart from the answer, per row and in bulk; merge needs o
   await expect(pie.locator('[data-slice]')).toHaveCount(4);
   await pie.locator('[data-slice=break]').hover();
   await shot(d, 'review-pie');
+});
+
+test('Gym and Food: break tags with their own colours, label and slices (P74)', async () => {
+  const dir = freshDataDir();
+  seed(dir, 1, DATE);
+  s = await launch({ dataDir: dir, now: `${DATE}T18:00:00` });
+  const d = s.dashboard;
+  await d.evaluate(() => window.spyder.openDashboard('today'));
+  await d.getByTestId('block-log').waitFor();
+  const firstBreak = (await rows(d, 'Break').first().getAttribute('data-session'))!;
+
+  // A break tagged Gym reads "Gym", stays a break, and takes the gym colour.
+  await rows(d, 'Break').first().getByTestId('block-tag').selectOption('gym');
+  await expect(d.getByTestId('toast')).toContainText('“Break” is now gym');
+  await expect(rows(d, 'Gym').getByTestId('block-tag')).toHaveValue('gym');
+  expect(s.db().prepare('SELECT kind, tag, name FROM sessions WHERE id = ?').get(firstBreak)).toEqual({ kind: 'break', tag: 'gym', name: 'Break' });
+  await expect(d.locator(`[data-block=session][data-session="${firstBreak}"]`).first()).toHaveAttribute('fill', 'var(--color-gym)');
+  await rows(d, 'Break').first().getByTestId('block-tag').selectOption('food');
+  await expect(rows(d, 'Food').getByTestId('block-tag')).toHaveValue('food');
+
+  // Gym and Food are different tags: they don't join, and can't be merged.
+  await expect(rows(d, 'Gym').getByTestId('block-group')).toHaveCount(0);
+  await rows(d, 'Gym').getByTestId('block-check').click();
+  await rows(d, 'Food').getByTestId('block-check').click();
+  await d.getByTestId('merge-open').click();
+  await expect(d.getByTestId('merge-panel')).toContainText('Blocks with different tags can’t be merged. Change their tags first.');
+  await d.getByRole('button', { name: 'Clear' }).click();
+
+  // Answering a gym block with Save keeps it Gym; the time still counts as break.
+  await rows(d, 'Gym').getByTestId('block-answer').click();
+  await d.getByTestId('block-edit-row').getByLabel('Answer').fill('leg day');
+  await d.getByTestId('edit-save').click();
+  await expect(rows(d, 'leg day').getByTestId('block-tag')).toHaveValue('gym');
+  const nowMs = (await s.debug.state()).now as number;
+  const vm = await expected(dir, nowMs);
+  await expect(d.getByTestId('stat-work')).toHaveText(statTexts(vm.summary, vm.streak).work);
+  await d.mouse.move(0, 0);
+  await shot(d, 'today-gym-food');
+
+  // Colours come from Settings: orange and pink by default.
+  const color = (v: string) => () => d.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim().toLowerCase(), v);
+  await d.evaluate(() => window.spyder.openDashboard('settings'));
+  expect(await color('--color-gym')()).toBe('#e8853d');
+  expect(await color('--color-food')()).toBe('#d9669b');
+  await d.getByTestId('set-gymColor').fill('#ff0000');
+  await expect.poll(color('--color-gym')).toBe('#ff0000');
+  await d.getByTestId('reset-gymColor').click();
+  await expect.poll(color('--color-gym')).toBe('#e8853d');
+
+  // Where the day went has Gym and Food slices.
+  await d.evaluate(() => window.spyder.openDashboard('review'));
+  const parts = timeSplit(vm.summary);
+  expect(parts.map((p) => p.key)).toEqual(['work', 'break', 'gym', 'food', 'unanswered', 'untracked']);
+  const pie = d.getByTestId('time-split');
+  for (const p of parts) await expect(pie.getByTestId(`split-${p.key}`)).toContainText(dur(p.sec));
+  await pie.locator('[data-slice=gym]').hover();
+  await shot(d, 'review-pie-gym-food');
 });
 
 test('the prompt’s Break keeps typed text as the break’s answer (P66)', async () => {

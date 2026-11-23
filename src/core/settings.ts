@@ -16,6 +16,9 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark';
   /** P67: the colour of work blocks, #rrggbb. */
   workColor: string;
+  /** P74: the colours of gym and food blocks, #rrggbb. */
+  gymColor: string;
+  foodColor: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -33,6 +36,8 @@ export const DEFAULT_SETTINGS: Settings = {
   widgetPos: null,
   theme: 'system',
   workColor: '#3fb27f',
+  gymColor: '#e8853d',
+  foodColor: '#d9669b',
 };
 
 export interface ScheduleRow {
@@ -84,7 +89,7 @@ export function cleanSettings(partial: Record<string, unknown>): Partial<Setting
       if (ENUMS[key]!.includes(v)) out[k] = v;
     } else if (key === 'widgetPos') {
       if (v === null || (typeof v === 'object' && typeof (v as { x: unknown }).x === 'number' && typeof (v as { y: unknown }).y === 'number')) out[k] = v;
-    } else if (key === 'workColor') {
+    } else if (key === 'workColor' || key === 'gymColor' || key === 'foodColor') {
       if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) out[k] = v.toLowerCase();
     } else if (key === 'hotkey') {
       if (typeof v === 'string' && v.trim()) out[k] = v.trim();

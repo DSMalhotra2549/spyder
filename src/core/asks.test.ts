@@ -53,7 +53,7 @@ describe('toAsk (P70)', () => {
   });
 
   it('unmatched Firefox pages are asked by title', () => {
-    const rows = toAsk([{ exe: 'zen.exe', appName: 'Zen', domain: null, title: 'Some page', browser: 'firefox', isPrivate: false, ms: 5 * MIN }], defaults);
-    expect(rows.map((r) => [r.key, r.ruleTarget])).toEqual([['Zen: Some page', { matchType: 'title', pattern: 'some page' }]]);
+    const rows = toAsk([{ exe: 'firefox.exe', appName: 'Firefox', domain: null, title: 'Some page', browser: 'firefox', isPrivate: false, ms: 5 * MIN }], defaults);
+    expect(rows.map((r) => [r.key, r.ruleTarget])).toEqual([['Firefox: Some page', { matchType: 'title', pattern: 'some page' }]]);
   });
 });

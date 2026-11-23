@@ -162,8 +162,8 @@ export function topApps(db: Db, startMs: number, endMs: number, limit = 3): stri
 }
 
 /**
- * One block's answer (P60, P66): free text, or null for none (only a break may have none). `tag` sets Work or
- * Break; left out, the block keeps its tag.
+ * One block's answer (P60, P66, P74): free text, or null for none (only a work block needs one). `tag` sets Work,
+ * Break, Gym or Food; left out, the block keeps its tag.
  */
 export interface BlockAnswer {
   id: string;
@@ -177,8 +177,8 @@ export const BREAK_NAME = 'Break';
 export function writeAnswers(db: Db, answers: { id: string; answer: string | null; tag: Tag }[]): void {
   db.transaction(() => {
     for (const a of answers) {
-      if (a.tag === 'break') db.run(`UPDATE sessions SET kind = 'break', name = ? WHERE id = ?`, a.answer ?? BREAK_NAME, a.id);
-      else db.run(`UPDATE sessions SET kind = 'open', name = ? WHERE id = ?`, a.answer, a.id);
+      if (a.tag !== 'work') db.run(`UPDATE sessions SET kind = 'break', tag = ?, name = ? WHERE id = ?`, a.tag === 'break' ? null : a.tag, a.answer ?? BREAK_NAME, a.id);
+      else db.run(`UPDATE sessions SET kind = 'open', tag = NULL, name = ? WHERE id = ?`, a.answer, a.id);
     }
   });
 }

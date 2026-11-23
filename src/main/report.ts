@@ -35,10 +35,10 @@ export function loadDayData(db: Db, date: string, nowMs: number): DayData {
     .all<{
       id: string; kind: DayData['sessions'][number]['kind']; name: string | null; project_id: string | null;
       pname: string | null; pcolor: string | null; planned_sec: number | null; status: DayData['sessions'][number]['status'];
-      started_ms: number; ended_ms: number | null; end_reason: DayData['sessions'][number]['endReason'];
+      started_ms: number; ended_ms: number | null; end_reason: DayData['sessions'][number]['endReason']; tag: 'gym' | 'food' | null;
     }>(
       `SELECT s.id, s.kind, s.name, s.project_id, p.name AS pname, p.color AS pcolor, s.planned_sec, s.status,
-              s.started_ms, s.ended_ms, s.end_reason
+              s.started_ms, s.ended_ms, s.end_reason, s.tag
          FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
         WHERE s.deleted_ms IS NULL
           AND ((s.started_ms >= ? AND s.started_ms < ?)
@@ -47,7 +47,7 @@ export function loadDayData(db: Db, date: string, nowMs: number): DayData {
     )
     .map((r) => ({
       id: r.id, kind: r.kind, name: r.name, projectId: r.project_id, projectName: r.pname, projectColor: r.pcolor,
-      plannedSec: r.planned_sec, status: r.status, startedMs: r.started_ms, endedMs: r.ended_ms, endReason: r.end_reason,
+      plannedSec: r.planned_sec, status: r.status, startedMs: r.started_ms, endedMs: r.ended_ms, endReason: r.end_reason, tag: r.tag,
     }));
   const ids = sessions.map((s) => s.id);
   const segments = ids.length
