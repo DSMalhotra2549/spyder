@@ -155,7 +155,7 @@ export function gaps(from: number, to: number, cover: Block[], minMs = MIN_UNTRA
 export function appKey(a: DayActivity): string {
   if (a.isPrivate) return 'Private browsing';
   if (a.domain) return a.domain;
-  if (a.browser === 'firefox' && a.title) return `Firefox: ${a.title}`;
+  if (a.browser === 'firefox' && a.title) return `${a.exe === 'zen.exe' ? 'Zen' : 'Firefox'}: ${a.title}`;
   return a.appName;
 }
 

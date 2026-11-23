@@ -49,6 +49,9 @@ describe('parseFirefoxTitle', () => {
     ['Someone on X: "hi" / X — Mozilla Firefox', 'Someone on X: "hi" / X', 'x.com'],
     ['Some blog post — Mozilla Firefox', 'Some blog post', null],
     ['Some blog post - Firefox', 'Some blog post', null],
+    ['168 Hours of Decisions - YouTube — Zen Browser', '168 Hours of Decisions - YouTube', 'youtube.com'],
+    ['028 - Google Docs — Zen Browser', '028 - Google Docs', 'docs.google.com'],
+    ['GetHookd AI — Zen Browser', 'GetHookd AI', null],
   ])('%s', (t, title, domain) => {
     expect(parseFirefoxTitle(t, P)).toEqual({ title, domain, isPrivate: false });
   });
@@ -59,9 +62,11 @@ describe('parseFirefoxTitle', () => {
       isPrivate: true,
     });
     expect(parseFirefoxTitle('Mozilla Firefox Private Browsing', P).isPrivate).toBe(true);
+    expect(parseFirefoxTitle('Secret - YouTube — Zen Browser Private Browsing', P).isPrivate).toBe(true);
   });
   it('bare "Mozilla Firefox" is a new tab', () => {
     expect(parseFirefoxTitle('Mozilla Firefox', P)).toEqual({ title: null, domain: null, isPrivate: false });
+    expect(parseFirefoxTitle('Zen Browser', P)).toEqual({ title: null, domain: null, isPrivate: false });
   });
   it('longest pattern wins', () => {
     const pats = [

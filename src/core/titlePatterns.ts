@@ -1,4 +1,4 @@
-// Firefox window title → page title + domain (plan §9.3, ADR-0007).
+// Firefox (and Zen, which is built on it) window title → page title + domain (plan §9.3, ADR-0007, P69).
 import type { PatternMatch } from './defaults';
 
 export interface TitlePattern {
@@ -13,7 +13,7 @@ export interface FirefoxPage {
   isPrivate: boolean;
 }
 
-const SUFFIX = /^(.*?)\s[—–-]\s(?:Mozilla\s)?Firefox(\sPrivate Browsing)?$/;
+const SUFFIX = /^(.*?)\s[—–-]\s(?:(?:Mozilla\s)?Firefox|Zen Browser)(\sPrivate Browsing)?$/;
 
 export function matchTitle(page: string, patterns: TitlePattern[]): string | null {
   const t = page.toLowerCase();
@@ -30,10 +30,10 @@ export function matchTitle(page: string, patterns: TitlePattern[]): string | nul
 export function parseFirefoxTitle(windowTitle: string, patterns: TitlePattern[]): FirefoxPage {
   const raw = windowTitle.trim();
   const m = SUFFIX.exec(raw);
-  if (m?.[2] || /^(Mozilla\s)?Firefox Private Browsing$/i.test(raw)) return { title: null, domain: null, isPrivate: true };
+  if (m?.[2] || /^((Mozilla\s)?Firefox|Zen Browser) Private Browsing$/i.test(raw)) return { title: null, domain: null, isPrivate: true };
   if (!m) {
-    // "Mozilla Firefox" alone is a new tab.
-    if (/^(Mozilla\s)?Firefox$/i.test(raw)) return { title: null, domain: null, isPrivate: false };
+    // "Mozilla Firefox" / "Zen Browser" alone is a new tab.
+    if (/^((Mozilla\s)?Firefox|Zen Browser)$/i.test(raw)) return { title: null, domain: null, isPrivate: false };
     return { title: raw || null, domain: raw ? matchTitle(raw, patterns) : null, isPrivate: false };
   }
   const page = m[1].trim();
