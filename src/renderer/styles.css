@@ -23,6 +23,8 @@
   --color-open: #a1a1aa;
   --color-break: #6b8afd;
   --color-away: #c99cf0;
+  /* P67: work blocks; the user's pick from Settings replaces it on :root at runtime. */
+  --color-work: #3fb27f;
 
   --color-productive: #2dd4bf;
   --color-neutral: #71717a;

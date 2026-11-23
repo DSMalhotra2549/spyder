@@ -8,7 +8,7 @@ import { initialNudge, nudgeMessage, stepNudge, type NudgeState } from '../core/
 import { accountView, reminderView, type PendingBlock, type PromptVM } from '../core/promptView';
 import { addDays, dateKey, mergeOverride, minutesOfDay, startOfDay, workWindow, type DayOverride } from '../core/schedule';
 import type { ScheduleRow } from '../core/settings';
-import type { Ctx, Effect, EngineError, EngineEvent, EngineState } from '../core/types';
+import type { Ctx, Effect, EngineError, EngineEvent, EngineState, Tag } from '../core/types';
 import type { WidgetPayload } from '../preload/api';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
@@ -144,19 +144,20 @@ export class EngineHost {
   }
 
   /**
-   * Answers ended blocks (P60, P64): text, or null for Break. The running block has no answer yet.
-   * Used by the prompt, Today and the review.
+   * Answers ended blocks (P60, P64, P66): text, and optionally a tag; without one a block keeps its tag. A work
+   * block needs text, a break doesn't. The running block has no answer yet. Used by the prompt, Today and the review.
    */
   answer(answers: repo.BlockAnswer[]): Result {
-    const clean: repo.BlockAnswer[] = [];
+    const clean: { id: string; answer: string | null; tag: Tag }[] = [];
     const running = this.state.loop?.block.id;
     for (const a of answers) {
-      const text = a.answer === null ? null : a.answer.trim();
-      if (text === '') return { error: 'invalid', message: 'Say what you did, or pick Break' };
       if (a.id === running) return { error: 'invalid', message: 'The running block can’t be answered until it ends' };
-      const row = this.app.db.get<{ status: string; deleted_ms: number | null }>('SELECT status, deleted_ms FROM sessions WHERE id = ?', a.id);
+      const row = this.app.db.get<{ kind: string; deleted_ms: number | null }>('SELECT kind, deleted_ms FROM sessions WHERE id = ?', a.id);
       if (!row || row.deleted_ms !== null) return { error: 'invalid', message: 'No such block' };
-      clean.push({ id: a.id, answer: text });
+      const tag: Tag = a.tag ?? (row.kind === 'break' ? 'break' : 'work');
+      const text = a.answer?.trim() || null;
+      if (tag === 'work' && text === null) return { error: 'invalid', message: 'Say what you did, or pick Break' };
+      clean.push({ id: a.id, answer: text, tag });
     }
     repo.writeAnswers(this.app.db, clean);
     const dates = new Set(

@@ -1,11 +1,11 @@
 // Settings page (plan §5, §12; design/DESIGN.md §4 Settings). Every change applies live.
 import clsx from 'clsx';
 import { useEffect, useState, type ReactNode } from 'react';
-import type { Settings as S } from '../../core/settings';
+import { DEFAULT_SETTINGS, type Settings as S } from '../../core/settings';
 import type { ScheduleRow, SettingsVM } from '../../preload/api';
 import { Btn, inputCls } from '../ui/controls';
 import { ExportButton } from './Export';
-import { Card, Segmented, Toggle, TopBar, useLoader } from './parts';
+import { applyWorkColor, Card, Segmented, Toggle, TopBar, useLoader } from './parts';
 
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
 const DAY_NAME = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -21,7 +21,11 @@ export function Settings() {
   useEffect(() => {
     void window.spyder.getSettings().then(setS);
   }, []);
-  const set = async (p: Partial<S>) => setS(await window.spyder.setSettings(p));
+  const set = async (p: Partial<S>) => {
+    const next = await window.spyder.setSettings(p);
+    applyWorkColor(next.workColor);
+    setS(next);
+  };
   if (!s) return <TopBar title="Settings" />;
   return (
     <>
@@ -63,6 +67,23 @@ export function Settings() {
                   ]}
                   onChange={(v) => void set({ theme: v })}
                 />
+              </Field>
+              <Field label="Work colour" hint="for work blocks">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    data-testid="set-workColor"
+                    aria-label="Work colour"
+                    value={s.workColor}
+                    onChange={(e) => void set({ workColor: e.target.value })}
+                    className="h-8 w-10 cursor-pointer rounded-control border border-border bg-surface p-0.5"
+                  />
+                  {s.workColor !== DEFAULT_SETTINGS.workColor && (
+                    <Btn size="sm" variant="ghost" data-testid="reset-workColor" onClick={() => void set({ workColor: DEFAULT_SETTINGS.workColor })}>
+                      Reset to default
+                    </Btn>
+                  )}
+                </div>
               </Field>
               <Field label="Widget hotkey" hint="shows / hides the widget">
                 <TextInput testId="set-hotkey" value={s.hotkey} onCommit={(v) => void set({ hotkey: v })} />

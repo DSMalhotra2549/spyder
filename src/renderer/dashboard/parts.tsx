@@ -43,6 +43,11 @@ export const CAT_LABEL: Record<ActivityCategory, string> = {
  * Loads data, reloads when `key` changes, every 15 s while `live`, and when the window regains
  * focus. Returns the latest value and a manual reload.
  */
+/** P67: the user's work colour, used by every work block in the dashboard. */
+export function applyWorkColor(color: string): void {
+  document.documentElement.style.setProperty('--color-work', color);
+}
+
 export function useLoader<T>(
   fn: () => Promise<T>,
   key: string,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appKey, dayLog, daySummary, gaps, type DayActivity, type DayData, type DaySession } from './aggregate';
+import { appKey, dayLog, daySummary, gaps, timeSplit, type DayActivity, type DayData, type DaySession } from './aggregate';
 import type { Rule } from './categorize';
 import { DEFAULT_RULES } from './defaults';
 import { leftovers } from './review';
@@ -178,6 +178,20 @@ describe('daySummary', () => {
     expect(r.workSec).toBe(900);
     expect(r.sessions[0].running).toBe(true);
     expect(r.unlabelledCount).toBe(0); // still running
+  });
+
+  it('P68: time split for the pie: work, break, not accounted for, untracked; empty slices dropped', () => {
+    expect(timeSplit(d)).toEqual(
+      [
+        { key: 'work', sec: 305 * 60 - 30 * 60 }, // D (30 min) isn't accounted for yet
+        { key: 'break', sec: 45 * 60 },
+        { key: 'unanswered', sec: 30 * 60 },
+        { key: 'untracked', sec: d.untrackedSec },
+      ].filter((x) => x.sec > 0),
+    );
+    // The running block counts as work, not as a leftover.
+    const r = daySummary('2026-11-24', { window: null, nowMs: at(11, 15), sessions: [ses('X', 'open', null, at(11), null)], segments: [{ sessionId: 'X', startMs: at(11), endMs: null }], away: [], activity: [], flags: [] }, rules, S);
+    expect(timeSplit(r)).toEqual([{ key: 'work', sec: 900 }]);
   });
 
   it('appKey', () => {

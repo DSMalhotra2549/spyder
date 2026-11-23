@@ -11,7 +11,7 @@ import { Rules } from './Rules';
 import { Settings } from './Settings';
 import { Today } from './Today';
 import { Week } from './Week';
-import { TopBar, useLoader } from './parts';
+import { applyWorkColor, TopBar, useLoader } from './parts';
 import { Toast } from './toast';
 
 const icon = (d: string) => (
@@ -38,6 +38,9 @@ const LABELS: Record<string, string> = Object.fromEntries(GROUPS.flatMap((g) => 
 export function Dashboard({ page, date }: { page: string; date?: string }) {
   // Pending review items for the sidebar badge (today).
   const [rv, reloadBadge] = useLoader(() => window.spyder.getReview(), page, true);
+  useEffect(() => {
+    void window.spyder.getSettings().then((s) => applyWorkColor(s.workColor));
+  }, []);
   const go = (p: string, d?: string) => navigate(`dashboard/${p}${d ? `/${d}` : ''}`);
   const onDate = (d: string) => go(page, rv && d === rv.today ? undefined : d);
   return (

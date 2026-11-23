@@ -3,7 +3,7 @@ import type { WidgetVM } from '../core/blockEngine';
 import type { PromptVM } from '../core/promptView';
 import type { Settings } from '../core/settings';
 import type { Category, MatchType } from '../core/defaults';
-import type { EngineError } from '../core/types';
+import type { EngineError, Tag } from '../core/types';
 import type { DayVM, Kpi, ReviewItem, ReviewVM } from '../core/review';
 import type { AppRow } from '../core/aggregate';
 import type { ScheduleRow } from '../core/settings';
@@ -46,14 +46,15 @@ export interface WidgetPayload extends WidgetVM {
 
 export type PromptWindowState = PromptVM | null;
 
-/** One block's answer: free text, or null for Break (P60). */
+/** One block's answer (P60, P66): free text, or null for none (breaks only); `tag` left out keeps the block's tag. */
 export interface BlockAnswer {
   id: string;
   answer: string | null;
+  tag?: Tag;
 }
 
 export type Ok = { ok: true };
-/** A delete or merge (P64): `undoId` undoes it while it's the latest edit. */
+/** A delete, merge or tag change (P64, P66): `undoId` undoes it while it's the latest edit. */
 export type EditResult = { ok: true; undoId: string; message: string } | EngineError;
 
 export interface DebugApi {
@@ -96,8 +97,10 @@ export interface SpyderApi {
   /** P60, P64: answer ended blocks (also re-answer). */
   answerBlocks(answers: BlockAnswer[]): Promise<Ok | EngineError>;
   deleteBlocks(ids: string[]): Promise<EditResult>;
-  /** P64: adjacent blocks become one block with `answer` (null = Break). */
+  /** P64: adjacent blocks of one tag become one block with `answer` (null = none, breaks only). */
   mergeBlocks(ids: string[], answer: string | null): Promise<EditResult>;
+  /** P66: set the blocks' tag; answers stay. */
+  tagBlocks(ids: string[], tag: Tag): Promise<EditResult>;
   undoEdit(undoId: string): Promise<Ok | EngineError>;
 
   answerSuggestions(prefix: string): Promise<string[]>;

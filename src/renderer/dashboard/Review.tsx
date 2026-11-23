@@ -4,8 +4,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DaySummary } from '../../core/aggregate';
 import { fmtDuration, fmtTime } from '../../core/format';
 import type { Kpi, ReviewItem } from '../../core/review';
+import type { Tag } from '../../core/types';
 import { AnswerInput, Btn, inputCls } from '../ui/controls';
 import { Timeline } from './Timeline';
+import { TimeSplit } from './TimeSplit';
 import { Card, TopBar, useLoader } from './parts';
 import { dur, pct } from './stats';
 import { showEditResult } from './toast';
@@ -51,6 +53,9 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
           </Card>
           <Card title="Day summary">
             <MiniStats s={vm.summary} />
+            <div className="mt-4 border-t border-border pt-4">
+              <TimeSplit s={vm.summary} />
+            </div>
             <div className="mt-4">
               <Timeline s={vm.summary} nowMs={-1} compact />
             </div>
@@ -120,9 +125,10 @@ function Leftovers({ s, onChanged }: { s: DaySummary; onChanged: () => Promise<v
 function LeftoverRow({ id, startMs, endMs, sec, onChanged }: { id: string; startMs: number; endMs: number; sec: number; onChanged: () => Promise<void> }) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const save = async (answer: string | null) => {
-    if (answer !== null && !answer.trim()) return setError('Say what you did, or pick Break');
-    const r = await window.spyder.answerBlocks([{ id, answer }]);
+  // Save makes it a work block; Break a break, keeping any typed text (P66).
+  const save = async (tag: Tag) => {
+    if (tag === 'work' && !text.trim()) return setError('Say what you did, or pick Break');
+    const r = await window.spyder.answerBlocks([{ id, answer: text.trim() || null, tag }]);
     if ('error' in r) return setError(r.message);
     await onChanged();
   };
@@ -133,12 +139,12 @@ function LeftoverRow({ id, startMs, endMs, sec, onChanged }: { id: string; start
       </div>
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
-          <AnswerInput value={text} onChange={setText} onEnter={() => void save(text)} />
+          <AnswerInput value={text} onChange={setText} onEnter={() => void save('work')} />
         </div>
-        <Btn variant="primary" disabled={!text.trim()} onClick={() => void save(text)}>
+        <Btn variant="primary" disabled={!text.trim()} onClick={() => void save('work')}>
           Save
         </Btn>
-        <Btn data-testid="leftover-break" onClick={() => void save(null)}>
+        <Btn data-testid="leftover-break" onClick={() => void save('break')}>
           Break
         </Btn>
       </div>

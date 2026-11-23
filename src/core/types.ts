@@ -2,6 +2,8 @@
 import type { Settings } from './settings';
 
 export type Kind = 'planned' | 'timed' | 'open' | 'break';
+/** P66: a block is Work (kind 'open') or Break (kind 'break'), apart from its answer. */
+export type Tag = 'work' | 'break';
 export type Direction = 'up' | 'down';
 export type AwayReason = 'idle' | 'suspend' | 'lock' | 'not_running';
 export type AwayClassification = 'break' | 'meeting' | 'offline_work' | 'not_working' | 'working';

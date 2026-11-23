@@ -1,7 +1,7 @@
 // Prompt window (#/prompt): accounting for ended blocks (P60) or the start reminder (P59). DESIGN.md §3.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { AccountBlockVM, AccountVM, ReminderVM } from '../../core/promptView';
-import type { EngineError } from '../../core/types';
+import type { EngineError, Tag } from '../../core/types';
 import type { BlockAnswer, Ok, PromptWindowState } from '../../preload/api';
 import { Segmented } from '../dashboard/parts';
 import { AnswerInput, Btn } from '../ui/controls';
@@ -61,7 +61,7 @@ function BlockLine({ b }: { b: AccountBlockVM }) {
   );
 }
 
-/** A row's answer in "Each separately": text, or Break. */
+/** A row's answer in "Each separately": text, and whether it's a break (P66: a break may have text too). */
 type RowAnswer = { text: string; isBreak: boolean };
 
 /** "What did you do?" for every ended, unanswered block of today (P60). */
@@ -76,9 +76,10 @@ function AccountCard({ p }: { p: AccountVM }) {
     if (!answers.length) return setError(NEED);
     setError(errText(await window.spyder.answerBlocks(answers)));
   };
-  const all = (answer: string | null) => {
-    if (answer !== null && !answer.trim()) return setError(NEED);
-    void send(p.blocks.map((b) => ({ id: b.id, answer })));
+  // Save makes work blocks; Break makes breaks, keeping any typed text (P66).
+  const all = (answer: string, tag: Tag) => {
+    if (tag === 'work' && !answer.trim()) return setError(NEED);
+    void send(p.blocks.map((b) => ({ id: b.id, answer: answer.trim() || null, tag })));
   };
   const row = (id: string): RowAnswer => rows[id] ?? { text: '', isBreak: false };
   const setRow = (id: string, r: Partial<RowAnswer>) => setRows((all) => ({ ...all, [id]: { ...row(id), ...r } }));
@@ -87,7 +88,8 @@ function AccountCard({ p }: { p: AccountVM }) {
     void send(
       p.blocks.flatMap((b): BlockAnswer[] => {
         const r = row(b.id);
-        return r.isBreak ? [{ id: b.id, answer: null }] : r.text.trim() ? [{ id: b.id, answer: r.text }] : [];
+        if (r.isBreak) return [{ id: b.id, answer: r.text.trim() || null, tag: 'break' }];
+        return r.text.trim() ? [{ id: b.id, answer: r.text, tag: 'work' }] : [];
       }),
     );
 
@@ -121,16 +123,16 @@ function AccountCard({ p }: { p: AccountVM }) {
       )}
       {!many || mode === 'all' ? (
         <>
-          <AnswerInput value={text} onChange={setText} onEnter={() => all(text)} autoFocus />
+          <AnswerInput value={text} onChange={setText} onEnter={() => all(text, 'work')} autoFocus />
           <div className="flex flex-wrap items-center gap-2">
-            <Btn pill variant="primary" data-testid="account-save" onClick={() => all(text)}>
+            <Btn pill variant="primary" data-testid="account-save" onClick={() => all(text, 'work')}>
               Save
             </Btn>
-            <Btn pill data-testid="account-break" onClick={() => all(null)}>
+            <Btn pill data-testid="account-break" onClick={() => all(text, 'break')}>
               Break
             </Btn>
             {p.lastAnswer && (
-              <Btn pill variant="ghost" data-testid="account-same" title="Same as last" onClick={() => all(p.lastAnswer)}>
+              <Btn pill variant="ghost" data-testid="account-same" title="Same as last" onClick={() => all(p.lastAnswer ?? '', 'work')}>
                 <span className="max-w-[180px] truncate">Same: {p.lastAnswer}</span>
               </Btn>
             )}
@@ -144,11 +146,7 @@ function AccountCard({ p }: { p: AccountVM }) {
                 <BlockLine b={b} />
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
-                    {row(b.id).isBreak ? (
-                      <div className="flex h-8 items-center text-[13px] text-muted">Break</div>
-                    ) : (
-                      <AnswerInput value={row(b.id).text} onChange={(v) => setRow(b.id, { text: v })} onEnter={saveEach} autoFocus={i === 0} />
-                    )}
+                    <AnswerInput value={row(b.id).text} onChange={(v) => setRow(b.id, { text: v })} onEnter={saveEach} autoFocus={i === 0} />
                   </div>
                   <Btn
                     size="sm"

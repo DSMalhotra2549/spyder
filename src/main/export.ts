@@ -104,7 +104,7 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
         s.started_ms,
         s.ended_ms,
         s.kind,
-        s.name ?? '(unlabelled)',
+        s.name ?? (s.kind === 'break' ? 'Break' : '(unlabelled)'),
         s.pname,
         s.planned_sec === null ? null : minutes(s.planned_sec),
         ...dur(actual),

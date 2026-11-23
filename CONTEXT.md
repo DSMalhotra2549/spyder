@@ -50,10 +50,17 @@ _Avoid_: log, label
 
 **Answer**:
 The free text that says what a block was spent on. Consecutive blocks with the same answer are shown joined but stay separate blocks until merged.
-_Avoid_: label, name, tag
+_Avoid_: label, name
+
+**Tag**:
+Whether a block is Work or Break. Every block has exactly one tag, set apart from its answer and changeable after the fact.
+_Avoid_: kind, type, category (categories are for activity)
+
+**Work block**:
+A block tagged Work. Its time is work time.
 
 **Break block**:
-A block the user accounts for as a break, with the Break button instead of text. It isn't work time.
+A block tagged Break. It may have an answer (e.g. "took a nap") or none, in which case it reads "Break". It isn't work time.
 _Avoid_: pause
 
 **Away time** (in a block):
@@ -64,7 +71,7 @@ During work hours with no loop running, the bar shows "Not started" highlighted 
 _Avoid_: nag
 
 **Merge**:
-Joining adjacent blocks (no time between them) into one longer block with one answer, picked by the user. A break block can't be merged with a work block.
+Joining adjacent blocks (no time between them) into one longer block with one answer, picked by the user. Blocks with different tags can't be merged.
 _Avoid_: combine, join
 
 **Delete**:
