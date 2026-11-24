@@ -29,7 +29,7 @@ const ICONS: Record<string, ReactNode> = {
 };
 
 const GROUPS: { title: string; items: { id: string; label: string }[] }[] = [
-  { title: 'Today', items: [{ id: 'today', label: 'Today' }, { id: 'review', label: 'Review' }] },
+  { title: 'Day', items: [{ id: 'today', label: 'Today' }, { id: 'review', label: 'Review' }] },
   { title: 'Trends', items: [{ id: 'week', label: 'Week' }, { id: 'month', label: 'Month' }] },
   { title: 'Setup', items: [{ id: 'rules', label: 'Rules' }, { id: 'settings', label: 'Settings' }] },
 ];

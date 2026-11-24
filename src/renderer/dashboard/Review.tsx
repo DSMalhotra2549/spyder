@@ -74,9 +74,7 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
               placeholder="One thing to do differently"
             />
           </Card>
-          <Card title="KPIs">
-            <Kpis key={vm.date} date={vm.date} kpis={vm.kpis} values={vm.kpiValues} onChanged={refresh} />
-          </Card>
+          <Kpis key={vm.date} date={vm.date} kpis={vm.kpis} values={vm.kpiValues} onChanged={refresh} />
         </div>
       </div>
     </>
@@ -85,9 +83,9 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
 
 function MiniStats({ s }: { s: DaySummary }) {
   const items: [string, string, string?][] = [
-    ['Work', dur(s.workSec)],
     ['Productive', dur(s.productiveSec)],
-    ['Score', pct(s.score)],
+    ['Work', dur(s.workSec)],
+    ['Day score', pct(s.score)],
     // P75: the user's own rating, with the effective time under it.
     ['Efficiency', pct(s.efficiency), effSub(s.ratedSec, s.effectiveSec)],
     ['Break', dur(s.breakSec)],
@@ -312,8 +310,10 @@ function Bullets({ date, kind, items, placeholder }: { date: string; kind: Revie
 }
 
 // ---- KPIs --------------------------------------------------------------------------
+/** KPIs are set up here, where they're filled in (P80): add, and with Edit rename or remove (archived, so past values stay). */
 function Kpis({ date, kpis, values, onChanged }: { date: string; kpis: Kpi[]; values: Record<string, number>; onChanged: () => Promise<void> }) {
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const add = async () => {
@@ -324,12 +324,17 @@ function Kpis({ date, kpis, values, onChanged }: { date: string; kpis: Kpi[]; va
     setAdding(false);
     await onChanged();
   };
+  const edit = kpis.length > 0 && (
+    <button data-testid="kpi-edit" onClick={() => setEditing((e) => !e)} className="rounded-control px-1.5 py-0.5 text-[12px] text-accent hover:bg-accent/10">
+      {editing ? 'Done' : 'Edit'}
+    </button>
+  );
   return (
-    <div>
+    <Card title="KPIs" right={edit}>
       {kpis.length === 0 && !adding && <div className="pb-2 text-[12px] text-faint">No KPIs yet. Add numbers you want to track daily.</div>}
-      {kpis.map((k) => (
-        <KpiInput key={k.id} date={date} kpi={k} value={values[k.id]} />
-      ))}
+      {kpis.map((k) =>
+        editing ? <KpiEdit key={k.id} kpi={k} onChanged={onChanged} /> : <KpiInput key={k.id} date={date} kpi={k} value={values[k.id]} />,
+      )}
       {adding ? (
         <div className="mt-2 flex items-center gap-2">
           <input
@@ -358,6 +363,40 @@ function Kpis({ date, kpis, values, onChanged }: { date: string; kpis: Kpi[]; va
           + Add KPI
         </button>
       )}
+    </Card>
+  );
+}
+
+function KpiEdit({ kpi, onChanged }: { kpi: Kpi; onChanged: () => Promise<void> }) {
+  const [name, setName] = useState(kpi.name);
+  const [unit, setUnit] = useState(kpi.unit ?? '');
+  const save = async (archived = false) => {
+    if (!name.trim()) return setName(kpi.name);
+    await window.spyder.saveKpi({ id: kpi.id, name, unit, archived });
+    await onChanged();
+  };
+  return (
+    <div data-testid="kpi-edit-row" className="flex h-11 items-center gap-2 border-b border-border text-[13px] last-of-type:border-0">
+      <input
+        aria-label="KPI name"
+        className={clsx(inputCls, 'h-8 min-w-0 flex-1')}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => name !== kpi.name && void save()}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      />
+      <input
+        aria-label="Unit"
+        placeholder="unit"
+        className={clsx(inputCls, 'h-8 w-24')}
+        value={unit}
+        onChange={(e) => setUnit(e.target.value)}
+        onBlur={() => unit !== (kpi.unit ?? '') && void save()}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      />
+      <Btn size="sm" variant="ghost" aria-label={`Remove ${kpi.name}`} onClick={() => void save(true)}>
+        Remove
+      </Btn>
     </div>
   );
 }

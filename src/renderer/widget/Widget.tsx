@@ -117,9 +117,9 @@ function Bar({ w }: { w: WidgetPayload }) {
         </div>
         <div data-testid="bar-day" className={cell}>
           <span className="tabular text-[19px] leading-none font-bold whitespace-nowrap">
-            {w.isDayOff ? '–' : `${Math.round(w.workdayPct)}%`}
+            {w.goalPct ? `${Math.round((w.productiveTodaySec / w.goalSec) * 100)}%` : w.isDayOff ? '–' : `${Math.round(w.workdayPct)}%`}
           </span>
-          <Caps lines={['Percent', 'of day']} />
+          <Caps lines={['Percent', w.goalPct ? 'of goal' : 'of day']} />
         </div>
       </div>
       <button
