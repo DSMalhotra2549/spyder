@@ -6,10 +6,13 @@ import type { AppCtx } from './context';
 /** Matches --color-bg in src/renderer/styles.css, so a window never flashes the other theme while loading. */
 export const windowBackground = () => (nativeTheme.shouldUseDarkColors ? '#0E0E10' : '#FFFFFF');
 
+/** The dashboard's window buttons sit on the glass, so their symbols follow the theme. */
+export const titleBarOverlay = () => ({ color: '#00000000', symbolColor: nativeTheme.shouldUseDarkColors ? '#ECECEF' : '#18181B', height: 36 });
+
 export function applyTheme(ctx: AppCtx): void {
   nativeTheme.themeSource = ctx.settings.theme;
   const d = ctx.dashboard;
-  if (d && !d.isDestroyed()) d.setBackgroundColor(windowBackground());
+  if (d && !d.isDestroyed()) d.setTitleBarOverlay(titleBarOverlay());
 }
 
 /** P78: the font stack per setting; Segoe UI stays the fallback if the chosen font isn't installed. */

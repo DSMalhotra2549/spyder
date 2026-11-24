@@ -5,6 +5,15 @@ import { freshDataDir, launch, seed, shot } from './helpers';
 
 const DATE = '2026-11-24';
 const bg = (p: Page, sel: string) => p.locator(sel).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+// The dashboard's page is see-through glass, so check the theme's background token the content card is painted with.
+const bgToken = (p: Page) =>
+  p.evaluate(() => {
+    const probe = document.body.appendChild(document.createElement('div'));
+    probe.style.background = 'var(--color-bg)';
+    const c = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return c;
+  });
 
 test('theme switches live and covers every page and the bar', async () => {
   const dir = freshDataDir();
@@ -21,7 +30,7 @@ test('theme switches live and covers every page and the bar', async () => {
 
     await theme.locator('[data-value=light]').click();
     await expect.poll(async () => (await s.debug.state()).theme).toEqual({ source: 'light', dark: false });
-    await expect.poll(() => bg(d, 'body')).toBe('rgb(255, 255, 255)');
+    await expect.poll(() => bgToken(d)).toBe('rgb(255, 255, 255)');
     await expect.poll(() => bg(s.widget, '[data-testid=pill]')).toBe('rgb(255, 255, 255)');
     expect(s.db().prepare("SELECT value FROM settings WHERE key = 'theme'").get()).toEqual({ value: '"light"' });
 
@@ -38,7 +47,7 @@ test('theme switches live and covers every page and the bar', async () => {
     await d.evaluate(() => window.spyder.openDashboard('settings'));
     await theme.locator('[data-value=dark]').click();
     await expect.poll(async () => (await s.debug.state()).theme).toEqual({ source: 'dark', dark: true });
-    await expect.poll(() => bg(d, 'body')).toBe('rgb(14, 14, 16)');
+    await expect.poll(() => bgToken(d)).toBe('rgb(14, 14, 16)');
     for (const p of pages) {
       await d.evaluate((r) => window.spyder.openDashboard(r), p);
       await d.waitForTimeout(400);

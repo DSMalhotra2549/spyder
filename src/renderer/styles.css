@@ -37,8 +37,8 @@
   --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
 
   --radius-pill: 9999px;
-  --radius-card: 8px;
-  --radius-control: 6px;
+  --radius-card: 12px;
+  --radius-control: 8px;
   --radius-chip: 4px;
   --radius-bar: 2px;
 
@@ -126,7 +126,7 @@
     user-select: none;
   }
   body.dashboard {
-    background: var(--color-bg);
+    background: transparent;
   }
   body.transparent {
     background: transparent;
@@ -216,4 +216,85 @@
 }
 [data-style='bar'].distracted {
   animation-name: distract-pulse-bar;
+}
+
+/* Glass sidebar prototype: unlayered, so these win over Tailwind utilities on the same element. */
+/* No tint: a soft glow in the background colour keeps sidebar text readable over whatever is behind. */
+.glass-side {
+  text-shadow:
+    0 0 2px color-mix(in srgb, var(--color-bg) 80%, transparent),
+    0 1px 6px color-mix(in srgb, var(--color-bg) 70%, transparent);
+}
+.glass-side svg {
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--color-bg) 80%, transparent));
+}
+.glass-pill {
+  background: color-mix(in srgb, var(--color-text) 11%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-text) 10%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.glass-hover:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+.glass-card {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  border-color: color-mix(in srgb, var(--color-text) 10%, transparent);
+}
+.glass-btn {
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  border-color: transparent;
+}
+.glass-btn:hover:enabled {
+  background: color-mix(in srgb, var(--color-text) 16%, transparent);
+  border-color: transparent;
+}
+
+/* Motion (kept short; the timer digits never animate). */
+.nav-pill {
+  transition: top 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.page-in {
+  animation: page-in 200ms ease-out;
+}
+.tile-lift {
+  transition:
+    transform 150ms ease-out,
+    background-color 150ms ease-out;
+}
+.tile-lift:hover {
+  transform: translateY(-2px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-pill,
+  .tile-lift {
+    transition: none;
+  }
+  .page-in {
+    animation: none;
+  }
+  .tile-lift:hover {
+    transform: none;
+  }
+}
+
+/* Glass prompt: frosted inputs, secondary buttons and the efficiency group (not menus, which stay solid). */
+.glass-prompt input.bg-surface,
+.glass-prompt button.bg-surface,
+.glass-prompt [role='group'].bg-surface-2 {
+  background: color-mix(in srgb, var(--color-text) 9%, transparent);
+  border-color: color-mix(in srgb, var(--color-text) 12%, transparent);
+}
+.glass-prompt button.bg-surface:hover:enabled {
+  background: color-mix(in srgb, var(--color-text) 15%, transparent);
 }
