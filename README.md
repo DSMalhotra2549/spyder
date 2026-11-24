@@ -82,7 +82,7 @@ The installer is **not code-signed**, so Windows SmartScreen warns about it ("Wi
 | `npm run seed` | Fill `SPYDER_DATA_DIR` with realistic sample days |
 | `npm run db:dump` | Print what's in the database |
 | `npm run dist` | Build the Windows installer |
-| `npm run install:local` | **Maintainer only.** Builds the installer, force-quits the running Spyder, installs over it silently and restarts it. The opt-in post-commit hook (`git config core.hooksPath .githooks`) runs it after every commit on `main`; contributors shouldn't turn that on |
+| `npm run install:local` | **Maintainer only.** Builds the installer, force-quits the running Spyder, installs over it silently and restarts it. The opt-in pre-push hook (`git config core.hooksPath .githooks`) runs it after every successful push of `main`; contributors shouldn't turn that on |
 
 ## How it's built
 

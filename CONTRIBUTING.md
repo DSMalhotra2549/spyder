@@ -21,7 +21,7 @@ npm run seed
 npm run dev
 ```
 
-Don't turn on the `.githooks` post-commit hook. It reinstalls the app over your installed copy after every commit (maintainer only).
+Don't turn on the `.githooks` pre-push hook. It reinstalls the app over your installed copy after every push of `main` (maintainer only).
 
 ## Every change
 

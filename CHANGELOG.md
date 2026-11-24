@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Local reinstall on push, not on every commit
+
+**What**
+- The maintainer's auto-reinstall now runs after a successful `git push` of `main` (`.githooks/pre-push`), not after every commit. The `.githooks/post-commit` hook is gone.
+
+**Why**
+A rebuild after every commit was slow and ran several reinstalls back to back. Pushing is the point where a change is meant to be used.
+
+**If you pull this**
+- Only matters if you turned the hooks on (`core.hooksPath .githooks`, maintainer only). Committing no longer reinstalls. Pushing `main` does, about 3 minutes later. To reinstall without pushing, run `npm run install:local`.
+
 ## 2026-11-25: Bar percent setting, Every day work hours, Track from startup on by default (P82)
 
 `6eaa43d`

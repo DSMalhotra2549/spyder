@@ -1,0 +1,28 @@
+#!/bin/sh
+# After a successful push of main, rebuild and reinstall the local Spyder in the background
+# (scripts/install-local.ps1; log in release/install-local.log). Enabled by
+# `git config core.hooksPath .githooks`.
+# Git has no post-push hook, so this waits in the background until the remote-tracking ref
+# reaches the pushed commit (the push succeeded); a rejected or failed push installs nothing.
+remote="$1"
+sha=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Skip when the remote already has this commit (nothing new; the wait below would pass at once).
+  [ "$remote_ref" = "refs/heads/main" ] && [ "$local_sha" != "$remote_sha" ] && sha="$local_sha"
+done
+case "$sha" in "" | *[!0]*) ;; *) exit 0 ;; esac # nothing pushed to main, or main deleted
+[ -n "$sha" ] || exit 0
+# install-local.ps1 builds the checkout, so only when it is the commit being pushed.
+[ "$(git rev-parse HEAD)" = "$sha" ] || exit 0
+# The wait below needs the tracking ref to move to $sha; if it's there already, it can't tell.
+[ "$(git rev-parse --verify -q "refs/remotes/$remote/main")" = "$sha" ] && exit 0
+
+nohup sh -c '
+  i=0
+  while [ "$(git rev-parse --verify -q "refs/remotes/$1/main")" != "$2" ]; do
+    i=$((i + 1)); [ $i -gt 120 ] && exit 0
+    sleep 1
+  done
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File scripts/install-local.ps1
+' sh "$remote" "$sha" >/dev/null 2>&1 &
+exit 0
