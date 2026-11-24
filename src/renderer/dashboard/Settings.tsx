@@ -379,6 +379,8 @@ function WorkHours() {
     () => Promise.all([window.spyder.getSchedule(), window.spyder.getDay()]),
     'schedule',
   );
+  // P84: null = follow the hours (on while all 7 days match); a click sets it for this visit.
+  const [everyDay, setEveryDay] = useState<boolean | null>(null);
   if (!sch)
     return (
       <Card title="Work hours">
@@ -395,6 +397,7 @@ function WorkHours() {
   };
   // P82: one range for every day; it shows only while all 7 days are on with the same hours.
   const same = rows.length === 7 && rows.every((r) => r.enabled && r.startMin === rows[0].startMin && r.endMin === rows[0].endMin);
+  const allOn = everyDay ?? same;
   const saveAll = async (startMin: number, endMin: number) => {
     await window.spyder.setSchedule(rows.map((r) => ({ ...r, enabled: true, startMin, endMin })));
     await reload();
@@ -405,17 +408,21 @@ function WorkHours() {
   };
   return (
     <Card title="Work hours" right="the review opens when the day ends">
-      <div data-testid="sched-all" className="flex h-11 items-center gap-3 border-b border-border text-[13px]">
-        <span className="w-8 shrink-0" />
-        <span className="w-[100px]">Every day</span>
-        <TimeRange
-          r={same ? rows[0] : null}
-          onSave={(startMin, endMin) => void saveAll(startMin, endMin)}
-          testId="sched-all"
-        />
-        {!same && <span className="text-muted">days differ</span>}
+      <div
+        data-testid="sched-all"
+        className={clsx('flex h-11 items-center gap-3 text-[13px]', !allOn && 'border-b border-border')}
+      >
+        <Toggle testId="sched-all-enabled" label="Every day" on={allOn} onChange={setEveryDay} />
+        <span className={clsx('w-[100px]', !allOn && 'text-muted')}>Every day</span>
+        {allOn && (
+          <TimeRange
+            r={same ? rows[0] : null}
+            onSave={(startMin, endMin) => void saveAll(startMin, endMin)}
+            testId="sched-all"
+          />
+        )}
       </div>
-      {DAYS.map((wd) => {
+      {!allOn && DAYS.map((wd) => {
         const r = rows.find((x) => x.weekday === wd);
         if (!r) return null;
         return (
@@ -440,43 +447,45 @@ function WorkHours() {
           </div>
         );
       })}
-      <div data-testid="override" className="flex h-12 items-center gap-3 pt-1 text-[13px]">
-        <Toggle
-          testId="override-enabled"
-          label="Override today"
-          on={ov !== null}
-          onChange={(v) =>
-            void saveOv(
-              v
-                ? { enabled: true, startMin: todayRow?.startMin ?? 600, endMin: todayRow?.endMin ?? 1020 }
-                : null,
-            )
-          }
-        />
-        <span className="w-[100px]">Today only</span>
-        {ov ? (
-          <>
-            <Segmented
-              testId="override-mode"
-              value={ov.enabled ? 'on' : 'off'}
-              options={[
-                { value: 'on', label: 'Working' },
-                { value: 'off', label: 'Day off' },
-              ]}
-              onChange={(v) => void saveOv({ ...ov, enabled: v === 'on' })}
-            />
-            {ov.enabled && (
-              <TimeRange
-                r={ov}
-                onSave={(startMin, endMin) => void saveOv({ ...ov, startMin, endMin })}
-                testId="override"
+      {!allOn && (
+        <div data-testid="override" className="flex h-12 items-center gap-3 pt-1 text-[13px]">
+          <Toggle
+            testId="override-enabled"
+            label="Override today"
+            on={ov !== null}
+            onChange={(v) =>
+              void saveOv(
+                v
+                  ? { enabled: true, startMin: todayRow?.startMin ?? 600, endMin: todayRow?.endMin ?? 1020 }
+                  : null,
+              )
+            }
+          />
+          <span className="w-[100px]">Today only</span>
+          {ov ? (
+            <>
+              <Segmented
+                testId="override-mode"
+                value={ov.enabled ? 'on' : 'off'}
+                options={[
+                  { value: 'on', label: 'Working' },
+                  { value: 'off', label: 'Day off' },
+                ]}
+                onChange={(v) => void saveOv({ ...ov, enabled: v === 'on' })}
               />
-            )}
-          </>
-        ) : (
-          <span className="text-muted">uses the weekly hours</span>
-        )}
-      </div>
+              {ov.enabled && (
+                <TimeRange
+                  r={ov}
+                  onSave={(startMin, endMin) => void saveOv({ ...ov, startMin, endMin })}
+                  testId="override"
+                />
+              )}
+            </>
+          ) : (
+            <span className="text-muted">uses the weekly hours</span>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
@@ -487,7 +496,7 @@ function TimeRange({
   onSave,
   testId,
 }: {
-  /** null: both fields start empty and nothing saves until both are filled (P82's Every day row). */
+  /** null: both fields start empty and nothing saves until both are filled (the Every day row, P82, P84). */
   r: { startMin: number; endMin: number } | null;
   disabled?: boolean;
   onSave: (s: number, e: number) => void;

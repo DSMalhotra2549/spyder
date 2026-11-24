@@ -7,7 +7,21 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Every day is a toggle in Work hours (P84)
+
+**What**
+- In **Settings → Work hours**, **Every day** has a switch. When it's on, you set one start–end for all 7 days, and the weekday rows and **Today only** are hidden. When it's off, the weekday rows and Today only show as before.
+- The `days differ` hint is gone. The switch now shows whether all 7 days share the same hours.
+
+**Why**
+The user wants a short card when every day has the same hours, and the full grid only when they differ.
+
+**If you pull this**
+- Nothing special: no setting or migration. The switch starts on when all 7 days already match. E2e: the Every day switch is `sched-all-enabled`, and the `sched-all-start`/`-end` fields only exist while it's on.
+
 ## 2026-11-25: Minimize in two steps (P83)
+
+`43b7e48`
 
 **What**
 - The bar's **minimize** button no longer hides the bar straight away. While the bar is on top, it drops the bar behind all your windows. Pressed again while the bar is behind, it sends the bar to the tray.
