@@ -19,7 +19,7 @@ import { loadSettings, saveSettings } from './settings';
 import { BlockEditor } from './blockEdit';
 import { applyFont, applyTheme } from './theme';
 import { isAppUrl } from './paths';
-import { hideWidget, openDashboard, resizePrompt, showWidget } from './windows';
+import { hideWidget, minimizeWidget, openDashboard, resizePrompt, showWidget } from './windows';
 
 const documentsDir = () => app.getPath('documents');
 const result = (err: EngineError | null) => err ?? { ok: true as const };
@@ -154,6 +154,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
 
   // Windows
   h('hideWidget', () => hideWidget(ctx));
+  h('minimizeWidget', () => minimizeWidget(ctx));
   h('showWidget', () => showWidget(ctx));
   h('openDashboard', (route?: string) => openDashboard(ctx, route));
   h('resizePrompt', (height: number) => resizePrompt(ctx, height));

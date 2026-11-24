@@ -144,6 +144,7 @@ export interface SpyderApi {
   setKpiValue(date: string, kpiId: string, value: number | null): Promise<void>;
 
   hideWidget(): Promise<void>;
+  minimizeWidget(): Promise<void>;
   showWidget(): Promise<void>;
   openDashboard(route?: string): Promise<void>;
   resizePrompt(height: number): Promise<void>;

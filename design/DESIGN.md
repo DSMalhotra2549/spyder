@@ -69,7 +69,7 @@ Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a f
   1. **Block timer**, counting up within the current block (P63), captioned `BLOCK / OF 15M`; `DISTRACTED / youtube.com` in `red` when distracted. Without a loop: `Not started` (15/600 `orange`, captioned `PRESS START / IN SPYDER`) during work hours, with the whole bar tinted orange and an orange border (P59); otherwise `Off hours` (muted) captioned `WORKDAY / DONE`, `DAY / OFF` or `BEFORE / WORK HOURS`. An orange dot at its top-right while blocks wait to be accounted for.
   2. **Productive today** in `accent` (`23 min`, `2h 14m` from an hour); `green` once the goal is met.
   3. **Percent of day** (`14%`, `–` on a day off) or **Percent of goal** (productive time ÷ daily goal, can pass 100 %), as chosen in Settings → Look → Bar percent (P82; default goal).
-- **Minimize** (32 px, left border, `–`): hides the bar; the tray or the hotkey brings it back. Not remembered across launches.
+- **Minimize** (32 px, left border, `–`): on top, it drops the bar behind every window (no longer always on top; clicking it brings it forward like any window). Already behind, it hides the bar. The tray or the hotkey brings it back on top (P83). Not remembered across launches.
 - **Drag handle** (24 px, `surface-2` tint, ⋮⋮ grip, `cursor: move`) at the far right. Everything except the two buttons drags.
 - Red border when distracted, which also tints the fill red and pulses once. No sound anywhere (P60).
 

@@ -125,8 +125,8 @@ function Bar({ w }: { w: WidgetPayload }) {
       <button
         type="button"
         aria-label="Minimize"
-        title="Minimize (tray or hotkey brings it back)"
-        onClick={() => void window.spyder.hideWidget()}
+        title="Minimize: behind your apps, then to the tray (tray or hotkey brings it back)"
+        onClick={() => void window.spyder.minimizeWidget()}
         className="no-drag flex w-8 shrink-0 cursor-pointer items-center justify-center border-l border-border-strong text-muted outline-none hover:text-text"
       >
         <svg width="10" height="2" viewBox="0 0 10 2" aria-hidden>

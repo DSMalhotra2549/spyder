@@ -30,6 +30,7 @@ export function registerDebug(ctx: AppCtx): void {
       electronVersion: process.versions.electron,
       hotkeyOk: ctx.hotkeyOk,
       widgetVisible: !!ctx.widget?.isVisible(),
+      widgetOnTop: !!ctx.widget?.isAlwaysOnTop(),
       dashboardVisible: !!ctx.dashboard?.isVisible(),
     };
     for (const [k, fn] of stateParts) out[k] = fn();

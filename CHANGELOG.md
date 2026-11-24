@@ -7,6 +7,19 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Minimize in two steps (P83)
+
+**What**
+- The bar's **minimize** button no longer hides the bar straight away. While the bar is on top, it drops the bar behind all your windows. Pressed again while the bar is behind, it sends the bar to the tray.
+- A tray click, **Show widget** or the hotkey puts the bar back on top. If the bar is behind your windows, the hotkey brings it back on top instead of hiding it.
+
+**Why**
+The user wanted the bar out of the way of their apps but still on the desktop, with the tray one more press away.
+
+**If you pull this**
+- Run `npm run build:helper`: `UrlHelper.exe` has a new `back <hwnd>` mode that puts the bar behind other windows. Without the rebuilt helper the bar only stops being on top.
+- New IPC `minimizeWidget` (`hideWidget` still hides straight away). The debug `state()` has a new `widgetOnTop` field.
+
 ## 2026-11-25: Local reinstall on push, not on every commit
 
 **What**
