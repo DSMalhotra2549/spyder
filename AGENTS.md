@@ -50,7 +50,7 @@ Time-dependent behavior is tested by controlling the clock, not by waiting:
 - `SPYDER_DATA_DIR` (throwaway DB)
 - `SPYDER_DEBUG=1` (exposes `window.spyder.debug`: `advance`, `setNow`, `simulateIdle`, `simulateSuspend`, `injectActivity`, …)
 
-The e2e helper also sets `SPYDER_CAPTURE=0` and `SPYDER_FAKE_IDLE=1`, so the real desktop can't disturb tests.
+The e2e helper also sets `SPYDER_CAPTURE=0` and `SPYDER_FAKE_IDLE=1`, so the real desktop can't disturb tests. It also sets `SPYDER_DEFAULTS` (JSON first-run settings, debug only) to Track from startup off and the bar on the workday %, so specs start from the work-hours loop; pass `env: { SPYDER_DEFAULTS: '{}' }` to get the real defaults (P82).
 
 ## Gotchas
 

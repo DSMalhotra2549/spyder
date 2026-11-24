@@ -19,8 +19,10 @@ export interface Settings {
   /** P74: the colours of gym and food blocks, #rrggbb. */
   gymColor: string;
   foodColor: string;
-  /** P76: the loop runs from launch or wake until shutdown or sleep, whatever the work hours. */
+  /** P76: the loop runs from launch or wake until shutdown or sleep, whatever the work hours (on by default, P82). */
   trackFromStartup: boolean;
+  /** P82: the bar's percent cell shows the workday % or the goal %. */
+  barPercent: 'day' | 'goal';
   /** P78: the font of every window. */
   font: 'system' | 'atkinson';
   /** P79: colours the user picked for apps and sites (app key → #rrggbb); the rest keep their automatic colour. */
@@ -44,7 +46,8 @@ export const DEFAULT_SETTINGS: Settings = {
   workColor: '#3fb27f',
   gymColor: '#e8853d',
   foodColor: '#d9669b',
-  trackFromStartup: false,
+  trackFromStartup: true,
+  barPercent: 'goal',
   font: 'system',
   appColors: {},
 };
@@ -84,6 +87,7 @@ const ENUMS: Partial<Record<keyof Settings, readonly unknown[]>> = {
   appPercentScope: ['work_hours', 'all_day'],
   theme: ['system', 'light', 'dark'],
   font: ['system', 'atkinson'],
+  barPercent: ['day', 'goal'],
 };
 
 /** Drops unknown keys and invalid values from a settings change; numbers are clamped to their range. */

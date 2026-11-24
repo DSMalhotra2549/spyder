@@ -2,6 +2,7 @@ import { app, nativeTheme, Notification } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClock, parseLocalIso } from '../core/clock';
+import { cleanSettings } from '../core/settings';
 import { Tracker } from './capture/tracker';
 import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
@@ -55,7 +56,9 @@ async function boot(): Promise<void> {
   });
   const db = new Db(join(dataDir, 'spyder.db'));
   migrate(db, MIGRATIONS, clock.now());
-  seedDefaults(db, clock.now());
+  // e2e: SPYDER_DEFAULTS (JSON) gives a fresh data dir its own first-run settings, e.g. Track from startup off.
+  const firstRun = process.env.SPYDER_DEBUG === '1' && process.env.SPYDER_DEFAULTS ? cleanSettings(JSON.parse(process.env.SPYDER_DEFAULTS) as Record<string, unknown>) : {};
+  seedDefaults(db, clock.now(), firstRun);
 
   const ctx: AppCtx = {
     dataDir,

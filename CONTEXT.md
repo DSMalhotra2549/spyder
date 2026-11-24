@@ -129,6 +129,10 @@ _Avoid_: focus time, deep work
 **Daily goal**:
 The amount of productive time the user aims for each workday.
 
+**Goal %**:
+Today's productive time as a percentage of the daily goal. It can pass 100.
+_Avoid_: goal progress, completion
+
 **Day score**:
 Productive time as a percentage of scheduled work hours.
 _Avoid_: focus score, productivity score
@@ -164,7 +168,7 @@ _Avoid_: metric, stat
 ### Interface
 
 **Widget**:
-The small always-on-top bar showing the current block's timer, today's productive time and the percent of day. It only displays; Start, Stop and the block length live in the dashboard.
+The small always-on-top bar showing the current block's timer, today's productive time and either the workday % or the goal %, whichever the user chose. It only displays; Start, Stop and the block length live in the dashboard.
 _Avoid_: overlay, HUD, timer window
 
 **Prompt**:

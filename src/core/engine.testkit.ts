@@ -15,7 +15,8 @@ export class Sim {
   state: EngineState = initialState();
   now = T(11);
   overrides = new Map<string, DayOverride>();
-  settings = { ...DEFAULT_SETTINGS };
+  // Track from startup is on by default (P82); these tests drive the work-hours loop unless they turn it on.
+  settings = { ...DEFAULT_SETTINGS, trackFromStartup: false };
   log: Effect[] = [];
   last: ReduceResult | null = null;
   windowFn: ((ms: number) => WorkWindow | null) | null = null;

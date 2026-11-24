@@ -59,6 +59,8 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
     SPYDER_CLOCK_SCALE: String(opts.scale ?? 1),
     SPYDER_FAKE_IDLE: '1',
     SPYDER_CAPTURE: '0',
+    // Specs start from the work-hours loop and the bar's workday %; P82 made Track from startup and the goal % the defaults.
+    SPYDER_DEFAULTS: JSON.stringify({ trackFromStartup: false, barPercent: 'day' }),
     ...opts.env,
   };
   delete env.ELECTRON_RENDERER_URL;
