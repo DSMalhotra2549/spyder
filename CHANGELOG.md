@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: README brought up to date (P75–P85)
+
+**What**
+- The README describes Track from startup (on by default), Every day work hours, the bar's goal/workday percent, two-step minimize, efficiency ratings, the Today stats and app track, and the theme, font and app colour settings. The old "Nothing starts by itself" line is gone.
+
+**Why**
+The README still described the app as of P74.
+
+**If you pull this**
+- Nothing special.
+
 ## 2026-11-25: App track switch under Today's timeline (P85)
 
 **What**
