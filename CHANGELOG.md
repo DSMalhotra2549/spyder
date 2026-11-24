@@ -7,6 +7,18 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Unmerge a merged block any time (P86)
+
+**What**
+- A merged block on Today shows a small **Unmerge** icon (↶) next to the pencil and trash on hover. It splits the block back into the blocks it was made from, each with its own answer, tag and rating as before the merge. It works any time, after restarts too; the Undo toast still undoes the unmerge.
+
+**Why**
+A merge could only be undone from the Undo toast, which is gone after a few seconds, the next edit or a restart.
+
+**If you pull this**
+- Migration 006 adds a `merges` table recording what each merge combined. Merges made before it can't be unmerged.
+- New IPC call `unmergeBlock(id)`; `SessionLine` gains `merged`. E2e: the icon is `block-unmerge`.
+
 ## 2026-11-25: README brought up to date (P75–P85)
 
 **What**

@@ -78,6 +78,10 @@ _Avoid_: nag
 Joining neighbouring blocks (nothing shown between them in the block log: no other block, away time or untracked span) into one longer block with one answer, picked by the user. Blocks with different tags can't be merged. **Merge repeats** merges every run of neighbours with the same tag and answer at once (P73).
 _Avoid_: combine, join
 
+**Unmerge**:
+Splitting a merged block back into the blocks its latest merge combined, each as it was before that merge (P86). Works any time after the merge, unlike Undo.
+_Avoid_: split, unjoin
+
 **Delete**:
 Removing a block after the fact. Its time becomes untracked.
 _Avoid_: discard, remove

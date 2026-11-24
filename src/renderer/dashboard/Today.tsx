@@ -271,6 +271,7 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
                 onPick={() => onPick(picked === e.id ? null : e.id)}
                 onEdit={() => setEditing(e.id)}
                 onDelete={() => void del([e.id])}
+                onUnmerge={() => void window.spyder.unmergeBlock(e.id).then(after)}
                 onTag={(t) => void window.spyder.tagBlocks([e.id], t).then(after)}
                 onRate={(r) => void window.spyder.rateBlocks([e.id], r).then(after)}
               />
@@ -340,6 +341,7 @@ function BlockRow({
   onPick,
   onEdit,
   onDelete,
+  onUnmerge,
   onTag,
   onRate,
 }: {
@@ -353,6 +355,7 @@ function BlockRow({
   onPick: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onUnmerge: () => void;
   onTag: (tag: Tag) => void;
   onRate: (e: Efficiency | null) => void;
 }) {
@@ -420,9 +423,16 @@ function BlockRow({
       <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
         {dur(x.daySec)}
       </span>
-      <span className="flex w-[60px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+      <span className="flex w-[88px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
         {!x.running && (
           <>
+            {x.merged && (
+              <IconBtn label="Unmerge" testId="block-unmerge" onClick={onUnmerge}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M3 6.5h6.5a3.5 3.5 0 010 7H7M5.5 4L3 6.5 5.5 9" />
+                </svg>
+              </IconBtn>
+            )}
             <IconBtn label="Change the answer" testId="block-edit" onClick={onEdit}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M10.5 2.5l3 3L6 13H3v-3z" />
@@ -487,7 +497,7 @@ function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
       <span className="h-4 w-[3px] shrink-0 rounded-pill bg-faint/60" />
       <span className="min-w-0 flex-1 truncate text-faint">{e.type === 'away' ? 'Away' : 'Untracked'}</span>
       <span className="w-[64px] shrink-0 text-right tabular">{dur(e.sec)}</span>
-      <span className="w-[60px] shrink-0" />
+      <span className="w-[88px] shrink-0" />
     </li>
   );
 }

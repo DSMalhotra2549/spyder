@@ -1,4 +1,4 @@
-// Editing blocks after the fact (P64, P66, P73, P74, P75): delete, merge, tag and rate, each with one-step Undo. Answering and
+// Editing blocks after the fact (P64, P66, P73, P74, P75, P86): delete, merge, unmerge, tag and rate, each with one-step Undo. Answering and
 // re-answering go through EngineHost.answer. The running block can't be edited until it ends.
 import { randomUUID } from 'node:crypto';
 import { alikeRuns, dayLog, neighbours } from '../core/aggregate';
@@ -20,7 +20,21 @@ interface Undo {
   segments: { id: string; session_id: string }[];
   flags: { id: string; session_id: string | null }[];
   dates: string[];
+  /** P86: merge records this edit made (dropped on Undo) or removed (put back on Undo). */
+  madeMerges?: string[];
+  removedMerge?: MergeRecord;
 }
+
+/** A row of `merges` (P86): what one merge combined, so it can be unmerged later. */
+interface MergeRecord {
+  id: string;
+  keep_id: string;
+  created_ms: number;
+  /** JSON of the blocks, segments and flags as they were before the merge. */
+  before: string;
+}
+
+type Snapshot = Pick<Undo, 'blocks' | 'segments' | 'flags'>;
 
 const COLUMNS = ['kind', 'tag', 'name', 'efficiency', 'status', 'started_ms', 'ended_ms', 'elapsed_sec', 'deleted_ms'] as const;
 
@@ -91,8 +105,8 @@ export class BlockEditor {
     const text = answer?.trim() || null;
     if (tag === 'work' && text === null) return invalid('Say what you did, or pick Break');
     const name = text ?? BREAK_NAME;
-    const moved = this.db.transaction(() => this.combine(rows, name));
-    return this.finish({ id: randomUUID(), blocks: rows, ...moved, dates: [date] }, `Merged ${rows.length} blocks into “${text ?? TAG_LABEL[tag]}”`);
+    const { mergeId, ...moved } = this.db.transaction(() => this.combine(rows, name));
+    return this.finish({ id: randomUUID(), blocks: rows, ...moved, dates: [date], madeMerges: [mergeId] }, `Merged ${rows.length} blocks into “${text ?? TAG_LABEL[tag]}”`);
   }
 
   /** P73: every run of neighbouring blocks with the same tag and answer on `date` becomes one block; one Undo. */
@@ -101,21 +115,25 @@ export class BlockEditor {
     const bad = runs.find((r) => !Array.isArray(r));
     if (bad) return bad as EngineError;
     if (!runs.length) return invalid('No neighbouring blocks share an answer');
-    const u: Undo = { id: randomUUID(), blocks: [], segments: [], flags: [], dates: [date] };
+    const u: Undo = { id: randomUUID(), blocks: [], segments: [], flags: [], dates: [date], madeMerges: [] };
     this.db.transaction(() => {
       for (const rows of runs as Row[][]) {
         const moved = this.combine(rows, rows[0].name as string);
         u.blocks.push(...rows);
         u.segments.push(...moved.segments);
         u.flags.push(...moved.flags);
+        u.madeMerges!.push(moved.mergeId);
       }
     });
     const n = u.blocks.length;
     return this.finish(u, `Merged ${n} blocks into ${runs.length}`);
   }
 
-  /** Moves the later blocks' time into the first one; call inside a transaction. Returns the links it changed. */
-  private combine(rows: Row[], name: string): Pick<Undo, 'segments' | 'flags'> {
+  /**
+   * Moves the later blocks' time into the first one and records the merge (P86); call inside a transaction.
+   * Returns the links it changed and the merge record's id.
+   */
+  private combine(rows: Row[], name: string): Pick<Undo, 'segments' | 'flags'> & { mergeId: string } {
     const db = this.db;
     const keep = rows[0];
     const rest = rows.slice(1).map((r) => r.id as string);
@@ -141,7 +159,46 @@ export class BlockEditor {
          elapsed_sec = (SELECT COALESCE(ROUND(SUM(end_ms - start_ms) / 1000.0), 0) FROM segments WHERE session_id = ?) WHERE id = ?`,
       name, end, efficiency, keep.id, keep.id,
     );
-    return { segments, flags };
+    const mergeId = randomUUID();
+    const before: Snapshot = { blocks: rows, segments, flags };
+    db.run('INSERT INTO merges (id, keep_id, created_ms, before) VALUES (?, ?, ?, ?)', mergeId, keep.id as string, this.app.clock.now(), JSON.stringify(before));
+    return { segments, flags, mergeId };
+  }
+
+  /**
+   * P86: splits a merged block back into the blocks its latest merge combined, each exactly as it was before that
+   * merge (answer, tag, rating); edits made to the merged block since are dropped. A block merged twice unmerges one
+   * step at a time.
+   */
+  unmerge(id: string): EditResult {
+    const rows = this.load([id]);
+    if (!Array.isArray(rows)) return rows;
+    const rec = this.db.get<MergeRecord>('SELECT * FROM merges WHERE keep_id = ? ORDER BY rowid DESC LIMIT 1', id);
+    if (!rec) return invalid('This block wasn’t made by a merge');
+    const before = JSON.parse(rec.before) as Snapshot;
+    const ids = before.blocks.map((r) => r.id as string);
+    const segIds = before.segments.map((g) => g.id);
+    const flagIds = before.flags.map((f) => f.id);
+    // What Undo puts back: the blocks and links as they are now.
+    const now: Snapshot = {
+      blocks: this.db.all(`SELECT * FROM sessions WHERE id IN (${marks(ids.length)})`, ...ids),
+      segments: this.db.all(`SELECT id, session_id FROM segments WHERE id IN (${marks(segIds.length)})`, ...segIds),
+      flags: this.db.all(`SELECT id, session_id FROM distraction_flags WHERE id IN (${marks(flagIds.length)})`, ...flagIds),
+    };
+    this.db.transaction(() => {
+      this.put(before);
+      this.db.run('DELETE FROM merges WHERE id = ?', rec.id);
+    });
+    const dates = [...new Set(before.blocks.map((r) => dateKey(r.started_ms as number)))];
+    return this.finish({ id: randomUUID(), ...now, dates, removedMerge: rec }, `Unmerged “${answerOf(rows[0])}” into ${ids.length} blocks`);
+  }
+
+  /** Writes blocks and links back as a snapshot holds them; call inside a transaction. */
+  private put(b: Snapshot): void {
+    const db = this.db;
+    for (const r of b.blocks) db.run(`UPDATE sessions SET ${COLUMNS.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, ...COLUMNS.map((c) => r[c] ?? null), r.id);
+    for (const g of b.segments) db.run('UPDATE segments SET session_id = ? WHERE id = ?', g.session_id, g.id);
+    for (const f of b.flags) db.run('UPDATE distraction_flags SET session_id = ? WHERE id = ?', f.session_id, f.id);
   }
 
   /**
@@ -182,9 +239,10 @@ export class BlockEditor {
     this.last = null;
     const db = this.db;
     db.transaction(() => {
-      for (const r of u.blocks) db.run(`UPDATE sessions SET ${COLUMNS.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, ...COLUMNS.map((c) => r[c] ?? null), r.id);
-      for (const g of u.segments) db.run('UPDATE segments SET session_id = ? WHERE id = ?', g.session_id, g.id);
-      for (const f of u.flags) db.run('UPDATE distraction_flags SET session_id = ? WHERE id = ?', f.session_id, f.id);
+      this.put(u);
+      if (u.madeMerges?.length) db.run(`DELETE FROM merges WHERE id IN (${marks(u.madeMerges.length)})`, ...u.madeMerges);
+      const m = u.removedMerge;
+      if (m) db.run('INSERT INTO merges (id, keep_id, created_ms, before) VALUES (?, ?, ?, ?)', m.id, m.keep_id, m.created_ms, m.before);
     });
     for (const d of u.dates) refreshReview(db, d, this.app.clock.now(), this.app.settings);
     this.host.dataChanged();

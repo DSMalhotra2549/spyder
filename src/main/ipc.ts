@@ -112,6 +112,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('deleteBlocks', (ids: string[]) => editor.delete(ids));
   h('mergeBlocks', (ids: string[], answer: string | null) => editor.merge(ids, answer));
   h('mergeRepeats', (date: string) => editor.mergeRepeats(date));
+  h('unmergeBlock', (id: string) => editor.unmerge(id));
   h('tagBlocks', (ids: string[], tag: Tag) => (TAGS.includes(tag) ? editor.tag(ids, tag) : { error: 'invalid', message: 'Pick Work, Break, Gym or Food' }));
   h('rateBlocks', (ids: string[], efficiency: Efficiency | null) =>
     efficiency === null || isEfficiency(efficiency) ? editor.rate(ids, efficiency) : { error: 'invalid', message: 'Pick 25, 50, 75 or 100%' },

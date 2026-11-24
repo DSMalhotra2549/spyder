@@ -21,6 +21,8 @@ export interface DaySession {
   tag?: 'gym' | 'food' | null;
   /** P75: the user's rating, 0–100 (25/50/75/100 when picked; a merge keeps the mean). Left out or null = not rated. */
   efficiency?: number | null;
+  /** P86: made by a merge that can be unmerged. Left out = no. */
+  merged?: boolean;
 }
 
 export interface DaySegment {
@@ -90,6 +92,8 @@ export interface SessionLine {
   tag: Tag;
   /** P75: 0–100, or null when not rated. Only counts on work blocks. */
   efficiency: number | null;
+  /** P86: made by a merge that can be unmerged. */
+  merged: boolean;
   startMs: number;
   endMs: number | null;
   /** Time inside this day. */
@@ -292,6 +296,7 @@ export function daySummary(
         kind: s.kind,
         tag: tagOf(s),
         efficiency: s.efficiency ?? null,
+        merged: s.merged ?? false,
         startMs: s.startedMs,
         endMs: s.endedMs,
         daySec,
