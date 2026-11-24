@@ -16,11 +16,18 @@ export function statTexts(s: DaySummary, streak: number) {
     productiveSub: `of ${dur(s.goalSec)} goal${s.goalMet ? ' · met' : ''}`,
     score: pct(s.score),
     scoreSub: s.scheduledSec > 0 ? `of ${dur(s.scheduledSec)} scheduled` : 'day off',
+    // P75: rated work time weighted by its rating.
+    efficiency: pct(s.efficiency),
+    efficiencySub: effSub(s.ratedSec, s.effectiveSec),
     streak: `${streak} ${streak === 1 ? 'day' : 'days'}`,
     distractions: String(s.flags.length),
     distractionsSub: `${dur(s.distractingSec)} distracting`,
   };
 }
+
+/** P75: `3h 36m effective of 4h 45m`, or that nothing is rated. */
+export const effSub = (ratedSec: number, effectiveSec: number) =>
+  ratedSec > 0 ? `${dur(effectiveSec)} effective of ${dur(ratedSec)}` : 'no blocks rated';
 
 export const appTexts = (a: DaySummary['apps'][number]) => ({ key: a.key, time: fmtHM(a.sec), pct: appPct(a.pct) });
 
@@ -34,6 +41,8 @@ export function rangeTexts(days: DayLite[]) {
     productive: dur(r.productiveSec),
     productiveSub: r.workSec > 0 ? `${Math.round((r.productiveSec / r.workSec) * 100)}% of work time` : 'no work yet',
     score: pct(r.avgScore),
+    efficiency: pct(r.efficiency),
+    efficiencySub: effSub(r.ratedSec, r.effectiveSec),
     goals: `${r.goalsHit}/${r.goalDays}`,
   };
 }

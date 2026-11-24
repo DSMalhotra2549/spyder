@@ -84,19 +84,24 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
 }
 
 function MiniStats({ s }: { s: DaySummary }) {
-  const items: [string, string][] = [
+  const items: [string, string, string?][] = [
     ['Work', dur(s.workSec)],
     ['Productive', dur(s.productiveSec)],
     ['Score', pct(s.score)],
+    // P75: the user's own rating, with the effective time under it.
+    ['Efficiency', pct(s.efficiency), s.ratedSec > 0 ? `${dur(s.effectiveSec)} effective` : 'none rated'],
     ['Break', dur(s.breakSec)],
     ['Distracting', dur(s.distractingSec)],
   ];
   return (
-    <div className="grid grid-cols-5 gap-3">
-      {items.map(([k, v]) => (
-        <div key={k}>
+    <div className="grid grid-cols-6 gap-3">
+      {items.map(([k, v, sub]) => (
+        <div key={k} className="min-w-0">
           <div className="section-label mb-1">{k}</div>
-          <div className="text-[17px] font-semibold tabular">{v}</div>
+          <div data-testid={k === 'Efficiency' ? 'review-efficiency' : undefined} className="text-[17px] font-semibold tabular">
+            {v}
+          </div>
+          {sub && <div className="mt-0.5 truncate text-[11px] text-muted tabular">{sub}</div>}
         </div>
       ))}
     </div>

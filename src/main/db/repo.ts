@@ -5,7 +5,7 @@ import type { ActivityRow } from '../../core/merge';
 import type { DayOverride } from '../../core/schedule';
 import type { TitlePattern } from '../../core/titlePatterns';
 import type { ScheduleRow } from '../../core/settings';
-import type { Effect, EngineState, Heartbeat, Tag } from '../../core/types';
+import type { Effect, Efficiency, EngineState, Heartbeat, Tag } from '../../core/types';
 import type { Db, SqlValue } from './db';
 
 type DbEffect = Extract<Effect, { db: string }>;
@@ -169,14 +169,17 @@ export interface BlockAnswer {
   id: string;
   answer: string | null;
   tag?: Tag;
+  /** P75: a work block's rating; null clears it, left out keeps it. */
+  efficiency?: Efficiency | null;
 }
 
 /** A break block with no answer of its own stores the name 'Break' (as before P66), so a break's name is never NULL. */
 export const BREAK_NAME = 'Break';
 
-export function writeAnswers(db: Db, answers: { id: string; answer: string | null; tag: Tag }[]): void {
+export function writeAnswers(db: Db, answers: { id: string; answer: string | null; tag: Tag; efficiency?: Efficiency | null }[]): void {
   db.transaction(() => {
     for (const a of answers) {
+      if (a.efficiency !== undefined) db.run('UPDATE sessions SET efficiency = ? WHERE id = ?', a.efficiency, a.id);
       if (a.tag !== 'work') db.run(`UPDATE sessions SET kind = 'break', tag = ?, name = ? WHERE id = ?`, a.tag === 'break' ? null : a.tag, a.answer ?? BREAK_NAME, a.id);
       else db.run(`UPDATE sessions SET kind = 'open', tag = NULL, name = ? WHERE id = ?`, a.answer, a.id);
     }

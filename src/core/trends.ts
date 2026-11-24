@@ -32,6 +32,9 @@ export interface DayLite {
   productiveSec: number;
   distractingSec: number;
   score: number | null;
+  /** P75: rated work time and that time weighted by its rating. */
+  ratedSec: number;
+  effectiveSec: number;
   goalSec: number;
   goalMet: boolean;
   stacks: DayStacks;
@@ -66,6 +69,8 @@ export function dayLite(s: DaySummary, today: string): DayLite {
     productiveSec: s.productiveSec,
     distractingSec: s.distractingSec,
     score: s.score,
+    ratedSec: s.ratedSec,
+    effectiveSec: s.effectiveSec,
     goalSec: s.goalSec,
     goalMet: s.goalMet,
     stacks: stacksOf(s),
@@ -84,11 +89,18 @@ export function dayLite(s: DaySummary, today: string): DayLite {
   };
 }
 
+/** P75: a day's efficiency (0–1), or null when no block was rated. */
+export const dayEfficiency = (d: Pick<DayLite, 'ratedSec' | 'effectiveSec'>) => (d.ratedSec > 0 ? d.effectiveSec / d.ratedSec : null);
+
 export interface RangeStats {
   workSec: number;
   productiveSec: number;
   /** Mean score over scheduled days up to today; null if none. */
   avgScore: number | null;
+  /** P75: rated time across the range and that time weighted by its rating; efficiency = effective ÷ rated, or null. */
+  ratedSec: number;
+  effectiveSec: number;
+  efficiency: number | null;
   goalsHit: number;
   goalDays: number;
 }
@@ -97,10 +109,15 @@ export function rangeStats(days: DayLite[]): RangeStats {
   const past = days.filter((d) => !d.future);
   const scored = past.filter((d) => d.scheduled && d.score !== null);
   const sched = past.filter((d) => d.scheduled);
+  const ratedSec = past.reduce((t, d) => t + d.ratedSec, 0);
+  const effectiveSec = past.reduce((t, d) => t + d.effectiveSec, 0);
   return {
     workSec: past.reduce((t, d) => t + d.workSec, 0),
     productiveSec: past.reduce((t, d) => t + d.productiveSec, 0),
     avgScore: scored.length ? scored.reduce((t, d) => t + d.score!, 0) / scored.length : null,
+    ratedSec,
+    effectiveSec,
+    efficiency: ratedSec > 0 ? effectiveSec / ratedSec : null,
     goalsHit: sched.filter((d) => d.goalMet).length,
     goalDays: sched.length,
   };

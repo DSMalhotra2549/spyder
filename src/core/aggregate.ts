@@ -19,6 +19,8 @@ export interface DaySession {
   endReason: EndReason | null;
   /** P74: Gym or Food on a break; left out or null otherwise. */
   tag?: 'gym' | 'food' | null;
+  /** P75: the user's rating, 0–100 (25/50/75/100 when picked; a merge keeps the mean). Left out or null = not rated. */
+  efficiency?: number | null;
 }
 
 export interface DaySegment {
@@ -86,6 +88,8 @@ export interface SessionLine {
   kind: Kind;
   /** P66, P74: Work, Break, Gym or Food. */
   tag: Tag;
+  /** P75: 0–100, or null when not rated. Only counts on work blocks. */
+  efficiency: number | null;
   startMs: number;
   endMs: number | null;
   /** Time inside this day. */
@@ -118,6 +122,11 @@ export interface DaySummary {
   workByCategory: Record<ActivityCategory, number>;
   productiveSec: number;
   score: number | null;
+  /** P75: work-block time the user rated, and that time weighted by its rating. */
+  ratedSec: number;
+  effectiveSec: number;
+  /** P75: effectiveSec ÷ ratedSec (0–1), or null when nothing is rated. */
+  efficiency: number | null;
   goalSec: number;
   goalMet: boolean;
   scope: 'work_hours' | 'all_day';
@@ -259,6 +268,7 @@ export function daySummary(
         projectColor: s.projectColor,
         kind: s.kind,
         tag: tagOf(s),
+        efficiency: s.efficiency ?? null,
         startMs: s.startedMs,
         endMs: s.endedMs,
         daySec,
@@ -271,6 +281,8 @@ export function daySummary(
     })
     .filter((s) => s.daySec > 0 || (s.startMs >= d0 && s.startMs < d1))
     .sort((a, b) => a.startMs - b.startMs);
+
+  const { ratedSec, effectiveSec } = rated(sessions);
 
   const untracked = win
     ? gaps(
@@ -299,6 +311,9 @@ export function daySummary(
     },
     productiveSec,
     score: scheduledSec > 0 ? productiveSec / scheduledSec : null,
+    ratedSec,
+    effectiveSec,
+    efficiency: ratedSec > 0 ? effectiveSec / ratedSec : null,
     goalSec: settings.goalSec,
     goalMet: productiveSec >= settings.goalSec,
     scope,
@@ -328,6 +343,18 @@ export function daySummary(
       away: awayDay.map((a) => ({ startMs: a.s, endMs: a.e, classification: a.classification, label: a.label })),
       activity: acts.map((x) => ({ startMs: x.s, endMs: x.e, category: x.cat, key: appKey(x.a) })),
     },
+  };
+}
+
+/**
+ * P75: work blocks the user rated (their time in this day) and that time weighted by the rating. Unrated blocks
+ * count in neither, so nothing is guessed for them.
+ */
+export function rated(sessions: Pick<SessionLine, 'tag' | 'efficiency' | 'daySec'>[]): { ratedSec: number; effectiveSec: number } {
+  const xs = sessions.filter((x) => x.tag === 'work' && x.efficiency !== null);
+  return {
+    ratedSec: xs.reduce((t, x) => t + x.daySec, 0),
+    effectiveSec: Math.round(xs.reduce((t, x) => t + (x.daySec * x.efficiency!) / 100, 0)),
   };
 }
 

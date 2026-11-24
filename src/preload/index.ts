@@ -14,7 +14,7 @@ const on = (channel: string) => (cb: (v: unknown) => void) => {
 
 const methods = [
   'getSettings', 'setSettings', 'getWidget', 'start', 'stop', 'setBlockLength', 'dismissReminder', 'keepWorking',
-  'answerBlocks', 'answerSuggestions', 'deleteBlocks', 'mergeBlocks', 'mergeRepeats', 'tagBlocks', 'undoEdit', 'getPrompt',
+  'answerBlocks', 'answerSuggestions', 'deleteBlocks', 'mergeBlocks', 'mergeRepeats', 'tagBlocks', 'rateBlocks', 'undoEdit', 'getPrompt',
   'hideWidget', 'openDashboard', 'resizePrompt',
   'getDay', 'saveRule', 'getReview', 'saveReviewItem', 'deleteReviewItem', 'completeReview', 'listKpis', 'saveKpi',
   'setKpiValue', 'showWidget',

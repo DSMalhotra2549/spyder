@@ -24,6 +24,7 @@ import {
   type RangeVM,
 } from '../../core/trends';
 import { AppsList } from './Today';
+import { EfficiencyTrend } from './Month';
 import { CAT_COLOR, Card, Empty, Stat, TopBar, useLoader } from './parts';
 import { pct, rangeTexts } from './stats';
 
@@ -44,23 +45,12 @@ export const STACK_LABEL: Record<keyof DayStacks, string> = {
 export function RangeStats({ vm }: { vm: RangeVM }) {
   const t = rangeTexts(vm.days);
   return (
-    <div className="grid grid-cols-12 gap-4">
-      <Stat label="Total work" value={t.work} sub={t.workSub} testId="range-work" className="col-span-3" />
-      <Stat label="Productive" value={t.productive} sub={t.productiveSub} testId="range-productive" className="col-span-3" />
-      <Stat
-        label="Avg day score"
-        value={t.score}
-        sub="scheduled days"
-        testId="range-score"
-        className="col-span-3"
-      />
-      <Stat
-        label="Goals hit"
-        value={t.goals}
-        sub={`streak ${vm.streak} ${vm.streak === 1 ? 'day' : 'days'}`}
-        testId="range-goals"
-        className="col-span-3"
-      />
+    <div className="grid grid-cols-5 gap-4">
+      <Stat label="Total work" value={t.work} sub={t.workSub} testId="range-work" />
+      <Stat label="Productive" value={t.productive} sub={t.productiveSub} testId="range-productive" />
+      <Stat label="Avg day score" value={t.score} sub="scheduled days" testId="range-score" />
+      <Stat label="Efficiency" value={t.efficiency} sub={t.efficiencySub} testId="range-efficiency" />
+      <Stat label="Goals hit" value={t.goals} sub={`streak ${vm.streak} ${vm.streak === 1 ? 'day' : 'days'}`} testId="range-goals" />
     </div>
   );
 }
@@ -84,6 +74,9 @@ export function Week({ date, onDate }: { date: string; onDate: (d: string) => vo
             <AppsList rows={top} reload={reload} compact />
           </Card>
         </div>
+        <Card title="Efficiency" className="mt-4" right="by day">
+          <EfficiencyTrend days={vm.days} />
+        </Card>
         <Card title="Estimate accuracy" className="mt-4" right="planned sessions">
           <Estimates days={vm.days} />
         </Card>

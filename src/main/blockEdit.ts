@@ -1,9 +1,9 @@
-// Editing blocks after the fact (P64, P66, P73, P74): delete, merge and tag, each with one-step Undo. Answering and
+// Editing blocks after the fact (P64, P66, P73, P74, P75): delete, merge, tag and rate, each with one-step Undo. Answering and
 // re-answering go through EngineHost.answer. The running block can't be edited until it ends.
 import { randomUUID } from 'node:crypto';
 import { alikeRuns, dayLog, neighbours } from '../core/aggregate';
 import { dateKey } from '../core/schedule';
-import { TAG_LABEL, tagOf, type EngineError, type Tag } from '../core/types';
+import { TAG_LABEL, tagOf, type Efficiency, type EngineError, type Tag } from '../core/types';
 import type { AppCtx } from './context';
 import type { Db, Row } from './db/db';
 import { BREAK_NAME } from './db/repo';
@@ -22,7 +22,7 @@ interface Undo {
   dates: string[];
 }
 
-const COLUMNS = ['kind', 'tag', 'name', 'status', 'started_ms', 'ended_ms', 'elapsed_sec', 'deleted_ms'] as const;
+const COLUMNS = ['kind', 'tag', 'name', 'efficiency', 'status', 'started_ms', 'ended_ms', 'elapsed_sec', 'deleted_ms'] as const;
 
 const marks = (n: number) => Array.from({ length: n }, () => '?').join(',');
 const invalid = (message: string): EngineError => ({ error: 'invalid', message });
@@ -123,13 +123,23 @@ export class BlockEditor {
     const segments = db.all<{ id: string; session_id: string }>(`SELECT id, session_id FROM segments WHERE session_id ${inList}`, ...rest);
     const flags = db.all<{ id: string; session_id: string | null }>(`SELECT id, session_id FROM distraction_flags WHERE session_id ${inList}`, ...rest);
     const end = rows[rows.length - 1].ended_ms as number;
+    // P75: the merged block keeps the time-weighted mean of the rated blocks' efficiency (null if none was rated).
+    const rated = rows.filter((r) => r.efficiency !== null);
+    const ratedSec = rated.reduce((t, r) => t + (r.elapsed_sec as number), 0);
+    const efficiency = !rated.length
+      ? null
+      : Math.round(
+          ratedSec > 0
+            ? rated.reduce((t, r) => t + (r.elapsed_sec as number) * (r.efficiency as number), 0) / ratedSec
+            : rated.reduce((t, r) => t + (r.efficiency as number), 0) / rated.length,
+        );
     db.run(`UPDATE segments SET session_id = ? WHERE session_id ${inList}`, keep.id, ...rest);
     db.run(`UPDATE distraction_flags SET session_id = ? WHERE session_id ${inList}`, keep.id, ...rest);
     db.run(`UPDATE sessions SET deleted_ms = ? WHERE id ${inList}`, this.app.clock.now(), ...rest);
     db.run(
-      `UPDATE sessions SET name = ?, ended_ms = ?,
+      `UPDATE sessions SET name = ?, ended_ms = ?, efficiency = ?,
          elapsed_sec = (SELECT COALESCE(ROUND(SUM(end_ms - start_ms) / 1000.0), 0) FROM segments WHERE session_id = ?) WHERE id = ?`,
-      name, end, keep.id, keep.id,
+      name, end, efficiency, keep.id, keep.id,
     );
     return { segments, flags };
   }
@@ -150,6 +160,17 @@ export class BlockEditor {
     }
     const as: Record<Tag, string> = { work: 'work', break: 'a break', gym: 'gym', food: 'food' };
     const message = rows.length === 1 ? `“${answerOf(rows[0])}” is now ${as[tag]}` : `Tagged ${rows.length} blocks ${TAG_LABEL[tag]}`;
+    return this.finish({ id: randomUUID(), blocks: rows, segments: [], flags: [], dates: [...new Set(rows.map((r) => dateKey(r.started_ms as number)))] }, message);
+  }
+
+  /** P75: rate work blocks 25, 50, 75 or 100%, or clear the rating (null). */
+  rate(ids: string[], efficiency: Efficiency | null): EditResult {
+    const rows = this.load(ids);
+    if (!Array.isArray(rows)) return rows;
+    if (rows.some((r) => rowTag(r) !== 'work')) return invalid('Only work blocks have an efficiency');
+    this.db.run(`UPDATE sessions SET efficiency = ? WHERE id IN (${marks(rows.length)})`, efficiency, ...rows.map((r) => r.id));
+    const what = efficiency === null ? 'not rated' : `${efficiency}% efficient`;
+    const message = rows.length === 1 ? `“${answerOf(rows[0])}” is ${what}` : `${rows.length} blocks are ${what}`;
     return this.finish({ id: randomUUID(), blocks: rows, segments: [], flags: [], dates: [...new Set(rows.map((r) => dateKey(r.started_ms as number)))] }, message);
   }
 

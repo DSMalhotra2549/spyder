@@ -319,3 +319,43 @@ describe('gym and food (P74)', () => {
     expect(s.sessions.filter((x) => x.kind !== 'break').every((x) => x.tag === 'work')).toBe(true);
   });
 });
+
+describe('efficiency (P75)', () => {
+  const data = (): DayData => ({
+    window: { startMs: at(10), endMs: at(17) },
+    nowMs: at(12, 30),
+    sessions: [
+      { ...ses('A', 'open', 'Deck', at(10), at(11)), efficiency: 50 }, // 60 min at 50%
+      { ...ses('B', 'open', 'Emails', at(11), at(11, 30)), efficiency: 100 }, // 30 min at 100%
+      ses('C', 'open', 'Calls', at(11, 30), at(11, 45)), // not rated: in neither total
+      { ...ses('D', 'break', 'Lunch', at(11, 45), at(12)), efficiency: 25 }, // a break's rating never counts
+      ses('R', 'open', null, at(12), null), // running
+    ],
+    segments: [
+      { sessionId: 'A', startMs: at(10), endMs: at(11) },
+      { sessionId: 'B', startMs: at(11), endMs: at(11, 30) },
+      { sessionId: 'C', startMs: at(11, 30), endMs: at(11, 45) },
+      { sessionId: 'D', startMs: at(11, 45), endMs: at(12) },
+      { sessionId: 'R', startMs: at(12), endMs: null },
+    ],
+    away: [],
+    activity: [],
+    flags: [],
+  });
+
+  it('is rated work time weighted by its rating; unrated blocks and breaks count in neither', () => {
+    const d = daySummary('2026-11-24', data(), rules, S);
+    expect(d.ratedSec).toBe(90 * 60);
+    expect(d.effectiveSec).toBe(60 * 60); // 30 min + 30 min
+    expect(d.efficiency).toBeCloseTo(2 / 3, 10);
+    expect(d.sessions.find((x) => x.id === 'A')?.efficiency).toBe(50);
+    expect(d.sessions.find((x) => x.id === 'C')?.efficiency).toBeNull();
+  });
+
+  it('is null when nothing is rated', () => {
+    const x = data();
+    x.sessions = x.sessions.map((s) => ({ ...s, efficiency: null }));
+    const d = daySummary('2026-11-24', x, rules, S);
+    expect([d.ratedSec, d.effectiveSec, d.efficiency]).toEqual([0, 0, null]);
+  });
+});
