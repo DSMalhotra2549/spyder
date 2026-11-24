@@ -11,6 +11,10 @@ export const TAGS: Tag[] = ['work', 'break', 'gym', 'food'];
 export const TAG_LABEL: Record<Tag, string> = { work: 'Work', break: 'Break', gym: 'Gym', food: 'Food' };
 /** A block's tag from its stored kind and `sessions.tag`. */
 export const tagOf = (x: { kind: string; tag?: string | null }): Tag => (x.kind === 'break' ? ((x.tag as Tag | null | undefined) ?? 'break') : 'work');
+/** P75: the user's own rating of a work block, picked in the prompt or on Today. */
+export const EFFICIENCIES = [25, 50, 75, 100] as const;
+export type Efficiency = (typeof EFFICIENCIES)[number];
+export const isEfficiency = (v: unknown): v is Efficiency => EFFICIENCIES.includes(v as Efficiency);
 export type Direction = 'up' | 'down';
 export type AwayReason = 'idle' | 'suspend' | 'lock' | 'not_running';
 export type AwayClassification = 'break' | 'meeting' | 'offline_work' | 'not_working' | 'working';

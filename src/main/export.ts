@@ -74,9 +74,10 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
     started_ms: number;
     ended_ms: number | null;
     end_reason: string | null;
+    efficiency: number | null;
     actual_ms: number | null;
   }>(
-    `SELECT s.id, s.kind, s.tag, s.name, p.name AS pname, s.planned_sec, s.started_ms, s.ended_ms, s.end_reason,
+    `SELECT s.id, s.kind, s.tag, s.name, p.name AS pname, s.planned_sec, s.started_ms, s.ended_ms, s.end_reason, s.efficiency,
             (SELECT SUM(COALESCE(g.end_ms, MAX(g.start_ms, ?)) - g.start_ms) FROM segments g WHERE g.session_id = s.id) AS actual_ms
        FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
       WHERE s.deleted_ms IS NULL AND s.started_ms >= ? AND s.started_ms < ? ORDER BY s.started_ms`,
@@ -97,6 +98,7 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
       ...durCols('Actual'),
       col('Overtime min', 'min', 13),
       col('End reason', 'text', 16),
+      col('Efficiency %', 'int', 12), // P75, work blocks only
     ],
     rows: sessions.map((s) => {
       const actual = Math.round((s.actual_ms ?? 0) / 1000);
@@ -111,6 +113,7 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
         ...dur(actual),
         s.planned_sec === null ? 0 : minutes(Math.max(0, actual - s.planned_sec)),
         s.end_reason,
+        s.kind === 'break' ? null : s.efficiency,
       ];
     }),
   };
@@ -188,6 +191,8 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
       ...durCols('Break'),
       ...durCols('Distracting'),
       col('Score %', 'int', 9),
+      col('Efficiency %', 'int', 12), // P75
+      ...durCols('Effective'),
       col('Goal met', 'text', 9),
       col('Streak', 'int', 8),
     ],
@@ -201,6 +206,8 @@ export function buildSheets(db: Db, from: string, to: string, nowMs: number, set
         ...dur(s.breakSec),
         ...dur(s.distractingSec),
         s.score === null ? null : Math.round(s.score * 100),
+        s.efficiency === null ? null : Math.round(s.efficiency * 100),
+        ...dur(s.effectiveSec),
         s.goalMet ? 'Yes' : 'No',
         streakOn(key),
       ];

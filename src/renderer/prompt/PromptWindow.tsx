@@ -1,11 +1,11 @@
 // Prompt window (#/prompt): accounting for ended blocks (P60, with P70's asks) or the start reminder (P59). DESIGN.md §3.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { AccountBlockVM, AccountVM, ReminderVM } from '../../core/promptView';
-import type { EngineError, Tag } from '../../core/types';
+import type { Efficiency, EngineError, Tag } from '../../core/types';
 import type { BlockAnswer, Ok, PromptWindowState } from '../../preload/api';
 import { fmtHM } from '../../core/format';
 import { CategoryButtons, Segmented } from '../dashboard/parts';
-import { AnswerInput, Btn } from '../ui/controls';
+import { AnswerInput, Btn, EfficiencyPicker } from '../ui/controls';
 
 export function PromptWindow() {
   const [st, setSt] = useState<PromptWindowState>(null);
@@ -52,24 +52,29 @@ function Card({ color, heading, right, testId, children }: { color: string; head
 const errText = (r: Ok | EngineError) => ('error' in r ? r.message : null);
 const NEED = 'Say what you did, or pick Break';
 
-function BlockLine({ b }: { b: AccountBlockVM }) {
+function BlockLine({ b, right }: { b: AccountBlockVM; right?: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-baseline gap-2 text-[12px]">
+    <div className="flex min-w-0 items-center gap-2 text-[12px]">
       <span className="tnum font-medium text-text">{b.range}</span>
       <span className="tnum text-faint">{b.length}</span>
-      {b.hint && <span className="truncate text-muted">{b.hint}</span>}
+      {b.hint && <span className="min-w-0 truncate text-muted">{b.hint}</span>}
+      {right && <span className="ml-auto">{right}</span>}
     </div>
   );
 }
 
-/** A row's answer in "Each separately": text, and whether it's a break (P66: a break may have text too). */
-type RowAnswer = { text: string; isBreak: boolean };
+/**
+ * A row's answer in "Each separately": text, whether it's a break (P66: a break may have text too), and its
+ * efficiency (P75, work only).
+ */
+type RowAnswer = { text: string; isBreak: boolean; efficiency: Efficiency | null };
 
 /** "What did you do?" for every ended, unanswered block of today (P60). */
 function AccountCard({ p }: { p: AccountVM }) {
   const many = p.blocks.length > 1;
   const [mode, setMode] = useState<'all' | 'each'>('all');
   const [text, setText] = useState('');
+  const [efficiency, setEfficiency] = useState<Efficiency | null>(null);
   const [rows, setRows] = useState<Record<string, RowAnswer>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -77,12 +82,12 @@ function AccountCard({ p }: { p: AccountVM }) {
     if (!answers.length) return setError(NEED);
     setError(errText(await window.spyder.answerBlocks(answers)));
   };
-  // Save makes work blocks; Break makes breaks, keeping any typed text (P66).
+  // Save makes work blocks, with the efficiency if one is picked (P75); Break makes breaks, keeping any typed text (P66).
   const all = (answer: string, tag: Tag) => {
     if (tag === 'work' && !answer.trim()) return setError(NEED);
-    void send(p.blocks.map((b) => ({ id: b.id, answer: answer.trim() || null, tag })));
+    void send(p.blocks.map((b) => ({ id: b.id, answer: answer.trim() || null, tag, ...(tag === 'work' && efficiency !== null && { efficiency }) })));
   };
-  const row = (id: string): RowAnswer => rows[id] ?? { text: '', isBreak: false };
+  const row = (id: string): RowAnswer => rows[id] ?? { text: '', isBreak: false, efficiency: null };
   const setRow = (id: string, r: Partial<RowAnswer>) => setRows((all) => ({ ...all, [id]: { ...row(id), ...r } }));
   // Rows left empty stay pending for later.
   const saveEach = () =>
@@ -90,7 +95,7 @@ function AccountCard({ p }: { p: AccountVM }) {
       p.blocks.flatMap((b): BlockAnswer[] => {
         const r = row(b.id);
         if (r.isBreak) return [{ id: b.id, answer: r.text.trim() || null, tag: 'break' }];
-        return r.text.trim() ? [{ id: b.id, answer: r.text, tag: 'work' }] : [];
+        return r.text.trim() ? [{ id: b.id, answer: r.text, tag: 'work', ...(r.efficiency !== null && { efficiency: r.efficiency }) }] : [];
       }),
     );
 
@@ -125,6 +130,7 @@ function AccountCard({ p }: { p: AccountVM }) {
       {!many || mode === 'all' ? (
         <>
           <AnswerInput value={text} onChange={setText} onEnter={() => all(text, 'work')} autoFocus />
+          <EfficiencyPicker label="Efficiency" value={efficiency} onChange={setEfficiency} testId="account-efficiency" />
           <div className="flex flex-wrap items-center gap-2">
             <Btn pill variant="primary" data-testid="account-save" onClick={() => all(text, 'work')}>
               Save
@@ -144,7 +150,14 @@ function AccountCard({ p }: { p: AccountVM }) {
           <div className="flex max-h-[260px] flex-col gap-2.5 overflow-y-auto pr-1">
             {p.blocks.map((b, i) => (
               <div key={b.id} data-testid="account-row" className="flex flex-col gap-1">
-                <BlockLine b={b} />
+                <BlockLine
+                  b={b}
+                  right={
+                    !row(b.id).isBreak && (
+                      <EfficiencyPicker value={row(b.id).efficiency} onChange={(e) => setRow(b.id, { efficiency: e })} testId="account-row-efficiency" />
+                    )
+                  }
+                />
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
                     <AnswerInput value={row(b.id).text} onChange={(v) => setRow(b.id, { text: v })} onEnter={saveEach} autoFocus={i === 0} />

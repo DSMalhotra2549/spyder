@@ -5,7 +5,7 @@ import { alikeRuns, dayLog, neighbours, type AppRow, type LogEntry, type Session
 import type { ActivityCategory } from '../../core/categorize';
 import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
-import { TAG_LABEL, TAGS, type EngineError, type Tag } from '../../core/types';
+import { EFFICIENCIES, TAG_LABEL, TAGS, type Efficiency, type EngineError, type Tag } from '../../core/types';
 import type { EditResult, Ok } from '../../preload/api';
 import { AnswerInput, Btn } from '../ui/controls';
 import { answerText, blockColor, ownAnswer, TAG_COLOR, Timeline } from './Timeline';
@@ -84,12 +84,12 @@ function SectionHead({ title, right, children }: { title: string; right?: ReactN
 
 // ---- stat row --------------------------------------------------------------------------
 
-/** Productive vs goal (with a thin bar), worked, day score, streak — one bordered strip. */
+/** Productive vs goal (with a thin bar), worked, day score, efficiency (P75), streak — one bordered strip. */
 function StatRow({ vm, t }: { vm: DayVM; t: ReturnType<typeof statTexts> }) {
   const s = vm.summary;
   const frac = s.goalSec > 0 ? Math.min(1, s.productiveSec / s.goalSec) : 0;
   return (
-    <section className="grid grid-cols-4 divide-x divide-border rounded-card border border-border bg-surface">
+    <section className="grid grid-cols-5 divide-x divide-border rounded-card border border-border bg-surface">
       <StatCell label="Productive" id="stat-productive" value={t.productive} sub={t.productiveSub} tone={s.goalMet ? 'green' : undefined}>
         <div className="mt-2 h-1 overflow-hidden rounded-pill bg-surface-2">
           <div className={clsx('h-full rounded-pill', s.goalMet ? 'bg-green' : 'bg-accent')} style={{ width: `${frac * 100}%` }} />
@@ -97,6 +97,7 @@ function StatRow({ vm, t }: { vm: DayVM; t: ReturnType<typeof statTexts> }) {
       </StatCell>
       <StatCell label="Worked" id="stat-work" value={t.work} sub={t.workSub} />
       <StatCell label="Day score" id="stat-score" value={t.score} sub={t.scoreSub} />
+      <StatCell label="Efficiency" id="stat-efficiency" value={t.efficiency} sub={t.efficiencySub} />
       <StatCell label="Streak" id="stat-streak" value={t.streak} sub="goal met in a row" />
     </section>
   );
@@ -224,6 +225,13 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
               value={null}
               onChange={(t) => void window.spyder.tagBlocks(chosen.map((x) => x.id), t).then(after)}
             />
+            {chosen.every((x) => x.tag === 'work') && (
+              <EfficiencySelect
+                testId="rate-selected"
+                label="Rate the selected blocks"
+                onChange={(e) => void window.spyder.rateBlocks(chosen.map((x) => x.id), e).then(after)}
+              />
+            )}
             <Btn size="sm" data-testid="answer-open" onClick={() => setPanel({ type: 'answer' })}>
               Answer…
             </Btn>
@@ -288,6 +296,7 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
                 onEdit={() => setEditing(e.id)}
                 onDelete={() => void del([e.id])}
                 onTag={(t) => void window.spyder.tagBlocks([e.id], t).then(after)}
+                onRate={(r) => void window.spyder.rateBlocks([e.id], r).then(after)}
               />
             );
           })}
@@ -356,6 +365,7 @@ function BlockRow({
   onEdit,
   onDelete,
   onTag,
+  onRate,
 }: {
   x: SessionLine;
   joinedPrev: boolean;
@@ -368,6 +378,7 @@ function BlockRow({
   onEdit: () => void;
   onDelete: () => void;
   onTag: (tag: Tag) => void;
+  onRate: (e: Efficiency | null) => void;
 }) {
   const ref = useRef<HTMLLIElement>(null);
   useEffect(() => {
@@ -425,6 +436,11 @@ function BlockRow({
         )}
       </span>
       <TagSelect testId="block-tag" label={`Tag of ${text}`} value={x.tag} disabled={x.running} onChange={onTag} />
+      {x.tag === 'work' ? (
+        <EfficiencySelect testId="block-efficiency" label={`Efficiency of ${text}`} value={x.efficiency} disabled={x.running} onChange={onRate} />
+      ) : (
+        <span className="w-[64px] shrink-0" />
+      )}
       <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
         {dur(x.daySec)}
       </span>
@@ -606,6 +622,62 @@ function TagSelect({
         {TAGS.map((t) => (
           <option key={t} value={t}>
             {TAG_LABEL[t]}
+          </option>
+        ))}
+      </select>
+      <svg className="pointer-events-none absolute right-2 text-faint" width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+        <path d="M2.5 4 5 6.5 7.5 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+/**
+ * P75: a work block's efficiency, `—` (not rated) or 25–100%. A merge can leave another value, shown as it is.
+ * Without `value` it's a "Rate…" picker for the selected blocks.
+ */
+function EfficiencySelect({
+  testId,
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  testId: string;
+  label: string;
+  value?: number | null;
+  disabled?: boolean;
+  onChange: (e: Efficiency | null) => void;
+}) {
+  const picker = value === undefined;
+  const odd = typeof value === 'number' && !EFFICIENCIES.includes(value as Efficiency);
+  return (
+    <span className="relative flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+      <select
+        data-testid={testId}
+        aria-label={label}
+        title={label}
+        disabled={disabled}
+        value={picker ? '' : (value ?? 'none')}
+        onChange={(e) => onChange(e.target.value === 'none' ? null : (Number(e.target.value) as Efficiency))}
+        className={clsx(
+          'h-7 cursor-pointer appearance-none rounded-control border bg-transparent pr-6 text-[12px] outline-none tabular focus-visible:border-accent',
+          'disabled:cursor-default disabled:opacity-50',
+          picker
+            ? 'border-border pl-2.5 text-text hover:bg-surface-2'
+            : clsx('w-[64px] border-transparent pl-2 enabled:hover:border-border enabled:hover:bg-surface-2 enabled:hover:text-text', value === null ? 'text-faint' : 'text-muted'),
+        )}
+      >
+        {picker && (
+          <option value="" disabled>
+            Rate…
+          </option>
+        )}
+        <option value="none">{picker ? 'Not rated' : '—'}</option>
+        {odd && <option value={value!}>{value}%</option>}
+        {EFFICIENCIES.map((e) => (
+          <option key={e} value={e}>
+            {e}%
           </option>
         ))}
       </select>

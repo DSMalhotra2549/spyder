@@ -4,7 +4,7 @@ import type { Rule } from './categorize';
 import { DEFAULT_RULES } from './defaults';
 import { cleanSettings, DEFAULT_SETTINGS } from './settings';
 import { relabelFirefox } from './titlePatterns';
-import { addMonths, dayLite, estimates, monthDates, rangeStats, stackTotal, topApps, weekDates, weekStart, type DayLite } from './trends';
+import { addMonths, dayEfficiency, dayLite, estimates, monthDates, rangeStats, stackTotal, topApps, weekDates, weekStart, type DayLite } from './trends';
 
 const at = (h: number, m = 0, day = 24) => new Date(2026, 10, day, h, m).getTime();
 const rules: Rule[] = DEFAULT_RULES.map((r) => ({ ...r, isDefault: true }));
@@ -47,6 +47,17 @@ describe('trends', () => {
     expect(stackTotal(d.stacks)).toBe(d.workSec + 900 + 600);
     expect(d.productiveSec).toBe(110 * 60);
     expect(d.planned).toEqual([{ id: 'p24', name: 'Plan', plannedSec: 3600, actualSec: 7200, deltaSec: 3600, startMs: at(10, 0, 24) }]);
+  });
+
+  it('range efficiency weights every rated minute alike (P75)', () => {
+    const r = rangeStats([
+      { ...lite(23), ratedSec: 3600, effectiveSec: 3600 },
+      { ...lite(24), ratedSec: 3 * 3600, effectiveSec: 3600 },
+      { ...lite(26, {}, '2026-11-25'), ratedSec: 3600, effectiveSec: 0 }, // future: left out
+    ]);
+    expect([r.ratedSec, r.effectiveSec, r.efficiency]).toEqual([4 * 3600, 2 * 3600, 0.5]);
+    expect(dayEfficiency({ ratedSec: 0, effectiveSec: 0 })).toBeNull();
+    expect(rangeStats([lite(24)]).efficiency).toBeNull();
   });
 
   it('range stats count scheduled days up to today only', () => {
