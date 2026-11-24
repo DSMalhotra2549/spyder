@@ -58,7 +58,7 @@ export interface WorkWindow {
   endMs: number;
 }
 
-export type EngineSettings = Pick<Settings, 'blockLengthSec' | 'keepWorkingStepMin'>;
+export type EngineSettings = Pick<Settings, 'blockLengthSec' | 'keepWorkingStepMin' | 'trackFromStartup'>;
 
 export interface Ctx {
   now: number;

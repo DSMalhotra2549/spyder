@@ -191,6 +191,14 @@ export function Settings() {
                   onChange={(v) => void set({ autostart: v })}
                 />
               </Field>
+              <Field label="Track from startup" hint="blocks run from launch or wake until shutdown or sleep, whatever the work hours">
+                <Toggle
+                  testId="set-trackFromStartup"
+                  label="Track from startup"
+                  on={s.trackFromStartup}
+                  onChange={(v) => void set({ trackFromStartup: v })}
+                />
+              </Field>
               <Field label="Data folder" hint={s.dataDir}>
                 <Btn onClick={() => void window.spyder.openDataFolder()}>Open folder</Btn>
               </Field>

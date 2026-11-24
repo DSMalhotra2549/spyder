@@ -19,6 +19,8 @@ export interface Settings {
   /** P74: the colours of gym and food blocks, #rrggbb. */
   gymColor: string;
   foodColor: string;
+  /** P76: the loop runs from launch or wake until shutdown or sleep, whatever the work hours. */
+  trackFromStartup: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
   workColor: '#3fb27f',
   gymColor: '#e8853d',
   foodColor: '#d9669b',
+  trackFromStartup: false,
 };
 
 export interface ScheduleRow {

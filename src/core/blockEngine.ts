@@ -2,7 +2,7 @@
 // length; each block runs for that length and the next one starts the moment it ends. Answers are
 // written by the host straight to the DB (they don't change the loop), so the engine only runs blocks,
 // the start reminder, the end of work hours and away hints.
-import { dateKey, inWork, minutesOfDay, workdayPct } from './schedule';
+import { dateKey, inWork, minutesOfDay, startOfDay, workdayPct } from './schedule';
 import type { Ctx, Effect, EngineError, EngineEvent, EngineState, Loop, ReduceResult, RunningBlock } from './types';
 
 export const HEARTBEAT_EVERY_MS = 15_000;
@@ -110,6 +110,8 @@ function apply(r: Run, ev: EngineEvent): void {
     case 'KEEP_WORKING':
       return keepWorking(r);
     case 'AWAY_BEGIN':
+      // P76: with Track from startup, sleep ends the loop like a shutdown, even after a lock.
+      if (ev.reason === 'suspend' && fromStartup(r)) return sleep(r, Math.min(ev.atMs, r.now));
       if (!r.st.away) r.st.away = { startMs: Math.min(ev.atMs, r.now), reason: ev.reason };
       return;
     case 'AWAY_END': {
@@ -117,6 +119,7 @@ function apply(r: Run, ev: EngineEvent): void {
       if (!a) return;
       r.st.away = null;
       r.emit({ awayEnded: { startMs: a.startMs, endMs: r.now } });
+      if (a.reason === 'suspend' && fromStartup(r)) autoStart(r, a.startMs);
       return;
     }
   }
@@ -128,7 +131,7 @@ const validLength = (sec: number) => Number.isInteger(sec) && sec >= MIN_BLOCK_S
 function boot(r: Run, hb: { tsMs: number; state: EngineState } | null): void {
   // A heartbeat from before blocks (ADR-0011) has no `loop`; migration 003 already closed its session.
   if (hb && 'loop' in hb.state) {
-    Object.assign(r.st, structuredClone(hb.state), { away: null });
+    Object.assign(r.st, structuredClone(hb.state), { away: null, lastHeartbeatMs: hb.tsMs });
     const loop = r.st.loop;
     if (loop && r.now - hb.tsMs > FRESH_HEARTBEAT_MS) {
       // Blocks that had already ended before Spyder stopped are still theirs; the rest is untracked.
@@ -139,6 +142,30 @@ function boot(r: Run, hb: { tsMs: number; state: EngineState } | null): void {
     }
   }
   tick(r);
+  if (fromStartup(r)) autoStart(r, hb?.tsMs ?? null);
+}
+
+/** P76: the loop runs from launch or wake to shutdown or sleep, ignoring work hours. */
+const fromStartup = (r: Run) => r.ctx.settings.trackFromStartup;
+
+/** P76: starts the loop if it isn't running; the first start on a new day reviews the last day Spyder ran. */
+function autoStart(r: Run, prevAliveMs: number | null): void {
+  if (prevAliveMs !== null && dateKey(prevAliveMs) !== dateKey(r.now)) r.openReview(dateKey(prevAliveMs));
+  if (!r.st.loop) start(r, r.ctx.settings.blockLengthSec);
+}
+
+/** Ends the loop at `at`: blocks that ended before it stay, the cut block is asked about. */
+function endLoop(r: Run, loop: Loop, at: number): void {
+  rollTo(r, loop, at);
+  r.closeBlock(loop.block, at);
+  r.st.loop = null;
+}
+
+/** P76: sleep ends the loop at its start; waking starts a fresh one. */
+function sleep(r: Run, at: number): void {
+  if (r.st.loop) endLoop(r, r.st.loop, at);
+  r.st.away = { startMs: at, reason: 'suspend' };
+  r.heartbeat();
 }
 
 /** Ends every block whose time is up by `limit`, starting the next at each boundary. */
@@ -157,12 +184,28 @@ function tick(r: Run): void {
   const now = r.now;
   const win = r.ctx.window(now);
   const working = inWork(now, win);
-  const loop = st.loop;
+  let loop = st.loop;
+
+  if (loop && fromStartup(r)) {
+    const last = st.lastHeartbeatMs;
+    if (last !== null && now - last > FRESH_HEARTBEAT_MS) {
+      // P76: a sleep Spyder wasn't told about (no heartbeat for a minute) ends the loop like one it was.
+      endLoop(r, loop, last);
+      autoStart(r, last);
+    } else if (loop.block.startedMs < startOfDay(now)) {
+      // P76: each day stands on its own: the block running at midnight is cut there.
+      const midnight = startOfDay(now);
+      rollTo(r, loop, midnight);
+      r.closeBlock(loop.block, midnight);
+      loop.block = r.startBlock(midnight, loop.lengthSec);
+    }
+    loop = st.loop;
+  }
 
   if (loop) {
-    // A loop started in work hours stops at their end (P59, P62).
+    // A loop started in work hours stops at their end (P59, P62); never with Track from startup (P76).
     let stopAt: number | null = null;
-    if (!loop.untilStop && !working) {
+    if (!loop.untilStop && !working && !fromStartup(r)) {
       const dayWin = r.ctx.window(loop.block.startedMs);
       stopAt = dayWin && dayWin.endMs <= now ? Math.max(dayWin.endMs, loop.block.startedMs) : now;
     }
@@ -182,12 +225,13 @@ function tick(r: Run): void {
     st.mode = 'off_hours';
     st.reminder = false;
     // The day that just ended: where the loop was cut, else the last moment seen in work hours.
-    r.openReview(dateKey(st.cut?.atMs ?? st.lastHeartbeatMs ?? now));
+    // With Track from startup the review waits for the next day's first start (P76).
+    if (!fromStartup(r)) r.openReview(dateKey(st.cut?.atMs ?? st.lastHeartbeatMs ?? now));
     r.heartbeat();
   }
 
   // Start reminder: every block length while work hours run with no loop (P59).
-  if (st.mode === 'working' && !st.loop && !st.reminder) {
+  if (st.mode === 'working' && !st.loop && !st.reminder && !fromStartup(r)) {
     if (st.lastReminderMs === null || now - st.lastReminderMs >= r.ctx.settings.blockLengthSec * 1000) {
       st.reminder = true;
       st.lastReminderMs = now;
@@ -203,7 +247,7 @@ function start(r: Run, lengthSec: number): void {
   const st = r.st;
   if (!validLength(lengthSec)) return r.fail('Blocks are 5 to 180 minutes');
   if (st.loop) return r.fail('The loop is already running');
-  const untilStop = !inWork(r.now, r.ctx.window(r.now));
+  const untilStop = fromStartup(r) || !inWork(r.now, r.ctx.window(r.now));
   st.loop = { block: r.startBlock(r.now, lengthSec), lengthSec, untilStop };
   st.reminder = false;
   st.cut = null;
@@ -270,6 +314,8 @@ export interface WidgetVM {
   pendingCount: number;
   /** Keep working would continue a loop cut at the end of work hours. */
   canContinue: boolean;
+  /** P76: the bar's percent cell shows productive time against the goal instead of the workday. */
+  goalPct: boolean;
 }
 
 export function widgetView(state: EngineState, ctx: Pick<Ctx, 'now' | 'window' | 'settings'>, extras: WidgetExtras): WidgetVM {
@@ -292,6 +338,7 @@ export function widgetView(state: EngineState, ctx: Pick<Ctx, 'now' | 'window' |
     isDistracted: extras.isDistracted,
     pendingCount: extras.pendingCount,
     canContinue: !b && !!state.cut && dateKey(state.cut.atMs) === dateKey(now),
+    goalPct: ctx.settings.trackFromStartup,
   };
 }
 
