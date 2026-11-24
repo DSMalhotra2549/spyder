@@ -97,7 +97,7 @@ function StatRow({ vm, t }: { vm: DayVM; t: ReturnType<typeof statTexts> }) {
   return (
     <StatStrip cols={4}>
       <StatCell label="Productive" id="stat-productive" value={t.productive} sub={t.productiveSub} tone={s.goalMet ? 'green' : undefined}>
-        <div className="mt-2 h-1 overflow-hidden rounded-pill bg-surface-2">
+        <div className="mt-2.5 h-1.5 overflow-hidden rounded-pill bg-text/10">
           <div className={clsx('h-full rounded-pill', s.goalMet ? 'bg-green' : 'bg-productive')} style={{ width: `${frac * 100}%` }} />
         </div>
       </StatCell>
@@ -244,7 +244,7 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
           <Empty>No blocks yet. Press Start in the sidebar.</Empty>
         </div>
       ) : (
-        <ul className="overflow-hidden rounded-card border border-border bg-surface">
+        <ul className="flex flex-col gap-1">
           {log.map((e, i) => {
             if (e.type !== 'session') return <QuietRow key={`${e.type}${e.startMs}`} e={e} />;
             const next = log[i + 1];
@@ -283,7 +283,7 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
   );
 }
 
-const rowCls = 'group flex h-10 items-center gap-3 border-b border-border pr-2 pl-3 text-[13px] last:border-0';
+const rowCls = 'group flex h-11 items-center gap-3 rounded-[10px] pr-2 pl-3 text-[13px] transition-colors duration-150';
 
 function Check({ on, onChange, label, disabled }: { on: boolean; onChange: () => void; label: string; disabled?: boolean }) {
   return (
@@ -300,7 +300,7 @@ function Check({ on, onChange, label, disabled }: { on: boolean; onChange: () =>
       }}
       className={clsx(
         'flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors disabled:invisible',
-        on ? 'border-accent bg-accent text-on-accent' : 'border-border-strong bg-surface group-hover:border-muted',
+        on ? 'border-accent bg-accent text-on-accent' : 'border-border-strong bg-surface opacity-0 group-hover:border-muted group-hover:opacity-100 focus-visible:opacity-100',
       )}
     >
       {on && (
@@ -376,8 +376,10 @@ function BlockRow({
       className={clsx(
         rowCls,
         'cursor-default',
-        joinedNext && 'border-b-transparent',
-        picked ? 'bg-accent/8' : checked ? 'bg-surface-2/60' : 'hover:bg-surface-2/50',
+        // Joined blocks read as one soft tile: no gap and no rounding between them.
+        joinedPrev && '-mt-1 rounded-t-none',
+        joinedNext && 'rounded-b-none',
+        picked ? 'bg-accent/12' : checked ? 'bg-surface-2' : 'bg-surface-2/45 hover:bg-surface-2',
       )}
     >
       <Check on={checked} onChange={onCheck} label={`Select ${text}`} disabled={x.running} />
@@ -463,7 +465,7 @@ function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Pr
   return (
     <li
       data-testid="block-edit-row"
-      className="flex flex-col gap-1 border-b border-border bg-surface-2/50 py-2 pr-2 pl-3 last:border-0"
+      className="flex flex-col gap-1 rounded-[10px] bg-surface-2 py-2 pr-2 pl-3"
       onKeyDown={(e) => {
         if (e.key === 'Escape') void onDone(false);
       }}
@@ -491,7 +493,7 @@ function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Pr
 /** Untracked spans: read-only lines in the log. */
 function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
   return (
-    <li data-testid={e.type === 'away' ? 'log-away' : 'log-untracked'} className={clsx(rowCls, 'text-muted')}>
+    <li data-testid={e.type === 'away' ? 'log-away' : 'log-untracked'} className={clsx(rowCls, 'bg-surface-2/20 text-muted')}>
       <span className="w-4 shrink-0" />
       <span className="w-[92px] shrink-0 tabular">{span(e.startMs, e.endMs)}</span>
       <span className="h-4 w-[3px] shrink-0 rounded-pill bg-faint/60" />
@@ -611,7 +613,7 @@ function TagSelect({
           </option>
         ))}
       </select>
-      <svg className="pointer-events-none absolute right-2 text-faint" width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+      <svg className="pointer-events-none absolute right-2 text-faint opacity-0 transition-opacity group-hover:opacity-100" width="10" height="10" viewBox="0 0 10 10" aria-hidden>
         <path d="M2.5 4 5 6.5 7.5 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
@@ -667,7 +669,7 @@ function EfficiencySelect({
           </option>
         ))}
       </select>
-      <svg className="pointer-events-none absolute right-2 text-faint" width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+      <svg className="pointer-events-none absolute right-2 text-faint opacity-0 transition-opacity group-hover:opacity-100" width="10" height="10" viewBox="0 0 10 10" aria-hidden>
         <path d="M2.5 4 5 6.5 7.5 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>

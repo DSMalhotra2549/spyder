@@ -1,7 +1,7 @@
 # Spyder design spec
 
 Visual source of truth for the renderer. Behavior lives in `SPYDER_PLAN.md` §12. References: `design/reference/INDEX.md`.
-The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel-style (P56): neutral greys, hairline borders, dense tables, small type, Spyder purple as the only accent, colour only where it carries meaning. Light, dark or follow Windows (P57).
+The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel-style (P56): neutral greys, small type, Spyder purple as the only accent, colour only where it carries meaning, now in an Arc-style glass frame with soft rounded shapes (P87). Light, dark or follow Windows (P57).
 
 **Brand rule:** no Rize logo, wordmark, name, or the purple "agent orb". Spyder's own mark is an accent circle with a white "S" (tray/app icon only). In the widget the orb's slot is taken by a functional **workday ring**.
 
@@ -47,10 +47,11 @@ The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel
   - `section-label` 12 / 500, sentence case, muted — labels above values; sidebar groups 11 / 500 faint
 
 ### Radii, spacing, shadows
-- Radii: `pill` 9999 · `card` 8 · `control` 6 · `chip` 4 · `bar` 2.
+- Radii: `pill` 9999 · `card` 12 · `control` 8 · `chip` 4 · `bar` 2 (P87). Stat tiles 14, block rows 10, nav pills 9.
 - Spacing: 4-px grid (4, 8, 12, 16, 20, 24, 32). Card padding 16 (20 on dashboard stat cards).
 - Shadows: `--shadow-float` for the prompt window, `--shadow-pop` for menus, tooltips, the merge panel and the toast. Dashboard cards have no shadow, only the 1 px border.
-- Motion: 150 ms ease-out for hover/expand; the timer never animates digits.
+- Motion: 150 ms ease-out for hover/expand; pages fade in (200 ms, 6 px rise), stat tiles lift 2 px on hover, the sidebar pill slides (220 ms) (P87). All off under reduced motion. The timer never animates digits.
+- Glass (P87): the dashboard and prompt windows use Windows 11 acrylic (`backgroundMaterial`); glass shows only while the window is focused, otherwise Windows paints a flat colour. Frosted fills are `--color-text` at 6–16 % (`.glass-*` in `styles.css`).
 
 ## 2. Widget (`#/widget`)
 
@@ -75,7 +76,7 @@ Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a f
 
 ## 3. Prompt window (`#/prompt`)
 
-420 px wide, height = content (main resizes to `document.body.scrollHeight`). Fill `surface`, border 1 px `border-strong`, radius card, `shadow-float`, 20 px padding. Styled like the reference popover card (`rize-autotag-example.png` in `design/reference/INDEX.md`). It pops on top when it appears and again whenever another block ends (P60); it never closes on Esc.
+420 px wide, height = content (main resizes to the content's height). Acrylic glass window (P87): Windows draws the rounded corners and shadow; the card fills it with `surface` at 70 %, 20 px padding; the input, secondary buttons and efficiency group are frosted. Styled like the reference popover card (`rize-autotag-example.png` in `design/reference/INDEX.md`). It pops on top when it appears and again whenever another block ends (P60); it never closes on Esc.
 
 ### Accounting (P60)
 ```
@@ -97,17 +98,17 @@ Heading `NOT STARTED` in `away`, title `Work hours have started`, body `Press St
 
 ## 4. Dashboard (`#/dashboard/*`)
 
-1200 × 800, min 960 × 640, framed window, background `bg`.
-- **Sidebar** 216 px, `sidebar` fill, right border. Top: 20 px accent square mark + "Spyder" 14/600. Groups with 11/500 faint headings: Day (Today, Review) (P80), Trends (Week, Month), Setup (Rules, Settings). Nav items 32 px tall, 16 px icons (inline SVG, 1.5 px stroke), radius control; active = `surface-2` fill, `text`, 500; inactive `muted`, hover `surface-2` at 60 %. A badge (accent pill) on Review shows pending items.
-- **Sidebar footer** (a small bordered `surface` card, P59): state dot + caption (`Block · 15m` with the timer, `Not started` in orange, or `Off hours`), then the block-length box (56 px number input, `min blocks`; Enter or blur applies it from the next block), then `Start` (primary, full width), or `Stop` (secondary) while the loop runs. Off hours: `Keep working +N` (P20, P62). Then a `Show widget` ghost button.
-- **Top bar** (48 px, bottom border): page title `h1`, `‹ ›` (28 px ghost) and the date, right side page actions (Review: `Complete review` primary). Export lives in Settings only (P72).
-- **Content:** padding 24, 12-column grid, gap 16. Cards: `surface`, 1 px `border`, radius card, padding 16, header = `section-title` + optional right-aligned muted total.
+1200 × 800, min 960 × 640, acrylic glass window with no title bar (P87): Windows' min/max/close sit over the glass, and the top 36 px strip drags the window.
+- **Sidebar** 216 px, untinted glass; text and icons carry a soft glow in `bg` (P87). Top: 20 px accent square mark + "Spyder" 14/600, in the drag strip. Groups with 11/600 headings (`text` 55 %): Day (Today, Review) (P80), Trends (Week, Month), Setup (Rules, Settings). Nav items 36 px tall, 16 px icons (inline SVG, 1.5 px stroke), radius 9; active = a frosted pill that slides to it, `text`, 600; inactive `text` 80 %, hover frosted. A badge (accent pill) on Review shows pending items.
+- **Sidebar footer** (a small frosted card, P59, P87; secondary buttons and the length box frosted): state dot + caption (`Block · 15m` with the timer, `Not started` in orange, or `Off hours`), then the block-length box (56 px number input, `min blocks`; Enter or blur applies it from the next block), then `Start` (primary, full width), or `Stop` (secondary) while the loop runs. Off hours: `Keep working +N` (P20, P62). Then a `Show widget` ghost button.
+- **Top bar** (56 px, no border, P87): page title 20/700, `‹ ›` (28 px ghost) and the date, right side page actions (Review: `Complete review` primary). Export lives in Settings only (P72).
+- **Content:** on a floating card (P87): 36 px below the window top, 8 px from the right and bottom edges, radius 12, `bg` at 97 %, soft shadow. Inside, padding 24, 12-column grid, gap 16. Cards: `surface`, 1 px `border`, radius card, padding 16, header = `section-title` + optional right-aligned muted total.
 - **Toast** (P52): bottom centre, `surface` card with `shadow-pop`, one line + `Undo` (accent text) + ×; gone after 8 s. Errors show in `red` without Undo.
 
 ### Today (P55 — core first)
 One centred column, max 960 px, 32 px between sections. Section heads: `section-title` left, muted totals right.
-1. **Stat row** (P80): one bordered strip of 4 cells divided by hairlines (the shared `StatStrip`, also on Week and Month): Productive, the headline (green when the goal is met, a 4 px progress bar in `productive`, `green` once met, `of 5h goal · met`), Work (`1h break`), Efficiency (P75: `75%`, `3h effective`, or `—` / `no blocks rated`), Streak (`goal met in a row`). Day score is on Review, Week and Month. Values `stat`, labels `section-label`.
-2. **Block log** (P64): a bordered table of blocks and untracked spans in time order, 40 px rows: checkbox (hidden on the running block) · time range (`11:00–now` while running) · 3 px colour bar (`work` when answered, `open` grey when not, break 50 %) · answer (click to re-answer; `Not accounted for` in orange; `● Running` on the running block) · tag dropdown (P66, P74: a 2 px-radius swatch in the tag's colour + `Work`/`Break`/`Gym`/`Food` 12 px `muted` + chevron, 80 px, borderless until hover; disabled on the running block) · efficiency dropdown on work blocks (P75: `—` `faint` when not rated, else `75%` `muted`, 64 px, same style; an empty 64 px on breaks) · duration · on hover, ✎ and 🗑 icon buttons, with ↶ Unmerge before them on a merged block (P86; 88 px column). Neighbouring blocks (nothing shown between them, P73) with the same tag and answer are joined: no divider between them, the colour bar runs through, later rows' answers in `faint`, and the first carries `3 blocks · 45m` (11 px faint). Untracked rows are muted and read-only. Header right: `22 blocks · 2 not accounted for · 15m untracked`, then a small `Merge repeats` secondary button while any blocks are joined (P73); with ticks: `2 selected · Tag… · Rate… · Answer… · Merge… · Delete · Clear` (`Rate…` only while every ticked block is work) (`Tag…` is a bordered dropdown: Work / Break).
+1. **Stat row** (P80, P87): 4 separate rounded tiles (`surface-2` at 50 %, radius 14, gap 12; values 26/700) (the shared `StatStrip`, also on Week and Month): Productive, the headline (green when the goal is met, a 4 px progress bar in `productive`, `green` once met, `of 5h goal · met`), Work (`1h break`), Efficiency (P75: `75%`, `3h effective`, or `—` / `no blocks rated`), Streak (`goal met in a row`). Day score is on Review, Week and Month. Values `stat`, labels `section-label`.
+2. **Block log** (P64, P87): blocks and untracked spans in time order as soft rounded tiles (44 px, radius 10, `surface-2` at 45 %, gap 4; joined blocks form one tile), checkbox and dropdown arrows shown on hover or when ticked: checkbox (hidden on the running block) · time range (`11:00–now` while running) · 3 px colour bar (`work` when answered, `open` grey when not, break 50 %) · answer (click to re-answer; `Not accounted for` in orange; `● Running` on the running block) · tag dropdown (P66, P74: a 2 px-radius swatch in the tag's colour + `Work`/`Break`/`Gym`/`Food` 12 px `muted` + chevron, 80 px, borderless until hover; disabled on the running block) · efficiency dropdown on work blocks (P75: `—` `faint` when not rated, else `75%` `muted`, 64 px, same style; an empty 64 px on breaks) · duration · on hover, ✎ and 🗑 icon buttons, with ↶ Unmerge before them on a merged block (P86; 88 px column). Neighbouring blocks (nothing shown between them, P73) with the same tag and answer are joined: no divider between them, the colour bar runs through, later rows' answers in `faint`, and the first carries `3 blocks · 45m` (11 px faint). Untracked rows are muted and read-only. Header right: `22 blocks · 2 not accounted for · 15m untracked`, then a small `Merge repeats` secondary button while any blocks are joined (P73); with ticks: `2 selected · Tag… · Rate… · Answer… · Merge… · Delete · Clear` (`Rate…` only while every ticked block is work) (`Tag…` is a bordered dropdown: Work / Break).
    - **Re-answer** turns the row into the answer input + `Save` / `Break` / `Cancel`; Enter saves, Esc cancels.
    - **Answer…** and **Merge…** open a panel above the table: an answer input (Merge pre-fills a shared answer and says `They become one 45m block, 12:45–13:30, with one answer.`), `Save`/`Merge` primary and `Break` (answer only; a merge of breaks may leave the answer empty). When a merge isn't allowed, its reason shows in red instead of the input: `Only blocks next to each other can be merged`, `A break can’t be merged with work blocks. Change their tags first.`
    - Delete and merge apply at once and show the toast with Undo.

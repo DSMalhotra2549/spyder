@@ -1,6 +1,6 @@
 // Dashboard shell (design/DESIGN.md §4): sidebar, footer status, and the page for the route.
 import clsx from 'clsx';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { fmtClock, fmtDuration } from '../../core/format';
 import type { WidgetPayload } from '../../preload/api';
 import { navigate } from '../router';
@@ -43,16 +43,28 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
   }, []);
   const go = (p: string, d?: string) => navigate(`dashboard/${p}${d ? `/${d}` : ''}`);
   const onDate = (d: string) => go(page, rv && d === rv.today ? undefined : d);
+  // The active-page pill is one element that slides to the current nav item.
+  const side = useRef<HTMLElement>(null);
+  const [pillTop, setPillTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = side.current?.querySelector<HTMLElement>(`[data-nav="${page}"]`);
+    setPillTop(el ? el.offsetTop : null);
+  }, [page]);
   return (
     <div className="flex h-full">
-      <aside className="flex w-[216px] shrink-0 flex-col border-r border-border bg-sidebar px-2.5 pt-3 pb-3">
+      {/* Title-bar strip: drags the window; the logo sits in it. */}
+      <div className="drag fixed inset-x-0 top-0 h-9" />
+      <aside ref={side} className="glass-side relative flex w-[216px] shrink-0 flex-col px-2.5 pt-1 pb-3">
+        {pillTop !== null && (
+          <div aria-hidden className="glass-pill nav-pill pointer-events-none absolute inset-x-2.5 h-9 rounded-[9px]" style={{ top: pillTop }} />
+        )}
         <div className="mb-5 flex h-8 items-center gap-2 px-2">
           <div className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-accent text-[11px] font-bold text-on-accent">S</div>
           <span className="text-[14px] font-semibold tracking-[-0.01em]">Spyder</span>
         </div>
         {GROUPS.map((g) => (
           <nav key={g.title} className="mb-4">
-            <div className="mb-1 px-2 text-[11px] font-medium text-faint">{g.title}</div>
+            <div className="mb-1 px-2 text-[11px] font-semibold text-text/55">{g.title}</div>
             {g.items.map((i) => (
               <button
                 key={i.id}
@@ -60,11 +72,11 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
                 // Keep the viewed date when switching between Today and Review.
                 onClick={() => go(i.id, i.id === 'today' || i.id === 'review' ? date : undefined)}
                 className={clsx(
-                  'flex h-8 w-full items-center gap-2.5 rounded-control px-2 text-left text-[13px]',
-                  page === i.id ? 'bg-surface-2 font-medium text-text' : 'text-muted hover:bg-surface-2/60 hover:text-text',
+                  'relative flex h-9 w-full items-center gap-2.5 rounded-[9px] px-2.5 text-left text-[13px] transition-colors duration-150',
+                  page === i.id ? 'font-semibold text-text' : 'glass-hover text-text/80 hover:text-text',
                 )}
               >
-                <span className={page === i.id ? 'text-text' : 'text-faint'}>{ICONS[i.id]}</span>
+                <span className={page === i.id ? 'text-text' : 'text-text/60'}>{ICONS[i.id]}</span>
                 {i.label}
                 {i.id === 'review' && rv && rv.leftoverCount > 0 && (
                   <span data-testid="review-badge" className="ml-auto rounded-pill bg-accent px-1.5 text-[11px] leading-[18px] font-semibold text-on-accent tabular">
@@ -77,7 +89,8 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
         ))}
         <Footer />
       </aside>
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="mt-9 mr-2 mb-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-[12px] bg-bg/97 shadow-[0_8px_30px_rgba(0,0,0,0.3),0_0_0_1px_var(--color-border)]">
+        <div key={page} className="page-in flex min-h-0 flex-1 flex-col">
         {page === 'today' ? (
           <Today date={date} onDate={onDate} />
         ) : page === 'review' ? (
@@ -95,6 +108,7 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
         ) : (
           <TopBar title={LABELS[page] ?? 'Spyder'} />
         )}
+        </div>
       </main>
       <Toast />
     </div>
@@ -115,7 +129,7 @@ function LengthBox({ sec }: { sec: number }) {
     if (min * 60 !== sec) void window.spyder.setBlockLength(min * 60);
   };
   return (
-    <label className="flex items-center gap-1.5 text-[12px] text-muted">
+    <label className="flex items-center gap-1.5 text-[12px] text-text/75">
       <input
         data-testid="block-length"
         aria-label="Block length in minutes"
@@ -126,7 +140,7 @@ function LengthBox({ sec }: { sec: number }) {
         onChange={(e) => setV(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => e.key === 'Enter' && commit()}
-        className={clsx(inputCls, 'h-7 w-14 px-1.5 text-center tabular')}
+        className={clsx(inputCls, 'glass-btn h-7 w-14 px-1.5 text-center tabular')}
       />
       min blocks
     </label>
@@ -146,10 +160,10 @@ function Footer() {
   const dot = w.running ? 'var(--color-accent)' : w.notStarted ? 'var(--color-orange)' : 'var(--color-faint)';
   const caption = w.running ? `Block · ${fmtDuration(w.blockLengthSec)}` : w.notStarted ? 'Not started' : 'Off hours';
   return (
-    <div className="mt-auto flex flex-col gap-1.5 rounded-card border border-border bg-surface p-2.5">
+    <div className="glass-card mt-auto flex flex-col gap-1.5 rounded-[12px] border p-2.5">
       <div className="mb-0.5 flex items-center gap-2">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-        <span data-testid="sidebar-status" className={clsx('min-w-0 flex-1 truncate text-[12px]', w.notStarted ? 'text-orange' : 'text-muted')}>
+        <span data-testid="sidebar-status" className={clsx('min-w-0 flex-1 truncate text-[12px]', w.notStarted ? 'text-orange' : 'text-text/75')}>
           {caption}
         </span>
         {w.running && (
@@ -160,7 +174,7 @@ function Footer() {
       </div>
       <LengthBox sec={w.nextLengthSec} />
       {w.running ? (
-        <Btn size="sm" data-testid="sidebar-stop" className="w-full" onClick={() => void window.spyder.stop()}>
+        <Btn size="sm" data-testid="sidebar-stop" className="glass-btn w-full" onClick={() => void window.spyder.stop()}>
           Stop
         </Btn>
       ) : (
@@ -169,11 +183,11 @@ function Footer() {
         </Btn>
       )}
       {w.mode === 'off_hours' && (
-        <Btn size="sm" data-testid="keep-working" className="w-full" onClick={() => void window.spyder.keepWorking()}>
+        <Btn size="sm" data-testid="keep-working" className="glass-btn w-full" onClick={() => void window.spyder.keepWorking()}>
           Keep working +{step}
         </Btn>
       )}
-      <Btn size="sm" variant="ghost" className="w-full" onClick={() => void window.spyder.showWidget()}>
+      <Btn size="sm" variant="ghost" className="glass-hover w-full text-text/70" onClick={() => void window.spyder.showWidget()}>
         Show widget
       </Btn>
     </div>
