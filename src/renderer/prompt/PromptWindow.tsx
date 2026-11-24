@@ -23,7 +23,7 @@ export function PromptWindow() {
     return () => ro.disconnect();
   }, []);
   return (
-    <div ref={root} className="p-2">
+    <div ref={root} className="glass-prompt">
       {st?.view === 'account' && <AccountCard key={st.blocks.map((b) => b.id).join()} p={st} />}
       {st?.view === 'reminder' && <ReminderCard p={st} />}
     </div>
@@ -34,7 +34,7 @@ function Card({ color, heading, right, testId, children }: { color: string; head
   return (
     <div
       data-testid={testId}
-      className="flex flex-col gap-3 rounded-card border border-border-strong bg-surface px-5 pt-4 pb-5 shadow-[var(--shadow-float)]"
+      className="flex flex-col gap-3 bg-surface/70 px-5 pt-4 pb-5"
       style={{ borderTop: `2px solid ${color}` }}
     >
       <div className="drag flex items-center gap-2">

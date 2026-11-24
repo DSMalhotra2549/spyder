@@ -174,9 +174,9 @@ export function Timeline({
         </defs>
 
         {/* Work hours are the lit part of the track. */}
-        <rect x={PAD} y={ty} width={plotW} height={th} rx={4} fill="var(--color-surface-2)" opacity={0.45} />
-        {win && <rect x={x(win.startMs)} y={ty} width={w(win.startMs, win.endMs)} height={th} rx={4} fill="var(--color-surface-2)" />}
-        <rect x={PAD} y={L.strip.y} width={plotW} height={L.strip.h} rx={4} fill="var(--color-surface-2)" opacity={0.45} />
+        <rect x={PAD} y={ty} width={plotW} height={th} rx={8} fill="var(--color-surface-2)" opacity={0.45} />
+        {win && <rect x={x(win.startMs)} y={ty} width={w(win.startMs, win.endMs)} height={th} rx={8} fill="var(--color-surface-2)" />}
+        <rect x={PAD} y={L.strip.y} width={plotW} height={L.strip.h} rx={8} fill="var(--color-surface-2)" opacity={0.45} />
         {hours.map((t, i) => (
           <g key={t}>
             <line x1={x(t)} x2={x(t)} y1={L.strip.y + L.strip.h + 2} y2={L.strip.y + L.strip.h + 6} stroke="var(--color-border-strong)" />
@@ -208,7 +208,7 @@ export function Timeline({
             y={ty}
             width={w(b.startMs, b.endMs)}
             height={th}
-            rx={2}
+            rx={4}
             fill={b.classification === null ? `url(#aw${uid})` : 'var(--color-away)'}
             opacity={b.classification === null ? 1 : 0.35}
             onMouseMove={(e) =>
@@ -230,7 +230,7 @@ export function Timeline({
               y={ty}
               width={w(b.startMs, b.endMs)}
               height={th}
-              rx={2}
+              rx={4}
               fill={blockColor(b)}
               opacity={(isBreak ? 0.4 : 1) * (dim ? 0.35 : 1)}
               stroke={isSel ? 'var(--color-text)' : 'var(--color-bg)'}
@@ -258,7 +258,7 @@ export function Timeline({
                 y={L.strip.y}
                 width={bw > 3 ? bw - 1 : bw}
                 height={L.strip.h}
-                rx={bw > 6 ? 2 : 0}
+                rx={bw > 8 ? 4 : 0}
                 fill={appColor(picked, b.key, b.slot)}
               />
               {label && !compact && (
