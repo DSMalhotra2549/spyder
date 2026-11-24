@@ -9,7 +9,7 @@ import type { AskRow } from '../core/asks';
 import { accountView, reminderView, type PendingBlock, type PromptVM } from '../core/promptView';
 import { addDays, dateKey, mergeOverride, minutesOfDay, startOfDay, workWindow, type DayOverride } from '../core/schedule';
 import type { ScheduleRow } from '../core/settings';
-import { TAGS, tagOf, type Ctx, type Effect, type EngineError, type EngineEvent, type EngineState, type Tag } from '../core/types';
+import { isEfficiency, TAGS, tagOf, type Ctx, type Effect, type EngineError, type EngineEvent, type EngineState, type Tag } from '../core/types';
 import type { WidgetPayload } from '../preload/api';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
@@ -146,11 +146,11 @@ export class EngineHost {
   }
 
   /**
-   * Answers ended blocks (P60, P64, P66): text, and optionally a tag; without one a block keeps its tag. A work
-   * block needs text, a break doesn't. The running block has no answer yet. Used by the prompt, Today and the review.
+   * Answers ended blocks (P60, P64, P66, P75): text, and optionally a tag and an efficiency; left out, a block keeps
+   * them. A work block needs text, a break doesn't. The running block has no answer yet. Used by the prompt, Today and the review.
    */
   answer(answers: repo.BlockAnswer[]): Result {
-    const clean: { id: string; answer: string | null; tag: Tag }[] = [];
+    const clean: { id: string; answer: string | null; tag: Tag; efficiency?: repo.BlockAnswer['efficiency'] }[] = [];
     const running = this.state.loop?.block.id;
     for (const a of answers) {
       if (a.id === running) return { error: 'invalid', message: 'The running block can’t be answered until it ends' };
@@ -160,7 +160,9 @@ export class EngineHost {
       const tag: Tag = a.tag ?? tagOf(row);
       const text = a.answer?.trim() || null;
       if (tag === 'work' && text === null) return { error: 'invalid', message: 'Say what you did, or pick Break' };
-      clean.push({ id: a.id, answer: text, tag });
+      // P75: only work blocks are rated.
+      if (a.efficiency != null && (!isEfficiency(a.efficiency) || tag !== 'work')) return { error: 'invalid', message: 'Only a work block can be rated 25, 50, 75 or 100%' };
+      clean.push({ id: a.id, answer: text, tag, ...(a.efficiency !== undefined && { efficiency: a.efficiency }) });
     }
     repo.writeAnswers(this.app.db, clean);
     const dates = new Set(

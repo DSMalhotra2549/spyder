@@ -129,6 +129,13 @@ The amount of productive time the user aims for each workday.
 Productive time as a percentage of scheduled work hours.
 _Avoid_: focus score, productivity score
 
+**Efficiency**:
+The user's own rating of how well a work block went: 25, 50, 75 or 100 %, or not rated. For a day or range, rated work time weighted by its rating as a percentage of rated work time. Unrelated to productive time.
+_Avoid_: focus, quality score
+
+**Effective time**:
+Rated work time weighted by its efficiency (1h at 50 % is 30m effective).
+
 **Streak**:
 The number of consecutive scheduled workdays on which the daily goal was met.
 

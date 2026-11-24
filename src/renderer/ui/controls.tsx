@@ -1,6 +1,7 @@
 // Shared controls (design/DESIGN.md §2–3).
 import clsx from 'clsx';
 import { useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { EFFICIENCIES, type Efficiency } from '../../core/types';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 
@@ -29,6 +30,43 @@ export function Btn({
     >
       {children}
     </button>
+  );
+}
+
+/** P75: how efficient a work block was, 25/50/75/100%. Optional: clicking the picked one clears it. */
+export function EfficiencyPicker({
+  value,
+  onChange,
+  testId = 'efficiency',
+  label,
+}: {
+  value: Efficiency | null;
+  onChange: (v: Efficiency | null) => void;
+  testId?: string;
+  label?: string;
+}) {
+  return (
+    <div className="no-drag flex shrink-0 items-center gap-2">
+      {label && <span className="caps text-muted">{label}</span>}
+      <div data-testid={testId} role="group" aria-label="Efficiency" className="inline-flex rounded-control bg-surface-2 p-0.5">
+        {EFFICIENCIES.map((e) => (
+          <button
+            key={e}
+            type="button"
+            data-value={e}
+            aria-pressed={e === value}
+            title={e === value ? 'Clear the efficiency' : `${e}% efficient`}
+            onClick={() => onChange(e === value ? null : e)}
+            className={clsx(
+              'h-6 rounded-chip px-2 text-[12px] font-medium tabular',
+              e === value ? 'bg-accent text-on-accent' : 'text-muted hover:text-text',
+            )}
+          >
+            {e}%
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

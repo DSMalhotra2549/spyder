@@ -3,7 +3,7 @@ import type { WidgetVM } from '../core/blockEngine';
 import type { PromptVM } from '../core/promptView';
 import type { Settings } from '../core/settings';
 import type { Category, MatchType } from '../core/defaults';
-import type { EngineError, Tag } from '../core/types';
+import type { Efficiency, EngineError, Tag } from '../core/types';
 import type { DayVM, Kpi, ReviewItem, ReviewVM } from '../core/review';
 import type { AppRow } from '../core/aggregate';
 import type { AskRow } from '../core/asks';
@@ -47,11 +47,15 @@ export interface WidgetPayload extends WidgetVM {
 
 export type PromptWindowState = PromptVM | null;
 
-/** One block's answer (P60, P66): free text, or null for none (breaks only); `tag` left out keeps the block's tag. */
+/**
+ * One block's answer (P60, P66, P75): free text, or null for none (breaks only); `tag` and `efficiency` left out keep
+ * the block's own. Only a work block can be rated.
+ */
 export interface BlockAnswer {
   id: string;
   answer: string | null;
   tag?: Tag;
+  efficiency?: Efficiency | null;
 }
 
 export type Ok = { ok: true };
@@ -104,6 +108,8 @@ export interface SpyderApi {
   mergeRepeats(date: string): Promise<EditResult>;
   /** P66, P74: set the blocks' tag (Work, Break, Gym or Food); answers stay. */
   tagBlocks(ids: string[], tag: Tag): Promise<EditResult>;
+  /** P75: rate work blocks 25, 50, 75 or 100% efficient, or clear the rating (null). */
+  rateBlocks(ids: string[], efficiency: Efficiency | null): Promise<EditResult>;
   undoEdit(undoId: string): Promise<Ok | EngineError>;
 
   answerSuggestions(prefix: string): Promise<string[]>;
