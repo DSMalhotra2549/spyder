@@ -14,8 +14,6 @@ export function statTexts(s: DaySummary, streak: number) {
     workSub: s.breakSec > 0 ? `${dur(s.breakSec)} break` : 'no breaks',
     productive: dur(s.productiveSec),
     productiveSub: `of ${dur(s.goalSec)} goal${s.goalMet ? ' · met' : ''}`,
-    score: pct(s.score),
-    scoreSub: s.scheduledSec > 0 ? `of ${dur(s.scheduledSec)} scheduled` : 'day off',
     // P75: rated work time weighted by its rating.
     efficiency: pct(s.efficiency),
     efficiencySub: effSub(s.ratedSec, s.effectiveSec),

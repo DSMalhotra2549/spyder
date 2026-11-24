@@ -41,8 +41,71 @@ export function Settings() {
             one below.
           </div>
         )}
-        <div className="grid grid-cols-12 gap-4">
-          <WorkHours className="col-span-7" />
+        {/* P80: one card per subject. Block length lives next to Start in the sidebar (P59). */}
+        <div className="grid grid-cols-12 items-start gap-4">
+          <div className="col-span-7 flex min-w-0 flex-col gap-4">
+            <WorkHours />
+            <Card title="Blocks & nudges">
+              <Field label="Track from startup" hint="blocks run from launch or wake until shutdown or sleep, whatever the work hours">
+                <Toggle
+                  testId="set-trackFromStartup"
+                  label="Track from startup"
+                  on={s.trackFromStartup}
+                  onChange={(v) => void set({ trackFromStartup: v })}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-x-6">
+                <Field label="Away after idle" hint="shown as a hint">
+                  <NumberInput
+                    testId="set-idleThresholdSec"
+                    value={s.idleThresholdSec / 60}
+                    min={1}
+                    unit="min"
+                    onCommit={(v) => void set({ idleThresholdSec: v * 60 })}
+                  />
+                </Field>
+                <Field label="Keep-working step">
+                  <NumberInput
+                    testId="set-keepWorkingStepMin"
+                    value={s.keepWorkingStepMin}
+                    min={5}
+                    unit="min"
+                    onCommit={(v) => void set({ keepWorkingStepMin: v })}
+                  />
+                </Field>
+                <Field label="Nudge after">
+                  <NumberInput
+                    testId="set-nudgeAfterSec"
+                    value={s.nudgeAfterSec / 60}
+                    min={0.5}
+                    step={0.5}
+                    unit="min"
+                    onCommit={(v) => void set({ nudgeAfterSec: v * 60 })}
+                  />
+                </Field>
+                <Field label="Repeat nudge">
+                  <NumberInput
+                    testId="set-nudgeRepeatSec"
+                    value={s.nudgeRepeatSec / 60}
+                    min={0.5}
+                    step={0.5}
+                    unit="min"
+                    onCommit={(v) => void set({ nudgeRepeatSec: v * 60 })}
+                  />
+                </Field>
+                <Field label="Distraction reset">
+                  <NumberInput
+                    testId="set-nudgeResetSec"
+                    value={s.nudgeResetSec}
+                    min={5}
+                    unit="sec"
+                    onCommit={(v) => void set({ nudgeResetSec: v })}
+                  />
+                </Field>
+              </div>
+            </Card>
+          </div>
+
           <div className="col-span-5 flex min-w-0 flex-col gap-4">
             <Card title="Goal">
               <Field label="Daily productive goal" hint="streaks count days that reach it">
@@ -56,7 +119,7 @@ export function Settings() {
                 />
               </Field>
             </Card>
-            <Card title="Widget & hotkey">
+            <Card title="Look">
               <Field label="Theme">
                 <Segmented
                   testId="set-theme"
@@ -69,7 +132,7 @@ export function Settings() {
                   onChange={(v) => void set({ theme: v })}
                 />
               </Field>
-              <Field label="Font" hint="for the whole app (P78)">
+              <Field label="Font" hint="for the whole app">
                 <Segmented
                   testId="set-font"
                   value={s.font}
@@ -105,73 +168,8 @@ export function Settings() {
                   </div>
                 </Field>
               ))}
-              <Field label="Widget hotkey" hint="shows / hides the widget">
-                <TextInput testId="set-hotkey" value={s.hotkey} onCommit={(v) => void set({ hotkey: v })} />
-              </Field>
+              <AppColors picked={s.appColors} onChange={(appColors) => void set({ appColors })} />
             </Card>
-          </div>
-
-          <Card title="Timers" className="col-span-7">
-            <div className="grid grid-cols-2 gap-x-6">
-              <Field label="Block length" hint="5–180 min, from the next block">
-                <NumberInput
-                  testId="set-blockLengthSec"
-                  value={s.blockLengthSec / 60}
-                  min={5}
-                  unit="min"
-                  onCommit={(v) => void set({ blockLengthSec: v * 60 })}
-                />
-              </Field>
-              <Field label="Away after idle" hint="shown as a hint">
-                <NumberInput
-                  testId="set-idleThresholdSec"
-                  value={s.idleThresholdSec / 60}
-                  min={1}
-                  unit="min"
-                  onCommit={(v) => void set({ idleThresholdSec: v * 60 })}
-                />
-              </Field>
-              <Field label="Nudge after">
-                <NumberInput
-                  testId="set-nudgeAfterSec"
-                  value={s.nudgeAfterSec / 60}
-                  min={0.5}
-                  step={0.5}
-                  unit="min"
-                  onCommit={(v) => void set({ nudgeAfterSec: v * 60 })}
-                />
-              </Field>
-              <Field label="Repeat nudge">
-                <NumberInput
-                  testId="set-nudgeRepeatSec"
-                  value={s.nudgeRepeatSec / 60}
-                  min={0.5}
-                  step={0.5}
-                  unit="min"
-                  onCommit={(v) => void set({ nudgeRepeatSec: v * 60 })}
-                />
-              </Field>
-              <Field label="Distraction reset">
-                <NumberInput
-                  testId="set-nudgeResetSec"
-                  value={s.nudgeResetSec}
-                  min={5}
-                  unit="sec"
-                  onCommit={(v) => void set({ nudgeResetSec: v })}
-                />
-              </Field>
-              <Field label="Keep-working step">
-                <NumberInput
-                  testId="set-keepWorkingStepMin"
-                  value={s.keepWorkingStepMin}
-                  min={5}
-                  unit="min"
-                  onCommit={(v) => void set({ keepWorkingStepMin: v })}
-                />
-              </Field>
-            </div>
-          </Card>
-          <div className="col-span-5 flex min-w-0 flex-col gap-4">
             <Card title="Tracking">
               <Field label="Sample the active window every">
                 <NumberInput
@@ -203,13 +201,8 @@ export function Settings() {
                   onChange={(v) => void set({ autostart: v })}
                 />
               </Field>
-              <Field label="Track from startup" hint="blocks run from launch or wake until shutdown or sleep, whatever the work hours">
-                <Toggle
-                  testId="set-trackFromStartup"
-                  label="Track from startup"
-                  on={s.trackFromStartup}
-                  onChange={(v) => void set({ trackFromStartup: v })}
-                />
+              <Field label="Widget hotkey" hint="shows / hides the widget">
+                <TextInput testId="set-hotkey" value={s.hotkey} onCommit={(v) => void set({ hotkey: v })} />
               </Field>
               <Field label="Data folder" hint={s.dataDir}>
                 <Btn onClick={() => void window.spyder.openDataFolder()}>Open folder</Btn>
@@ -218,7 +211,6 @@ export function Settings() {
                 <ExportButton />
               </Field>
             </Card>
-            <AppColors picked={s.appColors} onChange={(appColors) => void set({ appColors })} />
           </div>
         </div>
       </div>
@@ -292,7 +284,7 @@ function NumberInput({
  * P79: colours picked for apps and sites (also picked from the timeline legend). A name must match the app or site as
  * the timeline shows it; colours may repeat.
  */
-function AppColors({ picked, onChange, className }: { picked: Record<string, string>; onChange: (m: Record<string, string>) => void; className?: string }) {
+function AppColors({ picked, onChange }: { picked: Record<string, string>; onChange: (m: Record<string, string>) => void }) {
   const [name, setName] = useState('');
   const auto = (key: string) =>
     getComputedStyle(document.documentElement).getPropertyValue(`--color-app-${appSlot(key) + 1}`).trim() || '#808080';
@@ -304,7 +296,8 @@ function AppColors({ picked, onChange, className }: { picked: Record<string, str
   };
   const rows = Object.keys(picked).sort((a, b) => a.localeCompare(b));
   return (
-    <Card title="App colours" className={className}>
+    <div className="pt-3">
+      <div className="text-[13px]">App colours</div>
       <div className="mb-2 text-[11px] text-faint">Apps and sites you don’t colour keep an automatic colour. Click a swatch in the timeline legend to pick one there.</div>
       <div data-testid="app-colors">
         {rows.map((key) => (
@@ -338,7 +331,7 @@ function AppColors({ picked, onChange, className }: { picked: Record<string, str
           Add
         </Btn>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -370,14 +363,14 @@ function TextInput({
 }
 
 // ---- work hours ---------------------------------------------------------------------------
-function WorkHours({ className }: { className?: string }) {
+function WorkHours() {
   const [sch, reload] = useLoader(
     () => Promise.all([window.spyder.getSchedule(), window.spyder.getDay()]),
     'schedule',
   );
   if (!sch)
     return (
-      <Card title="Work hours" className={className}>
+      <Card title="Work hours">
         {null}
       </Card>
     );
@@ -394,7 +387,7 @@ function WorkHours({ className }: { className?: string }) {
     await reload();
   };
   return (
-    <Card title="Work hours" className={className} right="the review opens when the day ends">
+    <Card title="Work hours" right="the review opens when the day ends">
       {DAYS.map((wd) => {
         const r = rows.find((x) => x.weekday === wd);
         if (!r) return null;

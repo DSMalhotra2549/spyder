@@ -1,15 +1,15 @@
-// Today page (plan §12, P55, P64): stat row → block log → one-track timeline → apps & sites → distractions.
+// Today page (plan §12, P55, P64, P80): stat row → block log → two-track timeline → apps & sites → distractions.
 import clsx from 'clsx';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { alikeRuns, dayLog, neighbours, type AppRow, type LogEntry, type SessionLine } from '../../core/aggregate';
+import { alikeRuns, appSlot, dayLog, neighbours, type AppRow, type LogEntry, type SessionLine } from '../../core/aggregate';
 import type { ActivityCategory } from '../../core/categorize';
 import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
 import { EFFICIENCIES, TAG_LABEL, TAGS, type Efficiency, type EngineError, type Tag } from '../../core/types';
 import type { EditResult, Ok } from '../../preload/api';
 import { AnswerInput, Btn } from '../ui/controls';
-import { answerText, blockColor, ownAnswer, TAG_COLOR, Timeline } from './Timeline';
-import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, TopBar, useLoader } from './parts';
+import { answerText, AppSwatch, appColor, blockColor, ownAnswer, TAG_COLOR, Timeline, useAppColors } from './Timeline';
+import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, StatCell, StatStrip, TopBar, useLoader } from './parts';
 import { appTexts, dur, statTexts } from './stats';
 import { showEditResult } from './toast';
 
@@ -44,7 +44,7 @@ function TodayBody({ vm, reload }: { vm: DayVM; reload: () => Promise<void> }) {
         <BlockLog vm={vm} reload={reload} picked={picked} onPick={setPicked} />
 
         <section data-testid="timeline-card">
-          <SectionHead title="Timeline" right={<TimelineLegend />} />
+          <SectionHead title="Timeline" right={<TimelineLegend s={s} />} />
           <Timeline
             s={s}
             nowMs={vm.date === vm.today ? vm.nowMs : -1}
@@ -84,51 +84,21 @@ function SectionHead({ title, right, children }: { title: string; right?: ReactN
 
 // ---- stat row --------------------------------------------------------------------------
 
-/** Productive vs goal (with a thin bar), worked, day score, efficiency (P75), streak — one bordered strip. */
+/** P80: productive vs goal (with a thin bar) is the headline; then work, efficiency (P75), streak. Day score is on Review, Week and Month. */
 function StatRow({ vm, t }: { vm: DayVM; t: ReturnType<typeof statTexts> }) {
   const s = vm.summary;
   const frac = s.goalSec > 0 ? Math.min(1, s.productiveSec / s.goalSec) : 0;
   return (
-    <section className="grid grid-cols-5 divide-x divide-border rounded-card border border-border bg-surface">
+    <StatStrip cols={4}>
       <StatCell label="Productive" id="stat-productive" value={t.productive} sub={t.productiveSub} tone={s.goalMet ? 'green' : undefined}>
         <div className="mt-2 h-1 overflow-hidden rounded-pill bg-surface-2">
-          <div className={clsx('h-full rounded-pill', s.goalMet ? 'bg-green' : 'bg-accent')} style={{ width: `${frac * 100}%` }} />
+          <div className={clsx('h-full rounded-pill', s.goalMet ? 'bg-green' : 'bg-productive')} style={{ width: `${frac * 100}%` }} />
         </div>
       </StatCell>
-      <StatCell label="Worked" id="stat-work" value={t.work} sub={t.workSub} />
-      <StatCell label="Day score" id="stat-score" value={t.score} sub={t.scoreSub} />
+      <StatCell label="Work" id="stat-work" value={t.work} sub={t.workSub} />
       <StatCell label="Efficiency" id="stat-efficiency" value={t.efficiency} sub={t.efficiencySub} />
       <StatCell label="Streak" id="stat-streak" value={t.streak} sub="goal met in a row" />
-    </section>
-  );
-}
-
-function StatCell({
-  label,
-  id,
-  value,
-  sub,
-  tone,
-  children,
-}: {
-  label: string;
-  id: string;
-  value: string;
-  sub: string;
-  tone?: 'green';
-  children?: ReactNode;
-}) {
-  return (
-    <div className="min-w-0 px-4 py-3">
-      <div className="section-label mb-1">{label}</div>
-      <div data-testid={id} className={clsx('text-[20px] leading-tight font-semibold tabular', tone === 'green' && 'text-green')}>
-        {value}
-      </div>
-      {children}
-      <div data-testid={id === 'stat-streak' ? undefined : `${id}-sub`} className="mt-1 truncate text-[12px] text-muted tabular">
-        {sub}
-      </div>
-    </div>
+    </StatStrip>
   );
 }
 
@@ -690,7 +660,9 @@ function EfficiencySelect({
 
 // ---- timeline legend, apps, distractions ---------------------------------------------------
 
-function TimelineLegend() {
+/** P80: names match the block log; Gym and Food only on days that have them. */
+function TimelineLegend({ s }: { s: DayVM['summary'] }) {
+  const has = (t: Tag) => s.sessions.some((x) => x.tag === t);
   const item = (swatch: ReactNode, label: string) => (
     <span className="flex items-center gap-1.5">
       {swatch}
@@ -700,10 +672,10 @@ function TimelineLegend() {
   return (
     <span className="flex items-center gap-4 text-faint">
       {item(<span className="h-2 w-2 rounded-[2px] bg-work" />, 'Work')}
-      {item(<span className="h-2 w-2 rounded-[2px] bg-open" />, 'Not yet')}
+      {item(<span className="h-2 w-2 rounded-[2px] bg-open" />, 'Not accounted for')}
       {item(<span className="h-2 w-2 rounded-[2px] bg-break/50" />, 'Break')}
-      {item(<span className="h-2 w-2 rounded-[2px] bg-gym/50" />, 'Gym')}
-      {item(<span className="h-2 w-2 rounded-[2px] bg-food/50" />, 'Food')}
+      {has('gym') && item(<span className="h-2 w-2 rounded-[2px] bg-gym/50" />, 'Gym')}
+      {has('food') && item(<span className="h-2 w-2 rounded-[2px] bg-food/50" />, 'Food')}
       {item(<span className="hatch h-2 w-2 rounded-[2px]" />, 'Untracked')}
     </span>
   );
@@ -737,8 +709,10 @@ function CategoryBar({ totals }: { totals: Record<ActivityCategory, number> }) {
 const TOP_N = 5;
 
 /** Top apps & sites, the rest behind "Show all". Category is a quiet, clickable label (P12). */
+/** P81: each row's square is the app's colour on the app track, and picks it like the legend. */
 function TopApps({ rows, reload }: { rows: AppRow[]; reload: () => Promise<void> }) {
   const [all, setAll] = useState(false);
+  const [picked, pick] = useAppColors();
   if (!rows.length) return null;
   const shown = all ? rows : rows.slice(0, TOP_N);
   return (
@@ -749,7 +723,7 @@ function TopApps({ rows, reload }: { rows: AppRow[]; reload: () => Promise<void>
           const target = a.ruleTarget;
           return (
             <li key={a.key} data-testid="app-row" className="flex h-10 items-center gap-3 border-b border-border px-3 text-[13px] last:border-0">
-              <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: CAT_COLOR[a.category] }} />
+              <AppSwatch appKey={a.key} picked={picked} pick={pick} />
               <span data-k="key" className="min-w-0 flex-1 truncate">
                 {t.key}
               </span>
@@ -821,6 +795,7 @@ function Distractions({ vm, t }: { vm: DayVM; t: ReturnType<typeof statTexts> })
 
 /** Ranked apps & sites with a category chip per row (Week's top 10). */
 export function AppsList({ rows, reload, compact }: { rows: AppRow[]; reload: () => Promise<void>; compact?: boolean }) {
+  const [picked] = useAppColors();
   if (!rows.length) return <Empty>No activity recorded</Empty>;
   return (
     <ol>
@@ -829,7 +804,7 @@ export function AppsList({ rows, reload, compact }: { rows: AppRow[]; reload: ()
         const target = a.ruleTarget;
         return (
           <li key={a.key} data-testid="app-row" className="relative flex h-9 items-center gap-3 border-b border-border px-2 text-[13px] last:border-0">
-            <div className="absolute inset-y-1.5 left-0 rounded-bar" style={{ width: `${a.pct}%`, background: CAT_COLOR[a.category], opacity: 0.12 }} />
+            <div className="absolute inset-y-1.5 left-0 rounded-bar" style={{ width: `${a.pct}%`, background: appColor(picked, a.key, appSlot(a.key)), opacity: 0.18 }} />
             <span className="relative w-5 text-faint tabular">{i + 1}</span>
             <span data-k="key" className="relative min-w-0 flex-1 truncate">
               {t.key}

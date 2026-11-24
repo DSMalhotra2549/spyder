@@ -1,5 +1,4 @@
 // Week page (plan §12, design/DESIGN.md §4 Week).
-import clsx from 'clsx';
 import { format } from 'date-fns';
 import {
   Bar,
@@ -14,7 +13,6 @@ import {
 import { fmtHM } from '../../core/format';
 import { dayStartFromKey } from '../../core/schedule';
 import {
-  estimates,
   STACK_KEYS,
   stackTotal,
   topApps,
@@ -25,7 +23,7 @@ import {
 } from '../../core/trends';
 import { AppsList } from './Today';
 import { EfficiencyTrend } from './charts';
-import { CAT_COLOR, Card, Empty, Stat, TopBar, useLoader } from './parts';
+import { CAT_COLOR, Card, StatCell, StatStrip, TopBar, useLoader } from './parts';
 import { pct, rangeTexts } from './stats';
 
 export const STACK_COLOR: Record<keyof DayStacks, string> = {
@@ -42,18 +40,22 @@ export const STACK_LABEL: Record<keyof DayStacks, string> = {
   away: 'Away',
 };
 
+/** P80: the same strip as Today, productive first. */
 export function RangeStats({ vm }: { vm: RangeVM }) {
   const t = rangeTexts(vm.days);
   return (
-    <div className="grid grid-cols-5 gap-4">
-      <Stat label="Total work" value={t.work} sub={t.workSub} testId="range-work" />
-      <Stat label="Productive" value={t.productive} sub={t.productiveSub} testId="range-productive" />
-      <Stat label="Avg day score" value={t.score} sub="scheduled days" testId="range-score" />
-      <Stat label="Efficiency" value={t.efficiency} sub={t.efficiencySub} testId="range-efficiency" />
-      <Stat label="Goals hit" value={t.goals} sub={`streak ${vm.streak} ${vm.streak === 1 ? 'day' : 'days'}`} testId="range-goals" />
-    </div>
+    <StatStrip cols={5}>
+      <StatCell label="Productive" id="range-productive" value={t.productive} sub={t.productiveSub} />
+      <StatCell label="Work" id="range-work" value={t.work} sub={t.workSub} />
+      <StatCell label="Avg day score" id="range-score" value={t.score} sub="scheduled days" />
+      <StatCell label="Efficiency" id="range-efficiency" value={t.efficiency} sub={t.efficiencySub} />
+      <StatCell label="Goals hit" id="range-goals" value={t.goals} sub={`streak ${vm.streak} ${vm.streak === 1 ? 'day' : 'days'}`} />
+    </StatStrip>
   );
 }
+
+/** P80: the efficiency chart only once some block in the range is rated. */
+export const anyRated = (vm: RangeVM) => vm.days.some((d) => d.ratedSec > 0);
 
 export function Week({ date, onDate }: { date: string; onDate: (d: string) => void }) {
   const w = weekDates(date);
@@ -70,16 +72,15 @@ export function Week({ date, onDate }: { date: string; onDate: (d: string) => vo
             <WeekBars days={vm.days} />
             <Legend />
           </Card>
-          <Card title="Top sites & apps" right="work hours" className="col-span-5">
+          <Card title="Apps & sites" right="Work hours" className="col-span-5">
             <AppsList rows={top} reload={reload} compact />
           </Card>
         </div>
-        <Card title="Efficiency" className="mt-4" right="by day">
-          <EfficiencyTrend days={vm.days} />
-        </Card>
-        <Card title="Estimate accuracy" className="mt-4" right="planned sessions">
-          <Estimates days={vm.days} />
-        </Card>
+        {anyRated(vm) && (
+          <Card title="Efficiency" className="mt-4" right="by day">
+            <EfficiencyTrend days={vm.days} />
+          </Card>
+        )}
       </div>
     </>
   );
@@ -224,63 +225,5 @@ function BarTip({
         {d.goalMet && d.scheduled ? ' · goal met' : ''}
       </div>
     </div>
-  );
-}
-
-const th = 'section-label h-8 bg-surface-2 px-2 text-left font-semibold';
-const td = 'h-9 border-b border-border px-2';
-
-function Estimates({ days }: { days: DayLite[] }) {
-  const e = estimates(days);
-  if (!e.rows.length) return <Empty>No planned sessions this week</Empty>;
-  const over = (r: { deltaSec: number; plannedSec: number }) => r.deltaSec > r.plannedSec * 0.1;
-  const within = e.rows.filter((r) => Math.abs(r.deltaSec) <= r.plannedSec * 0.1).length;
-  const delta = e.actualSec - e.plannedSec;
-  return (
-    <table className="w-full border-collapse text-[13px]">
-      <thead>
-        <tr>
-          <th className={th}>Session</th>
-          <th className={th}>Day</th>
-          <th className={clsx(th, 'text-right')}>Planned</th>
-          <th className={clsx(th, 'text-right')}>Actual</th>
-          <th className={clsx(th, 'text-right')}>Δ</th>
-        </tr>
-      </thead>
-      <tbody>
-        {e.rows.map((r) => (
-          <tr key={r.id} data-testid="estimate-row" className="hover:bg-surface-2">
-            <td className={clsx(td, 'max-w-[320px] truncate', !r.name && 'text-muted')}>
-              {r.name ?? 'Unlabelled'}
-            </td>
-            <td className={clsx(td, 'text-muted tabular')}>{format(r.startMs, 'EEE d, HH:mm')}</td>
-            <td className={clsx(td, 'text-right text-muted tabular')}>{fmtHM(r.plannedSec)}</td>
-            <td className={clsx(td, 'text-right tabular')}>{fmtHM(r.actualSec)}</td>
-            <td className={clsx(td, 'text-right tabular', over(r) ? 'text-red' : 'text-muted')}>
-              {r.deltaSec >= 0 ? '+' : '−'}
-              {fmtHM(Math.abs(r.deltaSec))}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-      <tfoot>
-        <tr className="font-semibold">
-          <td className="h-9 px-2 text-muted" colSpan={2}>
-            {within} of {e.rows.length} within 10 %
-          </td>
-          <td className="h-9 px-2 text-right tabular">{fmtHM(e.plannedSec)}</td>
-          <td className="h-9 px-2 text-right tabular">{fmtHM(e.actualSec)}</td>
-          <td
-            className={clsx(
-              'h-9 px-2 text-right tabular',
-              delta > e.plannedSec * 0.1 ? 'text-red' : 'text-muted',
-            )}
-          >
-            {delta >= 0 ? '+' : '−'}
-            {fmtHM(Math.abs(delta))}
-          </td>
-        </tr>
-      </tfoot>
-    </table>
   );
 }
