@@ -198,49 +198,40 @@ export function Card({
   );
 }
 
-export function Stat({
+/** One bordered strip of stat cells divided by hairlines (Today, Week, Month). */
+export function StatStrip({ cols, children }: { cols: 4 | 5; children: ReactNode }) {
+  return (
+    <section className={clsx('grid divide-x divide-border rounded-card border border-border bg-surface', cols === 4 ? 'grid-cols-4' : 'grid-cols-5')}>
+      {children}
+    </section>
+  );
+}
+
+export function StatCell({
   label,
+  id,
   value,
   sub,
-  testId,
   tone,
-  aside,
-  className,
+  children,
 }: {
-  className?: string;
   label: string;
+  id: string;
   value: string;
-  sub?: string;
-  testId: string;
-  tone?: 'red' | 'green';
-  aside?: ReactNode;
+  sub: string;
+  tone?: 'green';
+  children?: ReactNode;
 }) {
   return (
-    <div
-      className={clsx(
-        'flex min-w-0 items-center gap-3 rounded-card border border-border bg-surface px-4 py-3.5',
-        className,
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="section-label mb-1 truncate">{label}</div>
-        <div
-          data-testid={testId}
-          className={clsx(
-            'text-[20px] leading-[1.2] font-semibold whitespace-nowrap tabular',
-            tone === 'red' && 'text-red',
-            tone === 'green' && 'text-green',
-          )}
-        >
-          {value}
-        </div>
-        {sub && (
-          <div data-testid={`${testId}-sub`} className="mt-1 truncate text-[12px] text-muted tabular">
-            {sub}
-          </div>
-        )}
+    <div className="min-w-0 px-4 py-3">
+      <div className="section-label mb-1">{label}</div>
+      <div data-testid={id} className={clsx('text-[20px] leading-tight font-semibold tabular', tone === 'green' && 'text-green')}>
+        {value}
       </div>
-      {aside}
+      {children}
+      <div data-testid={id === 'stat-streak' ? undefined : `${id}-sub`} className="mt-1 truncate text-[12px] text-muted tabular">
+        {sub}
+      </div>
     </div>
   );
 }

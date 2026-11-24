@@ -142,6 +142,11 @@ test('joined answers, re-answer, answer many, delete → undo, merge → undo on
   await expect.poll(() => (s!.db().prepare("SELECT value FROM settings WHERE key = 'appColors'").get() as { value: string } | undefined)?.value).toBe(
     JSON.stringify({ [biggest]: '#123456' }),
   );
+  // P81: the Apps & sites list shows the same colour, and picking there recolours the track too.
+  const listSwatch = d.getByTestId('app-row').filter({ hasText: biggest }).getByTestId('app-color');
+  await expect(listSwatch).toHaveValue('#123456');
+  await listSwatch.fill('#654321');
+  await expect(run).toHaveAttribute('fill', '#654321');
 });
 
 test('neighbours merge across a gap too short to show; Merge repeats merges every run with one Undo (P73)', async () => {

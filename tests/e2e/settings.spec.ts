@@ -17,9 +17,10 @@ test('settings apply live: block length, idle threshold, schedule', async () => 
     await shot(d, 'settings-bottom');
     await d.getByTestId('settings').evaluate((el) => el.scrollTo(0, 0));
 
-    // Block length 10 min → Start uses it, and the sidebar box shows it (P59).
-    await d.getByTestId('set-blockLengthSec').fill('10');
-    await d.getByTestId('set-blockLengthSec').press('Enter');
+    // Block length 10 min in the sidebar box (its only home, P59, P80) → stored, and Start uses it.
+    await expect(d.getByTestId('set-blockLengthSec')).toHaveCount(0);
+    await d.getByTestId('block-length').fill('10');
+    await d.getByTestId('block-length').press('Enter');
     await expect
       .poll(() => (s.db().prepare("SELECT value FROM settings WHERE key = 'blockLengthSec'").get() as { value: string }).value)
       .toBe('600');

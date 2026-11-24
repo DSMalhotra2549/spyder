@@ -4,7 +4,7 @@ import type { Rule } from './categorize';
 import { DEFAULT_RULES } from './defaults';
 import { cleanSettings, DEFAULT_SETTINGS } from './settings';
 import { relabelFirefox } from './titlePatterns';
-import { addMonths, dayEfficiency, dayLite, estimates, monthDates, rangeStats, stackTotal, topApps, weekDates, weekStart, type DayLite } from './trends';
+import { addMonths, dayEfficiency, dayLite, monthDates, rangeStats, stackTotal, topApps, weekDates, weekStart, type DayLite } from './trends';
 
 const at = (h: number, m = 0, day = 24) => new Date(2026, 10, day, h, m).getTime();
 const rules: Rule[] = DEFAULT_RULES.map((r) => ({ ...r, isDefault: true }));
@@ -46,7 +46,6 @@ describe('trends', () => {
     expect(d.stacks).toEqual({ productive: 100 * 60, neutral: 600, distracting: 600, uncategorized: 0, break: 900, away: 600 });
     expect(stackTotal(d.stacks)).toBe(d.workSec + 900 + 600);
     expect(d.productiveSec).toBe(110 * 60);
-    expect(d.planned).toEqual([{ id: 'p24', name: 'Plan', plannedSec: 3600, actualSec: 7200, deltaSec: 3600, startMs: at(10, 0, 24) }]);
   });
 
   it('range efficiency weights every rated minute alike (P75)', () => {
@@ -70,14 +69,11 @@ describe('trends', () => {
     expect(rangeStats([lite(25, { window: false })]).avgScore).toBeNull();
   });
 
-  it('top apps merges days and estimates lists planned sessions', () => {
+  it('top apps merges days', () => {
     const days = [lite(23, { yt: true }), lite(24)];
     const t = topApps(days, 2);
     expect(t.map((a) => [a.key, a.sec])).toEqual([['VS Code', 3600], ['Slack', 1200]]);
     expect(topApps(days, 10).reduce((s, a) => s + a.pct, 0)).toBeCloseTo(100, 6);
-    const e = estimates(days);
-    expect(e.rows.map((r) => r.id)).toEqual(['p23', 'p24']);
-    expect([e.plannedSec, e.actualSec]).toEqual([7200, 14_400]);
   });
 
   it('calendar helpers', () => {

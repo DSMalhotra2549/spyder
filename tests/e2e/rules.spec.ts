@@ -96,12 +96,8 @@ test('title pattern re-labels past Firefox rows; inbox and editors work', async 
     await d.getByLabel('Filter rules').fill('');
     await shot(d, 'rules');
 
-    // KPIs.
-    await d.getByTestId('rules-tabs').locator('[data-value=kpis]').click();
-    await d.getByTestId('kpi-add').getByLabel('KPI name').fill('Calls made');
-    await d.getByTestId('kpi-add').getByRole('button', { name: '+ Add KPI' }).click();
-    await expect(d.getByTestId('kpi-row')).toHaveCount(3);
-    await shot(d, 'rules-kpis');
+    // KPIs moved to Review (P80): no tab for them here.
+    await expect(d.getByTestId('rules-tabs').locator('[data-value=kpis]')).toHaveCount(0);
   } finally {
     await s.close();
   }
