@@ -1,5 +1,5 @@
-// Rules page (plan §12, design/DESIGN.md §4 Rules): rules, title patterns, the To sort list (P70),
-// projects and KPI definitions.
+// Rules page (plan §12, design/DESIGN.md §4 Rules): rules, title patterns and the To sort list (P70).
+// KPIs are set up on Review (P80).
 import clsx from 'clsx';
 import { useState, type ReactNode } from 'react';
 import type { Category, MatchType, PatternMatch } from '../../core/defaults';
@@ -13,17 +13,15 @@ import {
   DefaultChip,
   Empty,
   Segmented,
-  Toggle,
   TopBar,
   useLoader,
 } from './parts';
 
-type Tab = 'rules' | 'patterns' | 'inbox' | 'kpis';
+type Tab = 'rules' | 'patterns' | 'inbox';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'rules', label: 'Rules' },
   { value: 'patterns', label: 'Title patterns' },
   { value: 'inbox', label: 'To sort' },
-  { value: 'kpis', label: 'KPIs' },
 ];
 const CATS: Category[] = ['productive', 'neutral', 'distracting'];
 const TYPE_LABEL: Record<MatchType, string> = { app: 'App (exe)', domain: 'Domain', title: 'Title contains' };
@@ -41,7 +39,6 @@ export function Rules() {
           {tab === 'rules' && <RulesTab />}
           {tab === 'patterns' && <PatternsTab />}
           {tab === 'inbox' && <InboxTab />}
-          {tab === 'kpis' && <KpisTab />}
         </div>
       </div>
     </>
@@ -341,88 +338,5 @@ function InboxTab() {
         ))
       )}
     </Card>
-  );
-}
-
-// ---- projects ----------------------------------------------------------------------------
-function KpisTab() {
-  const [rows, reload] = useLoader(() => window.spyder.listKpis(), 'kpis');
-  const [name, setName] = useState('');
-  const [unit, setUnit] = useState('');
-  const add = async () => {
-    if (!name.trim()) return;
-    await window.spyder.saveKpi({ name, unit });
-    setName('');
-    setUnit('');
-    await reload();
-  };
-  return (
-    <Card title="KPIs" right="numbers you log in each day's review">
-      <div className="mb-3 flex items-center gap-2" data-testid="kpi-add">
-        <input
-          className={clsx(inp, 'w-[280px]')}
-          placeholder="KPI name, e.g. Emails answered"
-          aria-label="KPI name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void add()}
-        />
-        <input
-          className={clsx(inp, 'w-[120px]')}
-          placeholder="unit (optional)"
-          aria-label="Unit"
-          value={unit}
-          onChange={(e) => setUnit(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void add()}
-        />
-        <Btn variant="primary" onClick={() => void add()} disabled={!name.trim()}>
-          + Add KPI
-        </Btn>
-      </div>
-      {!rows ? null : rows.length === 0 ? (
-        <Empty>No KPIs yet</Empty>
-      ) : (
-        rows.map((k) => <KpiRow key={k.id} k={k} reload={reload} />)
-      )}
-    </Card>
-  );
-}
-
-function KpiRow({
-  k,
-  reload,
-}: {
-  k: { id: string; name: string; unit: string | null; archived: boolean };
-  reload: () => Promise<void>;
-}) {
-  const [name, setName] = useState(k.name);
-  const [unit, setUnit] = useState(k.unit ?? '');
-  const save = async (o: { archived?: boolean } = {}) => {
-    if (!name.trim()) return;
-    await window.spyder.saveKpi({ id: k.id, name, unit, archived: o.archived ?? k.archived });
-    await reload();
-  };
-  return (
-    <Row testId="kpi-row" muted={k.archived}>
-      <input
-        className={clsx(inp, 'w-[280px]')}
-        aria-label="KPI name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={() => name !== k.name && void save()}
-      />
-      <input
-        className={clsx(inp, 'w-[120px]')}
-        aria-label="Unit"
-        placeholder="unit"
-        value={unit}
-        onChange={(e) => setUnit(e.target.value)}
-        onBlur={() => unit !== (k.unit ?? '') && void save()}
-      />
-      <span className="ml-auto flex items-center gap-2 text-[12px] text-muted">
-        Archived
-        <Toggle label="Archived" on={k.archived} onChange={(v) => void save({ archived: v })} />
-      </span>
-    </Row>
   );
 }

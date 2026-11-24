@@ -13,15 +13,6 @@ export interface DayStacks {
   away: number;
 }
 
-export interface PlannedLine {
-  id: string;
-  name: string | null;
-  plannedSec: number;
-  actualSec: number;
-  deltaSec: number;
-  startMs: number;
-}
-
 /** What the Week and Month pages need from one day (small enough to send for a month). */
 export interface DayLite {
   date: string;
@@ -39,7 +30,6 @@ export interface DayLite {
   goalMet: boolean;
   stacks: DayStacks;
   apps: AppRow[];
-  planned: PlannedLine[];
 }
 
 export const STACK_KEYS = ['productive', 'neutral', 'uncategorized', 'distracting', 'break', 'away'] as const;
@@ -75,17 +65,6 @@ export function dayLite(s: DaySummary, today: string): DayLite {
     goalMet: s.goalMet,
     stacks: stacksOf(s),
     apps: s.apps,
-    // Sessions that started this day, so one crossing midnight is listed once.
-    planned: s.sessions
-      .filter((x) => x.plannedSec !== null && x.kind !== 'break' && !x.running && x.startMs >= s.dayStartMs)
-      .map((x) => ({
-        id: x.id,
-        name: x.name,
-        plannedSec: x.plannedSec!,
-        actualSec: x.elapsedSec,
-        deltaSec: x.elapsedSec - x.plannedSec!,
-        startMs: x.startMs,
-      })),
   };
 }
 
@@ -144,16 +123,6 @@ export function topApps(days: DayLite[], n: number): AppRow[] {
     }))
     .sort((a, b) => b.sec - a.sec || a.key.localeCompare(b.key))
     .slice(0, n);
-}
-
-/** Planned sessions in the range, oldest first, with the total estimate error. */
-export function estimates(days: DayLite[]): { rows: PlannedLine[]; plannedSec: number; actualSec: number } {
-  const rows = days.flatMap((d) => d.planned).sort((a, b) => a.startMs - b.startMs);
-  return {
-    rows,
-    plannedSec: rows.reduce((t, r) => t + r.plannedSec, 0),
-    actualSec: rows.reduce((t, r) => t + r.actualSec, 0),
-  };
 }
 
 /** Monday of the week containing `date`. */

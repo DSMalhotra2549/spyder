@@ -38,8 +38,8 @@ test('Today matches aggregate(); a category change creates a user rule', async (
     expect(await text(d, 'stat-work-sub')).toBe(t.workSub);
     expect(await text(d, 'stat-productive')).toBe(t.productive);
     expect(await text(d, 'stat-productive-sub')).toBe(t.productiveSub);
-    expect(await text(d, 'stat-score')).toBe(t.score);
-    expect(await text(d, 'stat-score-sub')).toBe(t.scoreSub);
+    // P80: productive is the headline; day score is on Review, Week and Month, not here.
+    await expect(d.getByTestId('stat-score')).toHaveCount(0);
     expect(await text(d, 'stat-streak')).toBe(t.streak);
     expect(await text(d, 'stat-distractions')).toBe(t.distractions);
     expect(await text(d, 'stat-distractions-sub')).toBe(t.distractionsSub);

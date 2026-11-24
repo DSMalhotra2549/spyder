@@ -59,6 +59,24 @@ test('review opens at 17:00, gates on leftovers, persists and completes', async 
     expect(await values('improve')).toEqual(['Close YouTube first']);
     await expect(kpi).toHaveValue('14');
 
+    // KPIs are set up here (P80): Edit renames and removes them; a removed one is archived.
+    await d.getByTestId('add-kpi').click();
+    await d.getByTestId('kpi-name').fill('Calls made');
+    await d.getByTestId('kpi-name').press('Enter');
+    await d.getByTestId('kpi-edit').click();
+    await expect(d.getByTestId('kpi-edit-row')).toHaveCount(2);
+    const nameBox = d.getByTestId('kpi-edit-row').first().getByLabel('KPI name');
+    await nameBox.fill('Emails sent');
+    await nameBox.press('Enter');
+    await expect
+      .poll(() => (s.db().prepare("SELECT COUNT(*) AS n FROM kpis WHERE name = 'Emails sent'").get() as { n: number }).n)
+      .toBe(1);
+    await d.getByRole('button', { name: 'Remove Calls made' }).click();
+    await expect(d.getByTestId('kpi-edit-row')).toHaveCount(1);
+    expect((s.db().prepare("SELECT archived FROM kpis WHERE name = 'Calls made'").get() as { archived: number }).archived).toBe(1);
+    await d.getByTestId('kpi-edit').click();
+    await expect(d.locator('[data-testid=kpi-input][data-kpi="Emails sent"]')).toHaveValue('14');
+
     // Complete → reviews snapshot.
     await complete.click();
     await expect(d.getByTestId('reviewed-chip')).toContainText('Reviewed at 17:00');

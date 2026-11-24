@@ -2,7 +2,7 @@
 // the app track under it (P77: each app or site its own colour, every switch shown), distraction flags above. Hover shows details; clicking a
 // session picks it (Today highlights its row in the session log).
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { appRuns, type DaySummary } from '../../core/aggregate';
+import { appRuns, appSlot, type DaySummary } from '../../core/aggregate';
 import { fmtDuration, fmtTime } from '../../core/format';
 import { TAG_LABEL, type Tag } from '../../core/types';
 import { CAT_LABEL } from './parts';
@@ -58,7 +58,7 @@ export const answerText = (x: { kind: string; tag?: Tag; name: string | null }) 
 export const ownAnswer = (x: { kind: string; name: string | null }) => (x.kind === 'break' && x.name === 'Break' ? null : x.name);
 
 /** An app's colour on the app track: the user's pick (P79), else its fixed automatic slot (P77). */
-const appColor = (picked: Record<string, string>, key: string, slot: number) => picked[key] ?? `var(--color-app-${slot + 1})`;
+export const appColor = (picked: Record<string, string>, key: string, slot: number) => picked[key] ?? `var(--color-app-${slot + 1})`;
 /** Dark ink reads on every automatic colour in both themes; a picked colour gets dark or light ink by its lightness. */
 function inkFor(color: string): string {
   const m = /^#(..)(..)(..)$/.exec(color);
@@ -67,21 +67,43 @@ function inkFor(color: string): string {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#111114' : '#ffffff';
 }
 /** The hex behind a colour, for the native picker's starting value. */
-const toHex = (color: string) =>
+export const toHex = (color: string) =>
   color.startsWith('var(') ? getComputedStyle(document.documentElement).getPropertyValue(color.slice(4, -1)).trim() || '#808080' : color;
 const LEGEND_MAX = 12;
 
-/** The user's app colours (P79), and a setter that saves one. */
-function useAppColors() {
+/** The user's app colours (P79), and a setter that saves one. Every user on the page sees a pick at once (P81). */
+const APP_COLORS_EVENT = 'spyder:app-colors';
+export function useAppColors() {
   const [picked, setPicked] = useState<Record<string, string>>({});
   useEffect(() => {
     void window.spyder.getSettings().then((s) => setPicked(s.appColors));
+    const on = (e: Event) => setPicked((e as CustomEvent<Record<string, string>>).detail);
+    window.addEventListener(APP_COLORS_EVENT, on);
+    return () => window.removeEventListener(APP_COLORS_EVENT, on);
   }, []);
   const pick = async (key: string, hex: string) => {
     const cur = (await window.spyder.getSettings()).appColors;
-    setPicked((await window.spyder.setSettings({ appColors: { ...cur, [key]: hex } })).appColors);
+    const next = (await window.spyder.setSettings({ appColors: { ...cur, [key]: hex } })).appColors;
+    window.dispatchEvent(new CustomEvent(APP_COLORS_EVENT, { detail: next }));
   };
   return [picked, pick] as const;
+}
+
+/** An app's colour square; clicking it opens the native colour picker (P79, P81). */
+export function AppSwatch({ appKey, picked, pick }: { appKey: string; picked: Record<string, string>; pick: (key: string, hex: string) => Promise<void> }) {
+  const color = appColor(picked, appKey, appSlot(appKey));
+  return (
+    <span className="relative h-2 w-2 shrink-0 cursor-pointer rounded-[2px]" style={{ background: color }} title={`Pick a colour for ${appKey}`}>
+      <input
+        type="color"
+        data-testid="app-color"
+        aria-label={`Colour for ${appKey}`}
+        value={toHex(color)}
+        onChange={(e) => void pick(appKey, e.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </span>
+  );
 }
 
 export function Timeline({
@@ -259,18 +281,9 @@ export function Timeline({
       </svg>
       {!compact && legend.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 px-[18px] text-[11px] text-muted" data-testid="app-legend">
-          {legend.slice(0, LEGEND_MAX).map(([key, { slot }]) => (
+          {legend.slice(0, LEGEND_MAX).map(([key]) => (
             <label key={key} className="flex max-w-[180px] cursor-pointer items-center gap-1.5 hover:text-text" title={`Pick a colour for ${key}`}>
-              <span className="relative h-2 w-2 shrink-0 rounded-[2px]" style={{ background: appColor(picked, key, slot) }}>
-                <input
-                  type="color"
-                  data-testid="app-color"
-                  aria-label={`Colour for ${key}`}
-                  value={toHex(appColor(picked, key, slot))}
-                  onChange={(e) => void pick(key, e.target.value)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                />
-              </span>
+              <AppSwatch appKey={key} picked={picked} pick={pick} />
               <span className="truncate">{key}</span>
             </label>
           ))}

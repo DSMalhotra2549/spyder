@@ -5,7 +5,7 @@ import { fmtHM } from '../../core/format';
 import { dayStartFromKey } from '../../core/schedule';
 import { monthDates, type DayLite, type RangeVM } from '../../core/trends';
 import { axis, EfficiencyTrend, LineTip, Trend } from './charts';
-import { RangeStats } from './Week';
+import { anyRated, RangeStats } from './Week';
 import { Card, Empty, TopBar, useLoader } from './parts';
 import { pct } from './stats';
 
@@ -33,6 +33,7 @@ export function Month({ date, onDate }: { date: string; onDate: (d: string) => v
                 value={(d) => d.productiveSec / 3600}
                 fmt={(v) => fmtHM(v * 3600)}
                 unit="h"
+                color="var(--color-productive)"
                 testId="trend-productive"
               />
             </Card>
@@ -45,9 +46,11 @@ export function Month({ date, onDate }: { date: string; onDate: (d: string) => v
                 testId="trend-score"
               />
             </Card>
-            <Card title="Efficiency">
-              <EfficiencyTrend days={vm.days} />
-            </Card>
+            {anyRated(vm) && (
+              <Card title="Efficiency">
+                <EfficiencyTrend days={vm.days} />
+              </Card>
+            )}
           </div>
         </div>
         <KpiCharts vm={vm} />
@@ -119,7 +122,7 @@ function Heatmap({ days }: { days: DayLite[] }) {
                       width={CELL}
                       height={CELL}
                       rx={6}
-                      fill="var(--color-accent)"
+                      fill="var(--color-productive)"
                       opacity={0.15 + 0.85 * frac}
                     />
                   )}
@@ -129,7 +132,7 @@ function Heatmap({ days }: { days: DayLite[] }) {
                 x={x + 6}
                 y={y + 15}
                 fontSize={11}
-                fill={d.future ? 'var(--color-faint)' : frac > 0.5 ? 'var(--color-on-accent)' : 'var(--color-text)'}
+                fill={d.future ? 'var(--color-faint)' : frac > 0.5 ? '#111113' : 'var(--color-text)'}
                 className="tabular"
               >
                 {Number(d.date.slice(8))}
