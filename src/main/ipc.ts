@@ -49,6 +49,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     if ('theme' in partial) applyTheme(ctx);
     if ('goalSec' in partial || 'appPercentScope' in partial) host.reloadRules();
     if (partial.blockLengthSec !== undefined) host.setLength(partial.blockLengthSec);
+    if (partial.trackFromStartup && !host.state.loop) host.start(ctx.settings.blockLengthSec); // P76
     host.push();
     return { ...ctx.settings, hotkeyOk: ctx.hotkeyOk, dataDir: ctx.dataDir, today: dateKey(ctx.clock.now()) };
   });

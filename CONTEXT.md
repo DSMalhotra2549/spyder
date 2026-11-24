@@ -44,6 +44,10 @@ _Avoid_: interval, timer setting
 The chain of back-to-back blocks that runs from Start until Stop or the end of work hours. Blocks start from the moment Start is pressed, not on clock boundaries. When one block ends, the next starts immediately, even if the previous one isn't accounted for yet.
 _Avoid_: run, timer
 
+**Track from startup**:
+A setting under which the loop starts by itself when Spyder launches or the laptop wakes, and runs until shutdown, sleep or Stop, whatever the work hours (P76).
+_Avoid_: always on, auto mode
+
 **Account for**:
 Saying in free text what a block was spent on, once it has ended. Several unanswered blocks are accounted for in one prompt, together or one by one.
 _Avoid_: log, label

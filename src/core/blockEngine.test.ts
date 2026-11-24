@@ -190,3 +190,90 @@ describe('block loop (P58–P63)', () => {
     expect(r.fx).toContainEqual({ openReview: '2026-11-24' });
   });
 });
+
+describe('Track from startup (P76)', () => {
+  function on(at: number, heartbeat: { tsMs: number; state: EngineState } | null = null) {
+    const s = new Sim();
+    s.settings.trackFromStartup = true;
+    s.send({ type: 'BOOT', heartbeat }, at);
+    return s;
+  }
+
+  it('launching starts the loop by itself, in or out of work hours, with no reminder', () => {
+    for (const at of [T(7, 30), T(10, 7), T(22)]) {
+      const s = on(at);
+      expect(s.state.loop).toMatchObject({ untilStop: true, block: { startedMs: at, lengthSec: 15 * MIN } });
+      expect(s.state.reminder).toBe(false);
+    }
+  });
+
+  it('the end of work hours neither cuts the loop nor opens the review', () => {
+    const s = on(T(16, 50));
+    s.tick(T(17, 30));
+    expect(s.state.loop).not.toBeNull();
+    expect(s.state.cut).toBeNull();
+    expect(s.log).not.toContainEqual({ openReview: '2026-11-24' });
+  });
+
+  it('a loop started by hand in work hours also runs past their end', () => {
+    const s = booted();
+    s.settings.trackFromStartup = true;
+    s.send({ type: 'START', lengthSec: 15 * MIN });
+    s.tick(T(17, 30));
+    expect(s.state.loop).not.toBeNull();
+  });
+
+  it('sleep ends the loop at its start, even after a lock; waking starts a fresh one', () => {
+    const s = on(T(10, 7));
+    const first = s.state.loop!.block.id;
+    s.send({ type: 'AWAY_BEGIN', atMs: T(10, 30), reason: 'lock' }, T(10, 30));
+    s.send({ type: 'AWAY_BEGIN', atMs: T(10, 31), reason: 'suspend' }, T(10, 31));
+    expect(s.state.loop).toBeNull();
+    expect(s.db('updateSession').map((x) => x.endedMs)).toEqual([T(10, 22), T(10, 31)]);
+    expect(s.ended()[0]).toBe(first);
+
+    s.send({ type: 'AWAY_END' }, T(13));
+    expect(s.state.loop!.block.startedMs).toBe(T(13));
+    expect(s.db('insertSession')).toHaveLength(1);
+  });
+
+  it('a sleep Spyder missed (no heartbeat for a minute) ends the loop at the last heartbeat and starts a fresh one', () => {
+    const s = on(T(10, 7));
+    for (let t = T(10, 7); t <= T(10, 10); t += 15_000) s.tick(t);
+    const last = s.state.lastHeartbeatMs!;
+    expect(last).toBe(T(10, 10));
+    s.tick(T(13));
+    expect(s.db('updateSession').at(-1)).toMatchObject({ endedMs: last });
+    expect(s.state.loop!.block.startedMs).toBe(T(13));
+  });
+
+  it('lock and idle stay away time inside the block', () => {
+    const s = on(T(10, 7));
+    s.send({ type: 'AWAY_BEGIN', atMs: T(10, 7, 30), reason: 'lock' }, T(10, 7, 30));
+    for (let t = T(10, 7, 30); t <= T(10, 20); t += 15_000) s.tick(t);
+    expect(s.state.loop!.block.startedMs).toBe(T(10, 7));
+  });
+
+  it('the block running at midnight is cut there', () => {
+    const s = on(T(23, 50));
+    for (let t = T(23, 50); t <= T(0, 10, 0, 25); t += 15_000) s.tick(t);
+    const ends = s.db('updateSession', s.log).map((x) => x.endedMs);
+    expect(ends).toEqual([T(0, 0, 0, 25)]);
+    expect(s.state.loop!.block.startedMs).toBe(T(0, 0, 0, 25));
+  });
+
+  it('the first start on a new day reviews the last day Spyder ran', () => {
+    const s = on(T(22));
+    const saved: EngineState = structuredClone(s.state);
+    const r = new Sim();
+    r.settings.trackFromStartup = true;
+    r.send({ type: 'BOOT', heartbeat: { tsMs: T(23), state: saved } }, T(9, 0, 0, 25));
+    expect(r.fx).toContainEqual({ openReview: '2026-11-24' });
+    expect(r.state.loop!.block.startedMs).toBe(T(9, 0, 0, 25));
+  });
+
+  it('the bar shows the goal percent', () => {
+    expect(on(T(10)).view().goalPct).toBe(true);
+    expect(booted().view().goalPct).toBe(false);
+  });
+});
