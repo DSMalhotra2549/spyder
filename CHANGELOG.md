@@ -7,7 +7,20 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: App track switch under Today's timeline (P85)
+
+**What**
+- A small **App track** switch under Today's timeline. Off, the timeline is back to how it looked before the app track (P77): the blocks with the thin category strip under them, and no app legend. It's on by default and remembers your choice.
+
+**Why**
+The app track shows every app switch, which makes the timeline busy. The user wants to be able to hide it.
+
+**If you pull this**
+- New settings key `showAppTrack` (boolean, default `true`). No migration. E2e: the switch is `app-track-toggle`.
+
 ## 2026-11-25: Every day is a toggle in Work hours (P84)
+
+`3f4d947`
 
 **What**
 - In **Settings → Work hours**, **Every day** has a switch. When it's on, you set one start–end for all 7 days, and the weekday rows and **Today only** are hidden. When it's off, the weekday rows and Today only show as before.

@@ -27,6 +27,8 @@ export interface Settings {
   font: 'system' | 'atkinson';
   /** P79: colours the user picked for apps and sites (app key → #rrggbb); the rest keep their automatic colour. */
   appColors: Record<string, string>;
+  /** P85: Today's timeline shows the app track (P77) and its legend. */
+  showAppTrack: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -50,6 +52,7 @@ export const DEFAULT_SETTINGS: Settings = {
   barPercent: 'goal',
   font: 'system',
   appColors: {},
+  showAppTrack: true,
 };
 
 export interface ScheduleRow {

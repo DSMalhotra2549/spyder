@@ -147,6 +147,29 @@ test('joined answers, re-answer, answer many, delete → undo, merge → undo on
   await expect(listSwatch).toHaveValue('#123456');
   await listSwatch.fill('#654321');
   await expect(run).toHaveAttribute('fill', '#654321');
+
+  // P85: the switch under the timeline swaps the app track and its legend for the old category strip, and is kept.
+  const sw = d.getByTestId('app-track-toggle');
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  const tall = (await d.getByTestId('timeline').boundingBox())!.height;
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect(d.locator('[data-block=app]')).toHaveCount(0);
+  await expect(legend).toHaveCount(0);
+  await expect(d.locator('[data-block=category]')).toHaveCount((await expected(dir, nowMs)).summary.timeline.activity.length);
+  await expect(d.locator('[data-block=category]').first()).toHaveAttribute('height', '4');
+  await expect(d.locator('[data-block=session]').first()).toBeVisible();
+  expect((await d.getByTestId('timeline').boundingBox())!.height).toBeLessThan(tall);
+  await expect.poll(() => (s!.db().prepare("SELECT value FROM settings WHERE key = 'showAppTrack'").get() as { value: string } | undefined)?.value).toBe('false');
+  await d.waitForTimeout(300); // let the switch finish sliding
+  await d.getByTestId('timeline-card').scrollIntoViewIfNeeded();
+  await shot(d, 'today-timeline-no-apps');
+  await d.reload();
+  await d.getByTestId('block-log').waitFor();
+  await expect(d.getByTestId('app-track-toggle')).toHaveAttribute('aria-checked', 'false');
+  await expect(d.locator('[data-block=app]')).toHaveCount(0);
+  await d.getByTestId('app-track-toggle').click();
+  await expect(d.locator('[data-block=app]')).toHaveCount(runs.length);
 });
 
 test('neighbours merge across a gap too short to show; Merge repeats merges every run with one Undo (P73)', async () => {
