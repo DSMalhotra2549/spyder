@@ -120,6 +120,13 @@ test('rate in the prompt, change on Today with Undo, merge keeps the mean, total
   await expect(row('Deck')).toHaveCount(2);
   expect(eff('Deck')).toEqual([50, 100]);
 
+  // Tagged a break, a block loses its rating, so tagged Work again it isn't rated.
+  await row('Emails').getByTestId('block-tag').selectOption('break');
+  await expect.poll(() => eff('Emails')).toEqual([null]);
+  await row('Emails').getByTestId('block-tag').selectOption('work');
+  await expect(row('Emails').getByTestId('block-efficiency')).toHaveValue('none');
+  await d.getByTestId('toast').getByLabel('Dismiss').click();
+
   // Review shows it with the effective time.
   await d.evaluate(() => window.spyder.openDashboard('review'));
   const rv = withDb(dir, (db) => dayVM(db, DATE, nowMs, loadSettings(db))).summary;

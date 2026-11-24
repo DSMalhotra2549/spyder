@@ -25,9 +25,8 @@ export function statTexts(s: DaySummary, streak: number) {
   };
 }
 
-/** P75: `3h 36m effective of 4h 45m`, or that nothing is rated. */
-export const effSub = (ratedSec: number, effectiveSec: number) =>
-  ratedSec > 0 ? `${dur(effectiveSec)} effective of ${dur(ratedSec)}` : 'no blocks rated';
+/** P75: `3h 36m effective`, or that nothing is rated. Short, so it fits a stat cell. */
+export const effSub = (ratedSec: number, effectiveSec: number) => (ratedSec > 0 ? `${dur(effectiveSec)} effective` : 'no blocks rated');
 
 export const appTexts = (a: DaySummary['apps'][number]) => ({ key: a.key, time: fmtHM(a.sec), pct: appPct(a.pct) });
 

@@ -154,7 +154,8 @@ export class BlockEditor {
     const list = `IN (${marks(rows.length)})`;
     const rowIds = rows.map((r) => r.id);
     if (tag !== 'work') {
-      this.db.run(`UPDATE sessions SET kind = 'break', tag = ?, name = COALESCE(name, ?) WHERE id ${list}`, tag === 'break' ? null : tag, BREAK_NAME, ...rowIds);
+      // P75: a break has no efficiency, so a rating doesn't linger to come back if it's tagged Work again.
+      this.db.run(`UPDATE sessions SET kind = 'break', tag = ?, name = COALESCE(name, ?), efficiency = NULL WHERE id ${list}`, tag === 'break' ? null : tag, BREAK_NAME, ...rowIds);
     } else {
       this.db.run(`UPDATE sessions SET name = CASE WHEN kind = 'break' AND name = ? THEN NULL ELSE name END, kind = 'open', tag = NULL WHERE id ${list}`, BREAK_NAME, ...rowIds);
     }

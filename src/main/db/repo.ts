@@ -180,7 +180,8 @@ export function writeAnswers(db: Db, answers: { id: string; answer: string | nul
   db.transaction(() => {
     for (const a of answers) {
       if (a.efficiency !== undefined) db.run('UPDATE sessions SET efficiency = ? WHERE id = ?', a.efficiency, a.id);
-      if (a.tag !== 'work') db.run(`UPDATE sessions SET kind = 'break', tag = ?, name = ? WHERE id = ?`, a.tag === 'break' ? null : a.tag, a.answer ?? BREAK_NAME, a.id);
+      // P75: a break has no efficiency.
+      if (a.tag !== 'work') db.run(`UPDATE sessions SET kind = 'break', tag = ?, name = ?, efficiency = NULL WHERE id = ?`, a.tag === 'break' ? null : a.tag, a.answer ?? BREAK_NAME, a.id);
       else db.run(`UPDATE sessions SET kind = 'open', tag = NULL, name = ? WHERE id = ?`, a.answer, a.id);
     }
   });
