@@ -9,7 +9,7 @@ import { AnswerInput, Btn, inputCls } from '../ui/controls';
 import { Timeline } from './Timeline';
 import { TimeSplit } from './TimeSplit';
 import { Card, TopBar, useLoader } from './parts';
-import { dur, pct } from './stats';
+import { dur, effSub, pct } from './stats';
 import { showEditResult } from './toast';
 
 export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d: string) => void; onChanged: () => void }) {
@@ -89,12 +89,12 @@ function MiniStats({ s }: { s: DaySummary }) {
     ['Productive', dur(s.productiveSec)],
     ['Score', pct(s.score)],
     // P75: the user's own rating, with the effective time under it.
-    ['Efficiency', pct(s.efficiency), s.ratedSec > 0 ? `${dur(s.effectiveSec)} effective` : 'none rated'],
+    ['Efficiency', pct(s.efficiency), effSub(s.ratedSec, s.effectiveSec)],
     ['Break', dur(s.breakSec)],
     ['Distracting', dur(s.distractingSec)],
   ];
   return (
-    <div className="grid grid-cols-6 gap-3">
+    <div className="grid grid-cols-3 gap-x-3 gap-y-4">
       {items.map(([k, v, sub]) => (
         <div key={k} className="min-w-0">
           <div className="section-label mb-1">{k}</div>

@@ -24,7 +24,7 @@ import {
   type RangeVM,
 } from '../../core/trends';
 import { AppsList } from './Today';
-import { EfficiencyTrend } from './Month';
+import { EfficiencyTrend } from './charts';
 import { CAT_COLOR, Card, Empty, Stat, TopBar, useLoader } from './parts';
 import { pct, rangeTexts } from './stats';
 
