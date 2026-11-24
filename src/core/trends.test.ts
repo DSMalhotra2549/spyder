@@ -125,6 +125,13 @@ describe('cleanSettings', () => {
     expect(cleanSettings({ font: 'Comic Sans' })).toEqual({});
   });
 
+  it('P82: Track from startup is on and the bar shows the goal % by default; the bar percent is Day or Goal', () => {
+    expect(DEFAULT_SETTINGS.trackFromStartup).toBe(true);
+    expect(DEFAULT_SETTINGS.barPercent).toBe('goal');
+    expect(cleanSettings({ barPercent: 'day' })).toEqual({ barPercent: 'day' });
+    expect(cleanSettings({ barPercent: 'week' })).toEqual({});
+  });
+
   it('P79: app colours map app keys to #rrggbb, dropping bad entries; colours may repeat', () => {
     expect(DEFAULT_SETTINGS.appColors).toEqual({});
     expect(cleanSettings({ appColors: { 'VS Code': '#AA0000', 'youtube.com': '#aa0000', Slack: 'red', ' ': '#000000' } })).toEqual({

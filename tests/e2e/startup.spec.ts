@@ -1,10 +1,10 @@
-// P76: Track from startup — the loop starts by itself and the bar shows the goal percent.
+// P76: Track from startup — the loop starts by itself. (The bar's percent is its own setting since P82, bar.spec.ts.)
 import { expect, test } from '@playwright/test';
-import { launch, shot } from './helpers';
+import { launch } from './helpers';
 
 type Eng = { loop: { untilStop: boolean } | null; reminder: boolean };
 
-test('Track from startup starts the loop at once and on every launch; the bar shows % of goal (P76)', async () => {
+test('Track from startup starts the loop at once and on every launch (P76)', async () => {
   const s = await launch({ now: '2026-11-24T08:00:00' }); // before work hours
   const dataDir = s.dataDir;
   try {
@@ -18,8 +18,7 @@ test('Track from startup starts the loop at once and on every launch; the bar sh
     await expect.poll(async () => (await eng()).loop?.untilStop).toBe(true);
     await expect(s.widget.getByTestId('pill')).toHaveAttribute('data-state', 'running');
     await expect(s.widget.getByTestId('bar-day')).toContainText('0%');
-    await expect(s.widget.getByTestId('bar-day')).toContainText('of goal');
-    await shot(s.widget, 'bar-goal-pct');
+    await expect(s.widget.getByTestId('bar-day')).toContainText('of day'); // P82: the bar percent doesn't follow it
   } finally {
     await s.close();
   }

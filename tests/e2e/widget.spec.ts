@@ -318,9 +318,20 @@ test('8. bar: sharp corners, dashboard button, inert cells, minimize, drag handl
   await shot(s.widget, 'widget-bar-distracted');
   await s.debug.injectActivity({ ...yt, exe: 'code.exe', appName: 'VS Code', domain: null, title: 'x', browser: null });
 
-  // Minimize hides the bar; Show widget brings it back.
+  // Minimize on top drops the bar behind the apps; minimize again hides it; Show widget brings it back on top (P83).
+  expect((await s.debug.state()).widgetOnTop).toBe(true);
+  await mini.click();
+  await expect.poll(async () => (await s!.debug.state()).widgetOnTop).toBe(false);
+  expect((await s.debug.state()).widgetVisible).toBe(true);
   await mini.click();
   await expect.poll(async () => (await s!.debug.state()).widgetVisible).toBe(false);
   await d.getByRole('button', { name: 'Show widget' }).click();
   await expect.poll(async () => (await s!.debug.state()).widgetVisible).toBe(true);
+  expect((await s.debug.state()).widgetOnTop).toBe(true);
+  // The hotkey brings a bar that's behind back on top instead of hiding it.
+  await mini.click();
+  await expect.poll(async () => (await s!.debug.state()).widgetOnTop).toBe(false);
+  await s.debug.triggerHotkey();
+  await expect.poll(async () => (await s!.debug.state()).widgetOnTop).toBe(true);
+  expect((await s.debug.state()).widgetVisible).toBe(true);
 });

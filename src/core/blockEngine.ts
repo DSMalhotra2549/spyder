@@ -314,7 +314,7 @@ export interface WidgetVM {
   pendingCount: number;
   /** Keep working would continue a loop cut at the end of work hours. */
   canContinue: boolean;
-  /** P76: the bar's percent cell shows productive time against the goal instead of the workday. */
+  /** P82: the bar's percent cell shows the goal % instead of the workday %. */
   goalPct: boolean;
 }
 
@@ -338,7 +338,7 @@ export function widgetView(state: EngineState, ctx: Pick<Ctx, 'now' | 'window' |
     isDistracted: extras.isDistracted,
     pendingCount: extras.pendingCount,
     canContinue: !b && !!state.cut && dateKey(state.cut.atMs) === dateKey(now),
-    goalPct: ctx.settings.trackFromStartup,
+    goalPct: ctx.settings.barPercent === 'goal',
   };
 }
 

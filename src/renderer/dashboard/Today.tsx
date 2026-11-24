@@ -9,7 +9,7 @@ import { EFFICIENCIES, TAG_LABEL, TAGS, type Efficiency, type EngineError, type 
 import type { EditResult, Ok } from '../../preload/api';
 import { AnswerInput, Btn } from '../ui/controls';
 import { answerText, AppSwatch, appColor, blockColor, ownAnswer, TAG_COLOR, Timeline, useAppColors } from './Timeline';
-import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, StatCell, StatStrip, TopBar, useLoader } from './parts';
+import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, StatCell, StatStrip, Toggle, TopBar, useLoader } from './parts';
 import { appTexts, dur, statTexts } from './stats';
 import { showEditResult } from './toast';
 
@@ -37,6 +37,7 @@ function TodayBody({ vm, reload }: { vm: DayVM; reload: () => Promise<void> }) {
   const s = vm.summary;
   const t = statTexts(s, vm.streak);
   const [picked, setPicked] = useState<string | null>(null);
+  const [apps, setApps] = useAppTrack();
   return (
     <div className="flex-1 overflow-x-hidden overflow-y-auto" data-testid="today">
       <div className="mx-auto flex max-w-[960px] flex-col gap-8 px-8 pt-6 pb-16">
@@ -48,9 +49,14 @@ function TodayBody({ vm, reload }: { vm: DayVM; reload: () => Promise<void> }) {
           <Timeline
             s={s}
             nowMs={vm.date === vm.today ? vm.nowMs : -1}
+            apps={apps}
             selected={picked}
             onPick={(id) => setPicked((cur) => (cur === id ? null : id))}
           />
+          <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 px-[18px] text-[11px] text-muted">
+            <Toggle testId="app-track-toggle" label="App track" on={apps} onChange={setApps} />
+            App track
+          </label>
         </section>
 
         <section>
@@ -265,6 +271,7 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
                 onPick={() => onPick(picked === e.id ? null : e.id)}
                 onEdit={() => setEditing(e.id)}
                 onDelete={() => void del([e.id])}
+                onUnmerge={() => void window.spyder.unmergeBlock(e.id).then(after)}
                 onTag={(t) => void window.spyder.tagBlocks([e.id], t).then(after)}
                 onRate={(r) => void window.spyder.rateBlocks([e.id], r).then(after)}
               />
@@ -334,6 +341,7 @@ function BlockRow({
   onPick,
   onEdit,
   onDelete,
+  onUnmerge,
   onTag,
   onRate,
 }: {
@@ -347,6 +355,7 @@ function BlockRow({
   onPick: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onUnmerge: () => void;
   onTag: (tag: Tag) => void;
   onRate: (e: Efficiency | null) => void;
 }) {
@@ -416,9 +425,16 @@ function BlockRow({
       <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
         {dur(x.daySec)}
       </span>
-      <span className="flex w-[60px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+      <span className="flex w-[88px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
         {!x.running && (
           <>
+            {x.merged && (
+              <IconBtn label="Unmerge" testId="block-unmerge" onClick={onUnmerge}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M3 6.5h6.5a3.5 3.5 0 010 7H7M5.5 4L3 6.5 5.5 9" />
+                </svg>
+              </IconBtn>
+            )}
             <IconBtn label="Change the answer" testId="block-edit" onClick={onEdit}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M10.5 2.5l3 3L6 13H3v-3z" />
@@ -483,7 +499,7 @@ function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
       <span className="h-4 w-[3px] shrink-0 rounded-pill bg-faint/60" />
       <span className="min-w-0 flex-1 truncate text-faint">{e.type === 'away' ? 'Away' : 'Untracked'}</span>
       <span className="w-[64px] shrink-0 text-right tabular">{dur(e.sec)}</span>
-      <span className="w-[60px] shrink-0" />
+      <span className="w-[88px] shrink-0" />
     </li>
   );
 }
@@ -661,6 +677,17 @@ function EfficiencySelect({
 }
 
 // ---- timeline legend, apps, distractions ---------------------------------------------------
+
+/** P85: the app track's switch, kept in settings. Off until settings load, so a hidden track never flashes. */
+function useAppTrack() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => void window.spyder.getSettings().then((x) => setOn(x.showAppTrack)), []);
+  const set = (v: boolean) => {
+    setOn(v);
+    void window.spyder.setSettings({ showAppTrack: v });
+  };
+  return [on ?? false, set] as const;
+}
 
 /** P80: names match the block log; Gym and Food only on days that have them. */
 function TimelineLegend({ s }: { s: DayVM['summary'] }) {

@@ -1,6 +1,6 @@
 // Settings page (plan §5, §12; design/DESIGN.md §4 Settings). Every change applies live.
 import clsx from 'clsx';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { appSlot } from '../../core/aggregate';
 import { DEFAULT_SETTINGS, type Settings as S } from '../../core/settings';
 import type { ScheduleRow, SettingsVM } from '../../preload/api';
@@ -141,6 +141,17 @@ export function Settings() {
                     { value: 'atkinson', label: 'Atkinson Hyperlegible' },
                   ]}
                   onChange={(v) => void set({ font: v })}
+                />
+              </Field>
+              <Field label="Bar percent" hint="work hours passed, or goal reached">
+                <Segmented
+                  testId="set-barPercent"
+                  value={s.barPercent}
+                  options={[
+                    { value: 'day', label: 'Of day' },
+                    { value: 'goal', label: 'Of goal' },
+                  ]}
+                  onChange={(v) => void set({ barPercent: v })}
                 />
               </Field>
               {(
@@ -368,6 +379,8 @@ function WorkHours() {
     () => Promise.all([window.spyder.getSchedule(), window.spyder.getDay()]),
     'schedule',
   );
+  // P84: null = follow the hours (on while all 7 days match); a click sets it for this visit.
+  const [everyDay, setEveryDay] = useState<boolean | null>(null);
   if (!sch)
     return (
       <Card title="Work hours">
@@ -382,13 +395,34 @@ function WorkHours() {
     await window.spyder.setSchedule([r]);
     await reload();
   };
+  // P82: one range for every day; it shows only while all 7 days are on with the same hours.
+  const same = rows.length === 7 && rows.every((r) => r.enabled && r.startMin === rows[0].startMin && r.endMin === rows[0].endMin);
+  const allOn = everyDay ?? same;
+  const saveAll = async (startMin: number, endMin: number) => {
+    await window.spyder.setSchedule(rows.map((r) => ({ ...r, enabled: true, startMin, endMin })));
+    await reload();
+  };
   const saveOv = async (o: { enabled: boolean; startMin: number; endMin: number } | null) => {
     await window.spyder.setDayOverride(today, o);
     await reload();
   };
   return (
     <Card title="Work hours" right="the review opens when the day ends">
-      {DAYS.map((wd) => {
+      <div
+        data-testid="sched-all"
+        className={clsx('flex h-11 items-center gap-3 text-[13px]', !allOn && 'border-b border-border')}
+      >
+        <Toggle testId="sched-all-enabled" label="Every day" on={allOn} onChange={setEveryDay} />
+        <span className={clsx('w-[100px]', !allOn && 'text-muted')}>Every day</span>
+        {allOn && (
+          <TimeRange
+            r={same ? rows[0] : null}
+            onSave={(startMin, endMin) => void saveAll(startMin, endMin)}
+            testId="sched-all"
+          />
+        )}
+      </div>
+      {!allOn && DAYS.map((wd) => {
         const r = rows.find((x) => x.weekday === wd);
         if (!r) return null;
         return (
@@ -413,43 +447,45 @@ function WorkHours() {
           </div>
         );
       })}
-      <div data-testid="override" className="flex h-12 items-center gap-3 pt-1 text-[13px]">
-        <Toggle
-          testId="override-enabled"
-          label="Override today"
-          on={ov !== null}
-          onChange={(v) =>
-            void saveOv(
-              v
-                ? { enabled: true, startMin: todayRow?.startMin ?? 600, endMin: todayRow?.endMin ?? 1020 }
-                : null,
-            )
-          }
-        />
-        <span className="w-[100px]">Today only</span>
-        {ov ? (
-          <>
-            <Segmented
-              testId="override-mode"
-              value={ov.enabled ? 'on' : 'off'}
-              options={[
-                { value: 'on', label: 'Working' },
-                { value: 'off', label: 'Day off' },
-              ]}
-              onChange={(v) => void saveOv({ ...ov, enabled: v === 'on' })}
-            />
-            {ov.enabled && (
-              <TimeRange
-                r={ov}
-                onSave={(startMin, endMin) => void saveOv({ ...ov, startMin, endMin })}
-                testId="override"
+      {!allOn && (
+        <div data-testid="override" className="flex h-12 items-center gap-3 pt-1 text-[13px]">
+          <Toggle
+            testId="override-enabled"
+            label="Override today"
+            on={ov !== null}
+            onChange={(v) =>
+              void saveOv(
+                v
+                  ? { enabled: true, startMin: todayRow?.startMin ?? 600, endMin: todayRow?.endMin ?? 1020 }
+                  : null,
+              )
+            }
+          />
+          <span className="w-[100px]">Today only</span>
+          {ov ? (
+            <>
+              <Segmented
+                testId="override-mode"
+                value={ov.enabled ? 'on' : 'off'}
+                options={[
+                  { value: 'on', label: 'Working' },
+                  { value: 'off', label: 'Day off' },
+                ]}
+                onChange={(v) => void saveOv({ ...ov, enabled: v === 'on' })}
               />
-            )}
-          </>
-        ) : (
-          <span className="text-muted">uses the weekly hours</span>
-        )}
-      </div>
+              {ov.enabled && (
+                <TimeRange
+                  r={ov}
+                  onSave={(startMin, endMin) => void saveOv({ ...ov, startMin, endMin })}
+                  testId="override"
+                />
+              )}
+            </>
+          ) : (
+            <span className="text-muted">uses the weekly hours</span>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
@@ -460,17 +496,23 @@ function TimeRange({
   onSave,
   testId,
 }: {
-  r: { startMin: number; endMin: number };
+  /** null: both fields start empty and nothing saves until both are filled (the Every day row, P82, P84). */
+  r: { startMin: number; endMin: number } | null;
   disabled?: boolean;
   onSave: (s: number, e: number) => void;
   testId: string;
 }) {
+  const startRef = useRef<HTMLInputElement>(null);
+  const endRef = useRef<HTMLInputElement>(null);
   const commit = (which: 'start' | 'end', v: string) => {
     const m = toMin(v);
     if (m === null) return;
-    const s = which === 'start' ? m : r.startMin;
-    const e = which === 'end' ? (m === 0 ? 1440 : m) : r.endMin;
-    if (s < e && (s !== r.startMin || e !== r.endMin)) onSave(s, e);
+    const other = r ?? { startMin: toMin(startRef.current?.value ?? ''), endMin: toMin(endRef.current?.value ?? '') };
+    const s = which === 'start' ? m : other.startMin;
+    const endRaw = which === 'end' ? m : other.endMin;
+    if (s === null || endRaw === null) return;
+    const e = endRaw === 0 ? 1440 : endRaw;
+    if (s < e && (!r || s !== r.startMin || e !== r.endMin)) onSave(s, e);
   };
   const cls = clsx(inputCls, 'h-8 w-[132px] tabular disabled:text-faint');
   return (
@@ -480,8 +522,9 @@ function TimeRange({
         type="time"
         disabled={disabled}
         className={cls}
-        defaultValue={hhmm(r.startMin)}
-        key={`s${r.startMin}`}
+        ref={startRef}
+        defaultValue={r ? hhmm(r.startMin) : ''}
+        key={`s${r?.startMin}`}
         onBlur={(e) => commit('start', e.target.value)}
       />
       <span className="text-muted">–</span>
@@ -490,8 +533,9 @@ function TimeRange({
         type="time"
         disabled={disabled}
         className={cls}
-        defaultValue={hhmm(r.endMin % 1440)}
-        key={`e${r.endMin}`}
+        ref={endRef}
+        defaultValue={r ? hhmm(r.endMin % 1440) : ''}
+        key={`e${r?.endMin}`}
         onBlur={(e) => commit('end', e.target.value)}
       />
     </span>

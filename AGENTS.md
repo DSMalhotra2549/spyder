@@ -50,12 +50,12 @@ Time-dependent behavior is tested by controlling the clock, not by waiting:
 - `SPYDER_DATA_DIR` (throwaway DB)
 - `SPYDER_DEBUG=1` (exposes `window.spyder.debug`: `advance`, `setNow`, `simulateIdle`, `simulateSuspend`, `injectActivity`, …)
 
-The e2e helper also sets `SPYDER_CAPTURE=0` and `SPYDER_FAKE_IDLE=1`, so the real desktop can't disturb tests.
+The e2e helper also sets `SPYDER_CAPTURE=0` and `SPYDER_FAKE_IDLE=1`, so the real desktop can't disturb tests. It also sets `SPYDER_DEFAULTS` (JSON first-run settings, debug only) to Track from startup off and the bar on the workday %, so specs start from the work-hours loop; pass `env: { SPYDER_DEFAULTS: '{}' }` to get the real defaults (P82).
 
 ## Gotchas
 
 - `npm run dev` with no `SPYDER_DATA_DIR` uses the **real** database in `%APPDATA%\Spyder`. So do `npm run seed` and `npm run db:dump`, which means seeding without it writes fake days into the user's real data. Set `SPYDER_DATA_DIR` to a temp dir before experimenting or seeding.
-- Every commit on `main` rebuilds and reinstalls the local app in the background (`.githooks/post-commit` → `scripts/install-local.ps1`, about 3 min; log in `release/install-local.log`). It stops the running Spyder, installs silently and restarts it. A fresh clone needs `git config core.hooksPath .githooks` to turn this on.
+- Every successful push of `main` rebuilds and reinstalls the local app in the background (`.githooks/pre-push` → `scripts/install-local.ps1`, about 3 min; log in `release/install-local.log`). Commits alone don't. Git has no post-push hook, so the hook waits for the remote-tracking `main` to reach the pushed commit, and a refused or up-to-date push installs nothing. It only runs when the checkout is the commit being pushed. It stops the running Spyder, installs silently and restarts it. A fresh clone needs `git config core.hooksPath .githooks` to turn this on.
 - One instance per data dir. A second launch against the same dir exits silently.
 - `resources/UrlHelper.exe` is gitignored. Run `npm run build:helper` before testing Chrome site capture or `npm run dist`.
 - Run `scripts/capture-check.ts` from PowerShell. The Store version of Notepad won't launch from Git Bash.
@@ -66,4 +66,12 @@ The e2e helper also sets `SPYDER_CAPTURE=0` and `SPYDER_FAKE_IDLE=1`, so the rea
 
 ## Commits
 
-Conventional style, citing the decision it implements, e.g. `feat: bar label wraps to two lines (P47)`. Commit only when the user asks.
+Commit only when the user asks. Other people and their agents pull `main`, so they need to understand each commit without opening its diff.
+
+- **Subject:** conventional style, citing the decision it implements, e.g. `feat: bar label wraps to two lines (P47)`.
+- **Body (always):** three short sections:
+  - `What:` the change as the user sees it. One bullet per change, using `CONTEXT.md` terms.
+  - `Why:` the reason, in a sentence or two. The P decision has the full reasoning.
+  - `If you pull this:` anything that behaves differently for someone who pulls: changed defaults, migrations, new or renamed settings keys, changed test helpers or env vars, new setup steps. Write `nothing special` if there's none.
+- **`CHANGELOG.md`:** add an entry with the same three sections at the top, in the same commit. Fill in the commit hash in the next commit, or leave it out.
+- Before pulling or starting work, read the `CHANGELOG.md` entries newer than your last pull.

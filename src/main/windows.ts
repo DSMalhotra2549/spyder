@@ -213,8 +213,28 @@ export function hideWidget(ctx: AppCtx): void {
   ctx.widget?.hide();
 }
 
+/** P83: on top, the bar's minimize drops it behind every window; already behind, it goes to the tray. */
+export function minimizeWidget(ctx: AppCtx): void {
+  const w = ctx.widget;
+  if (!w || w.isDestroyed()) return;
+  if (!w.isAlwaysOnTop()) return hideWidget(ctx);
+  w.setAlwaysOnTop(false);
+  w.blur(); // hands focus to the window below, so the app you were in stays in front
+  sendToBack(w);
+}
+
+/** The helper puts the window at the bottom of the z-order; Electron has no API for it (ADR-0008). */
+function sendToBack(win: BrowserWindow): void {
+  const exe = helperPath();
+  if (process.platform !== 'win32' || !existsSync(exe)) return;
+  const hwnd = win.getNativeWindowHandle().readBigUInt64LE().toString();
+  spawn(exe, ['back', hwnd], { windowsHide: true }).on('error', (e) => console.warn('[spyder] back helper', e.message));
+}
+
+/** The hotkey hides the bar when it's on top, and brings it back on top when it's hidden or behind (P83). */
 export function toggleWidget(ctx: AppCtx): void {
-  if (ctx.widget?.isVisible()) hideWidget(ctx);
+  const w = ctx.widget;
+  if (w?.isVisible() && w.isAlwaysOnTop()) hideWidget(ctx);
   else showWidget(ctx);
 }
 

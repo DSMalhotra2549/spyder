@@ -1,5 +1,5 @@
 # Builds the installer from the current checkout and installs it over the local Spyder, then
-# restarts it. Run by .githooks/post-commit after every commit on main; also safe to run by hand
+# restarts it. Run by .githooks/pre-push after every successful push of main; also safe to run by hand
 # (`npm run install:local`). Log: release/install-local.log.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -11,7 +11,7 @@ $pending = Join-Path $root 'release/install-local.pending'
 
 function Write-Log($msg) { "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $msg" | Out-File -Append -Encoding utf8 $log }
 
-# One run at a time. A commit during a run leaves a flag, and the running one builds again after.
+# One run at a time. A push during a run leaves a flag, and the running one builds again after.
 if (Test-Path $lock) {
   $holder = Get-Content $lock -ErrorAction SilentlyContinue
   if ($holder -and (Get-Process -Id $holder -ErrorAction SilentlyContinue)) {

@@ -78,6 +78,10 @@ _Avoid_: nag
 Joining neighbouring blocks (nothing shown between them in the block log: no other block, away time or untracked span) into one longer block with one answer, picked by the user. Blocks with different tags can't be merged. **Merge repeats** merges every run of neighbours with the same tag and answer at once (P73).
 _Avoid_: combine, join
 
+**Unmerge**:
+Splitting a merged block back into the blocks its latest merge combined, each as it was before that merge (P86). Works any time after the merge, unlike Undo.
+_Avoid_: split, unjoin
+
 **Delete**:
 Removing a block after the fact. Its time becomes untracked.
 _Avoid_: discard, remove
@@ -129,6 +133,10 @@ _Avoid_: focus time, deep work
 **Daily goal**:
 The amount of productive time the user aims for each workday.
 
+**Goal %**:
+Today's productive time as a percentage of the daily goal. It can pass 100.
+_Avoid_: goal progress, completion
+
 **Day score**:
 Productive time as a percentage of scheduled work hours.
 _Avoid_: focus score, productivity score
@@ -164,7 +172,7 @@ _Avoid_: metric, stat
 ### Interface
 
 **Widget**:
-The small always-on-top bar showing the current block's timer, today's productive time and the percent of day. It only displays; Start, Stop and the block length live in the dashboard.
+The small always-on-top bar showing the current block's timer, today's productive time and either the workday % or the goal %, whichever the user chose. It only displays; Start, Stop and the block length live in the dashboard.
 _Avoid_: overlay, HUD, timer window
 
 **Prompt**:

@@ -19,7 +19,7 @@ import { loadSettings, saveSettings } from './settings';
 import { BlockEditor } from './blockEdit';
 import { applyFont, applyTheme } from './theme';
 import { isAppUrl } from './paths';
-import { hideWidget, openDashboard, resizePrompt, showWidget } from './windows';
+import { hideWidget, minimizeWidget, openDashboard, resizePrompt, showWidget } from './windows';
 
 const documentsDir = () => app.getPath('documents');
 const result = (err: EngineError | null) => err ?? { ok: true as const };
@@ -112,6 +112,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('deleteBlocks', (ids: string[]) => editor.delete(ids));
   h('mergeBlocks', (ids: string[], answer: string | null) => editor.merge(ids, answer));
   h('mergeRepeats', (date: string) => editor.mergeRepeats(date));
+  h('unmergeBlock', (id: string) => editor.unmerge(id));
   h('tagBlocks', (ids: string[], tag: Tag) => (TAGS.includes(tag) ? editor.tag(ids, tag) : { error: 'invalid', message: 'Pick Work, Break, Gym or Food' }));
   h('rateBlocks', (ids: string[], efficiency: Efficiency | null) =>
     efficiency === null || isEfficiency(efficiency) ? editor.rate(ids, efficiency) : { error: 'invalid', message: 'Pick 25, 50, 75 or 100%' },
@@ -154,6 +155,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
 
   // Windows
   h('hideWidget', () => hideWidget(ctx));
+  h('minimizeWidget', () => minimizeWidget(ctx));
   h('showWidget', () => showWidget(ctx));
   h('openDashboard', (route?: string) => openDashboard(ctx, route));
   h('resizePrompt', (height: number) => resizePrompt(ctx, height));

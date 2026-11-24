@@ -16,19 +16,21 @@ No accounts, no cloud and no AI. Everything stays in a local SQLite file on your
 
 ## What it does
 
-- **The block loop.** Press Start in the dashboard with a block length (5–180 minutes). When a block ends, the next one starts at once and a prompt asks what the last one was: type it, press **Break** (anything you typed is kept as the break's answer), or **Same as last**. Missed a few? They're all in one prompt.
-- **Nothing starts by itself.** During work hours with no loop running, the bar says *Not started* and a reminder pops up every block length. The loop stops at the end of work hours (*Keep working* carries on).
-- **Floating widget.** A small always-on-top bar shows the time in the current block, today's productive time and how much of the workday has passed. It turns red when you're distracted.
+- **The block loop.** Press Start in the dashboard with a block length (5–180 minutes). When a block ends, the next one starts at once and a prompt asks what the last one was: type it, press **Break** (anything you typed is kept as the break's answer), or **Same as last**. You can also rate how well a work block went (25–100%), which feeds your efficiency score. Missed a few? They're all in one prompt.
+- **Starting and stopping.** With **Track from startup** on (the default), the loop starts by itself when Spyder launches and when your PC wakes, whatever the hour. Turn it off in Settings and the loop follows your work hours instead: during them, with no loop running, the bar says *Not started* and a reminder pops up every block length, and the loop stops at the end of work hours (*Keep working* carries on). Sleep or shutdown ends the current block, and a block running at midnight is cut there.
+- **Work hours.** Set one start–end for **Every day**, or switch it off to set each weekday (and *Today only*) separately.
+- **Floating widget.** A small always-on-top bar shows the time in the current block, today's productive time and a percent: of your daily goal (the default) or of the workday that has passed (Settings → Look → Bar percent). It turns red when you're distracted. Minimize drops it behind your windows; press it again to send it to the tray.
 - **Fix the record.** On Today, re-answer any block, give many blocks one answer, delete blocks (their time becomes untracked) or merge neighbouring ones into one longer block, all with Undo. **Merge repeats** merges every run of neighbouring blocks with the same tag and answer in one click.
 - **Tags.** Every block is tagged Work, Break, Gym or Food, separate from its answer. Gym and Food count as break time. Change a tag from the dropdown on each row, or for many blocks at once. Work, Gym and Food each use a colour you pick in Settings (green, orange and pink by default); breaks are blue-grey.
 - **App and website tracking.** It records the foreground app every 2 seconds, Chrome and Edge sites from the address bar, and Firefox and Zen sites from the window title. No browser extensions needed.
 - **Categories and nudges.** Apps and sites are Productive, Neutral, Distracting or Uncategorized, based on editable rules. Anything you've used for 3 minutes or more that you haven't labelled yourself is asked about, in Rules → To sort and in the end-of-block prompt. After 5 straight minutes on something distracting while the loop runs, you get a gentle nudge. Nothing is ever blocked.
 - **Reports.**
-  - **Today:** your productive time against your goal, a timeline and your top apps.
+  - **Today:** productive time against your goal, work time, efficiency and streak; a timeline of your blocks with an optional app track underneath showing which app or site was in front; and your top apps.
   - **Week:** stacked bars per day.
   - **Month:** a heatmap and trend lines.
 - **End-of-day review.** When work hours end, you answer any blocks still not accounted for, see a chart of where the day went (work, break, gym, food, not accounted for, untracked), write *Today's wins* and *How I'll improve*, and record your own daily numbers (KPIs). Meeting your goal on consecutive workdays builds a streak.
 - **Export.** From Settings, any date range goes out to one `.xlsx` workbook plus matching CSVs.
+- **Look.** Light, dark or system theme, Segoe UI or Atkinson Hyperlegible Next, and a fixed colour for every app (pick your own from the timeline legend or Settings → App colours).
 
 ## Privacy
 
@@ -69,7 +71,7 @@ The installer is **not code-signed**, so Windows SmartScreen warns about it ("Wi
 > npm run dist
 > ```
 
-**Shortcuts:** `Ctrl+Alt+S` shows or hides the widget. The tray icon has everything else.
+**Shortcuts:** `Ctrl+Alt+S` shows or hides the widget (if it's behind your windows, it brings it back on top). The tray icon has everything else.
 
 ## Commands
 
@@ -82,7 +84,7 @@ The installer is **not code-signed**, so Windows SmartScreen warns about it ("Wi
 | `npm run seed` | Fill `SPYDER_DATA_DIR` with realistic sample days |
 | `npm run db:dump` | Print what's in the database |
 | `npm run dist` | Build the Windows installer |
-| `npm run install:local` | **Maintainer only.** Builds the installer, force-quits the running Spyder, installs over it silently and restarts it. The opt-in post-commit hook (`git config core.hooksPath .githooks`) runs it after every commit on `main`; contributors shouldn't turn that on |
+| `npm run install:local` | **Maintainer only.** Builds the installer, force-quits the running Spyder, installs over it silently and restarts it. The opt-in pre-push hook (`git config core.hooksPath .githooks`) runs it after every successful push of `main`; contributors shouldn't turn that on |
 
 ## How it's built
 

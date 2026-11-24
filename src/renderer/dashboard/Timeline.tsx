@@ -5,7 +5,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { appRuns, appSlot, type DaySummary } from '../../core/aggregate';
 import { fmtDuration, fmtTime } from '../../core/format';
 import { TAG_LABEL, type Tag } from '../../core/types';
-import { CAT_LABEL } from './parts';
+import { CAT_COLOR, CAT_LABEL } from './parts';
 
 export const AWAY_LABEL: Record<string, string> = {
   break: 'Break',
@@ -110,12 +110,15 @@ export function Timeline({
   s,
   nowMs,
   compact = false,
+  apps = true,
   selected = null,
   onPick,
 }: {
   s: DaySummary;
   nowMs: number;
   compact?: boolean;
+  /** P85: false shows the thin category strip from before P77 instead of the app track and its legend. */
+  apps?: boolean;
   selected?: string | null;
   onPick?: (sessionId: string) => void;
 }) {
@@ -142,8 +145,10 @@ export function Timeline({
 
   const L = compact
     ? { flag: 4, track: { y: 8, h: 20 }, strip: { y: 31, h: 16 }, axis: 64 }
-    : { flag: 4, track: { y: 9, h: 30 }, strip: { y: 43, h: 26 }, axis: 86 };
-  const runs = appRuns(tl.activity);
+    : apps
+      ? { flag: 4, track: { y: 9, h: 30 }, strip: { y: 43, h: 26 }, axis: 86 }
+      : { flag: 4, track: { y: 9, h: 30 }, strip: { y: 43, h: 4 }, axis: 64 }; // P85: the thin category strip from before P77
+  const runs = apps ? appRuns(tl.activity) : [];
   const byApp = new Map<string, { slot: number; ms: number }>();
   for (const r of runs) byApp.set(r.key, { slot: r.slot, ms: (byApp.get(r.key)?.ms ?? 0) + r.endMs - r.startMs });
   const legend = [...byApp].sort((a, b) => b[1].ms - a[1].ms || a[0].localeCompare(b[0]));
@@ -176,7 +181,7 @@ export function Timeline({
         {/* Work hours are the lit part of the track. */}
         <rect x={PAD} y={ty} width={plotW} height={th} rx={8} fill="var(--color-surface-2)" opacity={0.45} />
         {win && <rect x={x(win.startMs)} y={ty} width={w(win.startMs, win.endMs)} height={th} rx={8} fill="var(--color-surface-2)" />}
-        <rect x={PAD} y={L.strip.y} width={plotW} height={L.strip.h} rx={8} fill="var(--color-surface-2)" opacity={0.45} />
+        {apps && <rect x={PAD} y={L.strip.y} width={plotW} height={L.strip.h} rx={8} fill="var(--color-surface-2)" opacity={0.45} />}
         {hours.map((t, i) => (
           <g key={t}>
             <line x1={x(t)} x2={x(t)} y1={L.strip.y + L.strip.h + 2} y2={L.strip.y + L.strip.h + 6} stroke="var(--color-border-strong)" />
@@ -269,6 +274,19 @@ export function Timeline({
             </g>
           );
         })}
+        {!apps &&
+          tl.activity.map((b, i) => (
+            <rect
+              key={`c${i}`}
+              data-block="category"
+              x={x(b.startMs)}
+              y={L.strip.y}
+              width={w(b.startMs, b.endMs)}
+              height={L.strip.h}
+              fill={CAT_COLOR[b.category]}
+              onMouseMove={(e) => show(e, [b.key, `${CAT_LABEL[b.category]} · ${span(b.startMs, b.endMs)}`])}
+            />
+          ))}
         {s.flags.map((f, i) => (
           <path
             key={`f${i}`}

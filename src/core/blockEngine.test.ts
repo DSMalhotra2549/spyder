@@ -272,8 +272,13 @@ describe('Track from startup (P76)', () => {
     expect(r.state.loop!.block.startedMs).toBe(T(9, 0, 0, 25));
   });
 
-  it('the bar shows the goal percent', () => {
-    expect(on(T(10)).view().goalPct).toBe(true);
-    expect(booted().view().goalPct).toBe(false);
+  it('the bar shows the percent the user chose, whatever Track from startup (P82)', () => {
+    const s = on(T(10));
+    expect(s.view().goalPct).toBe(true);
+    s.settings.barPercent = 'day';
+    expect(s.view().goalPct).toBe(false);
+    const b = booted();
+    b.settings.barPercent = 'goal';
+    expect(b.view().goalPct).toBe(true);
   });
 });

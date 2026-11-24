@@ -21,7 +21,7 @@ npm run seed
 npm run dev
 ```
 
-Don't turn on the `.githooks` post-commit hook. It reinstalls the app over your installed copy after every commit (maintainer only).
+Don't turn on the `.githooks` pre-push hook. It reinstalls the app over your installed copy after every push of `main` (maintainer only).
 
 ## Every change
 
@@ -36,6 +36,6 @@ Don't turn on the `.githooks` post-commit hook. It reinstalls the app over your 
    ```
 
 3. For UI changes, look at the screenshots the e2e run saves in `tests/e2e/__shots__/` and compare them with [`design/DESIGN.md`](design/DESIGN.md). Include before/after shots in the pull request.
-4. Commit messages use the conventional style and cite the decision they implement, e.g. `feat: bar label wraps to two lines (P47)`.
+4. Commit messages use the conventional style and cite the decision they implement, e.g. `feat: bar label wraps to two lines (P47)`. The body has `What:`, `Why:` and `If you pull this:` sections (see [`AGENTS.md`](AGENTS.md) → Commits), and the same commit adds an entry to [`CHANGELOG.md`](CHANGELOG.md).
 
 By contributing, you agree your contribution is licensed under the [MIT License](LICENSE).

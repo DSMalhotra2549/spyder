@@ -147,6 +147,29 @@ test('joined answers, re-answer, answer many, delete → undo, merge → undo on
   await expect(listSwatch).toHaveValue('#123456');
   await listSwatch.fill('#654321');
   await expect(run).toHaveAttribute('fill', '#654321');
+
+  // P85: the switch under the timeline swaps the app track and its legend for the old category strip, and is kept.
+  const sw = d.getByTestId('app-track-toggle');
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  const tall = (await d.getByTestId('timeline').boundingBox())!.height;
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect(d.locator('[data-block=app]')).toHaveCount(0);
+  await expect(legend).toHaveCount(0);
+  await expect(d.locator('[data-block=category]')).toHaveCount((await expected(dir, nowMs)).summary.timeline.activity.length);
+  await expect(d.locator('[data-block=category]').first()).toHaveAttribute('height', '4');
+  await expect(d.locator('[data-block=session]').first()).toBeVisible();
+  expect((await d.getByTestId('timeline').boundingBox())!.height).toBeLessThan(tall);
+  await expect.poll(() => (s!.db().prepare("SELECT value FROM settings WHERE key = 'showAppTrack'").get() as { value: string } | undefined)?.value).toBe('false');
+  await d.waitForTimeout(300); // let the switch finish sliding
+  await d.getByTestId('timeline-card').scrollIntoViewIfNeeded();
+  await shot(d, 'today-timeline-no-apps');
+  await d.reload();
+  await d.getByTestId('block-log').waitFor();
+  await expect(d.getByTestId('app-track-toggle')).toHaveAttribute('aria-checked', 'false');
+  await expect(d.locator('[data-block=app]')).toHaveCount(0);
+  await d.getByTestId('app-track-toggle').click();
+  await expect(d.locator('[data-block=app]')).toHaveCount(runs.length);
 });
 
 test('neighbours merge across a gap too short to show; Merge repeats merges every run with one Undo (P73)', async () => {
@@ -187,6 +210,59 @@ test('neighbours merge across a gap too short to show; Merge repeats merges ever
   await d.getByTestId('toast-undo').click();
   await expect(d.getByTestId('block-row')).toHaveCount(before);
   await expect(rows(d, 'Code review')).toHaveCount(3);
+});
+
+test('a merged block can be unmerged any time, even after a restart, back to the blocks as they were (P86)', async () => {
+  const dir = freshDataDir();
+  seed(dir, 1, DATE);
+  s = await launch({ dataDir: dir, now: `${DATE}T18:00:00` });
+  let d = s.dashboard;
+  await d.evaluate(() => window.spyder.openDashboard('today'));
+  await d.getByTestId('block-log').waitFor();
+  const nowMs = (await s.debug.state()).now as number;
+  const vm0 = await expected(dir, nowMs);
+  await expect(d.getByTestId('block-unmerge')).toHaveCount(0); // nothing is merged yet
+
+  // Merge the three Code review blocks under a new answer, then rate the merged block.
+  for (const r of await rows(d, 'Code review').all()) await r.getByTestId('block-check').click();
+  await d.getByTestId('merge-open').click();
+  await d.getByTestId('merge-panel').getByLabel('Answer').fill('Reviews');
+  await d.getByTestId('panel-save').click();
+  await expect(rows(d, 'Reviews')).toHaveCount(1);
+  await rows(d, 'Reviews').getByTestId('block-efficiency').selectOption('100');
+  await expect(rows(d, 'Reviews').getByTestId('block-efficiency')).toHaveValue('100');
+
+  // A restart loses the toast's Undo, not the merge record.
+  await s.close();
+  s = await launch({ dataDir: dir, now: `${DATE}T18:05:00` });
+  d = s.dashboard;
+  await d.evaluate(() => window.spyder.openDashboard('today'));
+  await d.getByTestId('block-log').waitFor();
+  await expect(d.getByTestId('block-unmerge')).toHaveCount(1);
+  await expect(rows(d, 'Reviews').getByTestId('block-unmerge')).toHaveCount(1);
+  await rows(d, 'Reviews').hover();
+  await shot(d, 'today-unmerge');
+
+  // Unmerge: the three blocks come back as they were before the merge (answer, no rating, times).
+  await rows(d, 'Reviews').getByTestId('block-unmerge').click();
+  await expect(d.getByTestId('toast')).toContainText('Unmerged “Reviews” into 3 blocks');
+  await expect(rows(d, 'Reviews')).toHaveCount(0);
+  await expect(rows(d, 'Code review')).toHaveCount(3);
+  for (const r of await rows(d, 'Code review').all()) await expect(r.getByTestId('block-efficiency')).toHaveValue('none');
+  await expect(d.getByTestId('block-unmerge')).toHaveCount(0);
+  // The ended blocks are back exactly (the blocks each launch started aside).
+  const line = (x: (typeof vm0.summary.sessions)[number]) => [x.id, x.name, x.tag, x.efficiency, x.startMs, x.endMs, x.daySec];
+  const ended = vm0.summary.sessions.filter((x) => !x.running);
+  const ids = new Set(ended.map((x) => x.id));
+  const vm1 = await expected(dir, nowMs);
+  expect(vm1.summary.sessions.filter((x) => ids.has(x.id)).map(line)).toEqual(ended.map(line));
+  expect(s.db().prepare('SELECT COUNT(*) AS n FROM merges').get()).toEqual({ n: 0 });
+
+  // Undo merges them again, rating and all, and the block can still be unmerged.
+  await d.getByTestId('toast-undo').click();
+  await expect(rows(d, 'Reviews')).toHaveCount(1);
+  await expect(rows(d, 'Reviews').getByTestId('block-efficiency')).toHaveValue('100');
+  await expect(rows(d, 'Reviews').getByTestId('block-unmerge')).toHaveCount(1);
 });
 
 test('the running block can’t be edited until it ends; an ended one can', async () => {

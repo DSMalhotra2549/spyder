@@ -12,7 +12,7 @@ const TABLES = [
 
 let s: Launched;
 test.beforeAll(async () => {
-  s = await launch();
+  s = await launch({ env: { SPYDER_DEFAULTS: '{}' } }); // the real first-run defaults (P82)
 });
 test.afterAll(async () => {
   await s?.close();
