@@ -10,6 +10,7 @@ import { Review } from './Review';
 import { Rules } from './Rules';
 import { Settings } from './Settings';
 import { Today } from './Today';
+import { Visualizer } from './Visualizer';
 import { Week } from './Week';
 import { applyTagColors, TopBar, useLoader } from './parts';
 import { Toast } from './toast';
@@ -24,12 +25,13 @@ const ICONS: Record<string, ReactNode> = {
   review: icon('M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'),
   week: icon('M4 20V10M10 20V4M16 20v-7M22 20H2'),
   month: icon('M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14H3zM3 10h18M8 2v4M16 2v4'),
+  visualizer: icon('M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'),
   rules: icon('M4 6h16M4 12h10M4 18h6'),
   settings: icon('M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'),
 };
 
 const GROUPS: { title: string; items: { id: string; label: string }[] }[] = [
-  { title: 'Day', items: [{ id: 'today', label: 'Today' }, { id: 'review', label: 'Review' }] },
+  { title: 'Day', items: [{ id: 'today', label: 'Today' }, { id: 'review', label: 'Review' }, { id: 'visualizer', label: 'Visualizer' }] },
   { title: 'Trends', items: [{ id: 'week', label: 'Week' }, { id: 'month', label: 'Month' }] },
   { title: 'Setup', items: [{ id: 'rules', label: 'Rules' }, { id: 'settings', label: 'Settings' }] },
 ];
@@ -101,6 +103,8 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
           <Week date={(date ?? rv?.today)!} onDate={onDate} />
         ) : page === 'month' ? (
           <Month date={(date ?? rv?.today)!} onDate={onDate} />
+        ) : page === 'visualizer' ? (
+          <Visualizer />
         ) : page === 'rules' ? (
           <Rules />
         ) : page === 'settings' ? (
