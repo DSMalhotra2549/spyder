@@ -66,4 +66,12 @@ The e2e helper also sets `SPYDER_CAPTURE=0` and `SPYDER_FAKE_IDLE=1`, so the rea
 
 ## Commits
 
-Conventional style, citing the decision it implements, e.g. `feat: bar label wraps to two lines (P47)`. Commit only when the user asks.
+Commit only when the user asks. Other people and their agents pull `main`, so they need to understand each commit without opening its diff.
+
+- **Subject:** conventional style, citing the decision it implements, e.g. `feat: bar label wraps to two lines (P47)`.
+- **Body (always):** three short sections:
+  - `What:` the change as the user sees it. One bullet per change, using `CONTEXT.md` terms.
+  - `Why:` the reason, in a sentence or two. The P decision has the full reasoning.
+  - `If you pull this:` anything that behaves differently for someone who pulls: changed defaults, migrations, new or renamed settings keys, changed test helpers or env vars, new setup steps. Write `nothing special` if there's none.
+- **`CHANGELOG.md`:** add an entry with the same three sections at the top, in the same commit. Fill in the commit hash in the next commit, or leave it out.
+- Before pulling or starting work, read the `CHANGELOG.md` entries newer than your last pull.
