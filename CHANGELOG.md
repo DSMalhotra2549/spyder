@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Glass tint slider in Settings (P90)
+
+**What**
+- Settings → Look has a **Glass tint** slider: 0 % is clear glass, 100 % is a solid sidebar colour, in steps of 5. It retints the dashboard's glass frame live as you drag and is kept; `Reset` brings back 55 %.
+
+**Why**
+The user wanted to choose how dark or see-through the glass is.
+
+**If you pull this**
+- New setting `glassTint` (whole percent 0–100, default 55); the dashboard reads it into the CSS variable `--glass-tint`. E2e: the slider is `set-glassTint`, its reset `reset-glassTint`; new screenshot `settings-glass-tint.png`.
+
 ## 2026-11-25: Smoke-tinted glass sidebar (P89)
 
 **What**

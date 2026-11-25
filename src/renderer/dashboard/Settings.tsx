@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS, type Settings as S } from '../../core/settings';
 import type { ScheduleRow, SettingsVM } from '../../preload/api';
 import { Btn, inputCls } from '../ui/controls';
 import { ExportButton } from './Export';
-import { applyTagColors, Card, Segmented, Toggle, TopBar, useLoader } from './parts';
+import { applyGlassTint, applyTagColors, Card, Segmented, Toggle, TopBar, useLoader } from './parts';
 
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
 const DAY_NAME = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -25,6 +25,7 @@ export function Settings() {
   const set = async (p: Partial<S>) => {
     const next = await window.spyder.setSettings(p);
     applyTagColors(next);
+    applyGlassTint(next);
     setS(next);
   };
   if (!s) return <TopBar title="Settings" />;
@@ -142,6 +143,27 @@ export function Settings() {
                   ]}
                   onChange={(v) => void set({ font: v })}
                 />
+              </Field>
+              <Field label="Glass tint" hint="clear to solid">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    data-testid="set-glassTint"
+                    aria-label="Glass tint"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={s.glassTint}
+                    onChange={(e) => void set({ glassTint: Number(e.target.value) })}
+                    className="w-24 cursor-pointer accent-accent"
+                  />
+                  <span className="w-10 text-[12px] text-muted tabular">{s.glassTint} %</span>
+                  {s.glassTint !== DEFAULT_SETTINGS.glassTint && (
+                    <Btn size="sm" variant="ghost" data-testid="reset-glassTint" title="Reset to default" onClick={() => void set({ glassTint: DEFAULT_SETTINGS.glassTint })}>
+                      Reset
+                    </Btn>
+                  )}
+                </div>
               </Field>
               <Field label="Bar percent" hint="work hours passed, or goal reached">
                 <Segmented

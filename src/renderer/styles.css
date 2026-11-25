@@ -125,9 +125,9 @@
     -webkit-font-smoothing: antialiased;
     user-select: none;
   }
-  /* Smoke tint over the acrylic (P89): the glass still shows through, but its colour is ours. */
+  /* Smoke tint over the acrylic (P89): the glass still shows through, but its colour is ours. Strength from Settings (P90). */
   body.dashboard {
-    background: color-mix(in srgb, var(--color-sidebar) 55%, transparent);
+    background: color-mix(in srgb, var(--color-sidebar) var(--glass-tint, 55%), transparent);
   }
   body.transparent {
     background: transparent;
