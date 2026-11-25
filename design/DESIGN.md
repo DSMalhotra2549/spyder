@@ -3,7 +3,7 @@
 Visual source of truth for the renderer. Behavior lives in `SPYDER_PLAN.md` §12. References: `design/reference/INDEX.md`.
 The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel-style (P56): neutral greys, small type, Spyder purple as the only accent, colour only where it carries meaning, now in an Arc-style glass frame with soft rounded shapes (P87). Light, dark or follow Windows (P57).
 
-**Brand rule:** no Rize logo, wordmark, name, or the purple "agent orb". Spyder's own mark is an accent circle with a white "S" (tray/app icon only). In the widget the orb's slot is taken by a functional **workday ring**.
+**Brand rule:** no Rize logo, wordmark, name, or the purple "agent orb". Spyder's own mark is a spider web (tray/app icon only, P91). In the widget the orb's slot is taken by a functional **workday ring**.
 
 ## 1. Tokens (light and dark, P57)
 
@@ -145,5 +145,5 @@ Toggles: 32 × 18 track, `surface-2` off / `accent` on, white 14 px knob.
 - Durations displayed as `h:mm` in tables, `2h 15m` in prose and prompts, `38m` under an hour.
 
 ## 6. Tray & icon
-- Icon: 256 px accent (`#7B61FF`) circle with a white bold "S" (`scripts/make-icon.ps1`). Tray uses the PNG resized to 16/32.
+- Icon (P91): a spider web, dark outline with slate-blue fill (`resources/icon.png`, 256 px, transparent; edit the PNG directly). Tray uses the PNG resized to 16/32; electron-builder makes the .ico.
 - Notifications (nudge toast) use the system toast; title `Spyder`, body per plan §8.

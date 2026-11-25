@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Spider web icon (P91)
+
+**What**
+- Spyder's app, installer and tray icon is now a spider web instead of the purple circle with an "S".
+
+**Why**
+The user wanted a spider web as Spyder's icon.
+
+**If you pull this**
+- `resources/icon.png` is now the source image; `scripts/make-icon.ps1` and `npm run icon` are gone (running it would have overwritten the web).
+
 ## 2026-11-25: Glass tint slider in Settings (P90)
 
 **What**
