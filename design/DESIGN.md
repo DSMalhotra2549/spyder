@@ -13,7 +13,7 @@ The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel
 | Token | Dark | Light | Use |
 |---|---|---|---|
 | `--color-bg` | `#0E0E10` | `#FFFFFF` | dashboard content background |
-| `--color-sidebar` | `#09090B` | `#F7F7F8` | dashboard sidebar |
+| `--color-sidebar` | `#09090B` | `#F7F7F8` | dashboard glass tint (at 55 %, P89) |
 | `--color-surface` | `#141417` | `#FFFFFF` | cards, tables, bar, prompt window |
 | `--color-surface-2` | `#1C1C20` | `#F3F3F5` | hover, selected nav, segmented control, timeline track |
 | `--color-border` | `#232328` | `#E8E8EC` | hairline borders, row dividers |
@@ -51,7 +51,7 @@ The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel
 - Spacing: 4-px grid (4, 8, 12, 16, 20, 24, 32). Card padding 16 (20 on dashboard stat cards).
 - Shadows: `--shadow-float` for the prompt window, `--shadow-pop` for menus, tooltips, the merge panel and the toast. Dashboard cards have no shadow, only the 1 px border.
 - Motion: 150 ms ease-out for hover/expand; pages fade in (200 ms, 6 px rise), stat tiles lift 2 px on hover, the sidebar pill slides (220 ms) (P87). All off under reduced motion. The timer never animates digits.
-- Glass (P87): the dashboard and prompt windows use Windows 11 acrylic (`backgroundMaterial`); glass shows only while the window is focused, otherwise Windows paints a flat colour. Frosted fills are `--color-text` at 6–16 % (`.glass-*` in `styles.css`).
+- Glass (P87): the dashboard and prompt windows use Windows 11 acrylic (`backgroundMaterial`); glass shows only while the window is focused, otherwise Windows paints a flat colour. Frosted fills are `--color-text` at 6–16 % (`.glass-*` in `styles.css`). The dashboard's glass frame (sidebar and the edge around the content card) is tinted with `sidebar` at 55 %: smoke, charcoal in dark and frost in light (P89).
 
 ## 2. Widget (`#/widget`)
 
@@ -99,7 +99,7 @@ Heading `NOT STARTED` in `away`, title `Work hours have started`, body `Press St
 ## 4. Dashboard (`#/dashboard/*`)
 
 1200 × 800, min 960 × 640, acrylic glass window with no title bar (P87): Windows' min/max/close sit over the glass, and the top 36 px strip drags the window.
-- **Sidebar** 216 px, untinted glass; text and icons carry a soft glow in `bg` (P87). Top: 20 px accent square mark + "Spyder" 14/600, in the drag strip. Groups with 11/600 headings (`text` 55 %): Day (Today, Review, Visualizer) (P80, P88), Trends (Week, Month), Setup (Rules, Settings). Nav items 36 px tall, 16 px icons (inline SVG, 1.5 px stroke), radius 9; active = a frosted pill that slides to it, `text`, 600; inactive `text` 80 %, hover frosted. A badge (accent pill) on Review shows pending items.
+- **Sidebar** 216 px, smoke-tinted glass (P89); text and icons carry a soft glow in `bg` (P87). Top: 20 px accent square mark + "Spyder" 14/600, in the drag strip. Groups with 11/600 headings (`text` 55 %): Day (Today, Review, Visualizer) (P80, P88), Trends (Week, Month), Setup (Rules, Settings). Nav items 36 px tall, 16 px icons (inline SVG, 1.5 px stroke), radius 9; active = a frosted pill that slides to it, `text`, 600; inactive `text` 80 %, hover frosted. A badge (accent pill) on Review shows pending items.
 - **Sidebar footer** (a small frosted card, P59, P87; secondary buttons and the length box frosted): state dot + caption (`Block · 15m` with the timer, `Not started` in orange, or `Off hours`), then the block-length box (56 px number input, `min blocks`; Enter or blur applies it from the next block), then `Start` (primary, full width), or `Stop` (secondary) while the loop runs. Off hours: `Keep working +N` (P20, P62). Then a `Show widget` ghost button.
 - **Top bar** (56 px, no border, P87): page title 20/700, `‹ ›` (28 px ghost) and the date, right side page actions (Review: `Complete review` primary). Export lives in Settings only (P72).
 - **Content:** on a floating card (P87): 36 px below the window top, 8 px from the right and bottom edges, radius 12, `bg` at 97 %, soft shadow. Inside, padding 24, 12-column grid, gap 16. Cards: `surface`, 1 px `border`, radius card, padding 16, header = `section-title` + optional right-aligned muted total.

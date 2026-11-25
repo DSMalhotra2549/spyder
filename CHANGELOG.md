@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Smoke-tinted glass sidebar (P89)
+
+**What**
+- The dashboard's glass frame (the sidebar and the edge around the content card) has a see-through smoke tint: charcoal in dark, frost in light. The glass still shows through, but the colour no longer follows the wallpaper.
+
+**Why**
+The user disliked the untinted sidebar's colour and wanted a calm, even one while keeping the Arc glass look.
+
+**If you pull this**
+- `--color-sidebar` is in use again, as the tint colour (at 55 %). `theme.spec.ts` checks the tint in both themes.
+
 ## 2026-11-25: Visualizer page, today as a 24-hour star clock (P88)
 
 **What**

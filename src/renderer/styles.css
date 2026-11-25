@@ -125,8 +125,9 @@
     -webkit-font-smoothing: antialiased;
     user-select: none;
   }
+  /* Smoke tint over the acrylic (P89): the glass still shows through, but its colour is ours. */
   body.dashboard {
-    background: transparent;
+    background: color-mix(in srgb, var(--color-sidebar) 55%, transparent);
   }
   body.transparent {
     background: transparent;
@@ -219,7 +220,7 @@
 }
 
 /* Glass sidebar prototype: unlayered, so these win over Tailwind utilities on the same element. */
-/* No tint: a soft glow in the background colour keeps sidebar text readable over whatever is behind. */
+/* A soft glow in the background colour keeps sidebar text readable over whatever shows through the tint (P89). */
 .glass-side {
   text-shadow:
     0 0 2px color-mix(in srgb, var(--color-bg) 80%, transparent),

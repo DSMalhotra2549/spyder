@@ -31,6 +31,8 @@ test('theme switches live and covers every page and the bar', async () => {
     await theme.locator('[data-value=light]').click();
     await expect.poll(async () => (await s.debug.state()).theme).toEqual({ source: 'light', dark: false });
     await expect.poll(() => bgToken(d)).toBe('rgb(255, 255, 255)');
+    // The glass frame is tinted with the sidebar colour at 55 % (P89): frost in light, charcoal in dark.
+    expect(await bg(d, 'body')).toBe('color(srgb 0.968627 0.968627 0.972549 / 0.55)');
     await expect.poll(() => bg(s.widget, '[data-testid=pill]')).toBe('rgb(255, 255, 255)');
     expect(s.db().prepare("SELECT value FROM settings WHERE key = 'theme'").get()).toEqual({ value: '"light"' });
 
@@ -48,6 +50,7 @@ test('theme switches live and covers every page and the bar', async () => {
     await theme.locator('[data-value=dark]').click();
     await expect.poll(async () => (await s.debug.state()).theme).toEqual({ source: 'dark', dark: true });
     await expect.poll(() => bgToken(d)).toBe('rgb(14, 14, 16)');
+    expect(await bg(d, 'body')).toBe('color(srgb 0.0352941 0.0352941 0.0431373 / 0.55)');
     for (const p of pages) {
       await d.evaluate((r) => window.spyder.openDashboard(r), p);
       await d.waitForTimeout(400);
