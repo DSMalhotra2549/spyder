@@ -6,7 +6,7 @@ import { helperPath } from './capture/chromeUrl';
 import type { AppCtx } from './context';
 import { rendererUrl } from './paths';
 import { saveSettings } from './settings';
-import { applyFontTo, windowBackground } from './theme';
+import { applyFontTo, titleBarOverlay } from './theme';
 
 /** The bar (P49): 512 × 34 plus an 8 px margin on every side (design/DESIGN.md §2). */
 export const WIDGET_SIZE = { width: 528, height: 50 } as const;
@@ -98,9 +98,10 @@ export function createPrompt(ctx: AppCtx): BrowserWindow {
     height: 220,
     show: false,
     frame: false,
-    transparent: true,
+    // Glass: Windows 11 acrylic behind the card; Windows draws the rounded corners and the shadow.
     backgroundColor: '#00000000',
-    hasShadow: false,
+    backgroundMaterial: 'acrylic',
+    hasShadow: true,
     resizable: false,
     maximizable: false,
     minimizable: false,
@@ -182,7 +183,12 @@ export function createDashboard(ctx: AppCtx, route = 'today'): BrowserWindow {
     minHeight: 640,
     show: false,
     title: 'Spyder',
-    backgroundColor: windowBackground(),
+    // Glass prototype: Windows 11 acrylic shows through wherever the page is transparent (the sidebar).
+    backgroundColor: '#00000000',
+    backgroundMaterial: 'acrylic',
+    // No title bar: the glass runs to the top; Windows still draws min/max/close over it.
+    titleBarStyle: 'hidden',
+    titleBarOverlay: titleBarOverlay(),
     autoHideMenuBar: true,
     webPreferences: webPreferences(),
   });

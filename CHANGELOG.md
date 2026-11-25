@@ -7,6 +7,24 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Arc look, glass dashboard and prompt, soft shapes (P87)
+
+**What**
+- The dashboard window is Windows 11 acrylic glass with no title bar; Windows' min/max/close sit over the glass and the top strip drags the window.
+- The sidebar is see-through glass; the current page is a frosted pill that slides between items; the timer card is frosted.
+- Each page sits on a floating rounded card. Bigger page title, stats as separate rounded tiles, block rows as soft rounded tiles (joined blocks form one tile). A row's checkbox and dropdown arrows show on hover or when ticked.
+- Short motion (page fade-in, tile lift, sliding pill), off when Windows animations are off.
+- The prompt window is acrylic glass too. The bar is unchanged.
+
+**Why**
+The user wanted Spyder much prettier, Arc-style, with real see-through glass. Appearance only; amends P56's flat style.
+
+**If you pull this**
+- Glass shows only on the focused window; unfocused, in battery saver or with Transparency effects off, Windows paints a flat colour.
+- `theme.spec.ts` now checks the resolved `--color-bg` token instead of `body`'s background, which is see-through. Screenshots in `__shots__` can't capture acrylic, so the sidebar looks washed out there.
+- `windowBackground()` is gone from `src/main/theme.ts`; use `titleBarOverlay()` for the dashboard's window buttons.
+- Known failure: `widget.spec.ts` test 8 fails most runs at `widgetOnTop` before the first minimize. The dashboard window's acrylic causes it (without it, the test passes). Merged as is on the user's call; the bar may sometimes drop behind other apps while the glass dashboard is open.
+
 ## 2026-11-25: Unmerge a merged block any time (P86)
 
 **What**

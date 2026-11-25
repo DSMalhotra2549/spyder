@@ -118,8 +118,8 @@ export function TopBar({
   const nextStart = date ? periodStart(stepDate(date, unit, 1), unit) : '';
   const isCurrent = !!today && !!date && periodStart(date, unit) === periodStart(today, unit);
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-6">
-      <h1 className="text-[14px] font-semibold">{title}</h1>
+    <header className="flex h-14 shrink-0 items-center gap-3 px-8 pt-2">
+      <h1 className="text-[20px] font-bold tracking-[-0.02em]">{title}</h1>
       {date && (
         <div className="flex items-center gap-1">
           <NavBtn label={`Previous ${unit}`} onClick={() => step(-1)}>
@@ -201,7 +201,7 @@ export function Card({
 /** One bordered strip of stat cells divided by hairlines (Today, Week, Month). */
 export function StatStrip({ cols, children }: { cols: 4 | 5; children: ReactNode }) {
   return (
-    <section className={clsx('grid divide-x divide-border rounded-card border border-border bg-surface', cols === 4 ? 'grid-cols-4' : 'grid-cols-5')}>
+    <section className={clsx('grid gap-3', cols === 4 ? 'grid-cols-4' : 'grid-cols-5')}>
       {children}
     </section>
   );
@@ -223,9 +223,9 @@ export function StatCell({
   children?: ReactNode;
 }) {
   return (
-    <div className="min-w-0 px-4 py-3">
-      <div className="section-label mb-1">{label}</div>
-      <div data-testid={id} className={clsx('text-[20px] leading-tight font-semibold tabular', tone === 'green' && 'text-green')}>
+    <div className="tile-lift min-w-0 rounded-[14px] bg-surface-2/50 px-5 py-4">
+      <div className="section-label mb-1.5">{label}</div>
+      <div data-testid={id} className={clsx('text-[26px] leading-tight font-bold tracking-[-0.02em] tabular', tone === 'green' && 'text-green')}>
         {value}
       </div>
       {children}
