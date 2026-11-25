@@ -36,6 +36,8 @@ test('theme switches live and covers every page and the bar', async () => {
     await expect.poll(() => bg(s.widget, '[data-testid=pill]')).toBe('rgb(255, 255, 255)');
     expect(s.db().prepare("SELECT value FROM settings WHERE key = 'theme'").get()).toEqual({ value: '"light"' });
 
+    // The sidebar mark is the app icon, and it loads (P94).
+    await expect.poll(() => d.getByTestId('sidebar-mark').evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     const pages = ['today', 'review', 'week', 'month', 'rules', 'settings'];
     for (const p of pages) {
       await d.evaluate((r) => window.spyder.openDashboard(r), p);

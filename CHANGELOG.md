@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Spider web in the sidebar (P94)
+
+**What**
+- The dashboard's top-left mark beside "Spyder" is now the spider web app icon instead of the purple square with an "S".
+
+**Why**
+The user expected the dashboard to show the latest icon.
+
+**If you pull this**
+- The renderer imports `resources/icon.png` directly, so replacing that file updates the sidebar too. The mark has `data-testid="sidebar-mark"`.
+
 ## 2026-11-25: Accent colour in Settings (P93)
 
 **What**
