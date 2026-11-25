@@ -242,8 +242,11 @@ function ReflectCard({ p }: { p: ReflectVM }) {
   return (
     <Card testId="prompt-reflect" color="var(--color-green)" heading={p.heading}>
       <div className="text-[15px] font-semibold text-text">{p.title}</div>
-      <Lines label="Today's wins" testId="reflect-win" values={wins} onChange={setWins} placeholder="Something that went well" autoFocus />
-      <Lines label="How I'll improve" testId="reflect-improve" values={improves} onChange={setImproves} placeholder="One thing to do differently" />
+      {/* P100: the lists scroll once the window reaches its tallest. */}
+      <div className="flex max-h-[520px] flex-col gap-3 overflow-y-auto">
+        <Lines label="Wins" testId="reflect-win" values={wins} onChange={setWins} placeholder="Something that went well" autoFocus />
+        <Lines label="How I'll improve" testId="reflect-improve" values={improves} onChange={setImproves} placeholder="One thing to do differently" />
+      </div>
       <div className="flex items-center gap-2">
         <Btn pill variant={changed ? 'primary' : 'secondary'} data-testid="reflect-done" onClick={() => void done()}>
           {changed ? 'Save' : 'Skip'}
@@ -254,7 +257,10 @@ function ReflectCard({ p }: { p: ReflectVM }) {
   );
 }
 
-/** One line per item: Enter adds the next line, Backspace on an empty line removes it. */
+/** P100: up to this many lines a section. */
+const MAX_LINES = 10;
+
+/** One line per item: Enter or + Add adds a line (up to 10), Backspace on an empty line removes it. */
 function Lines(props: { label: string; testId: string; values: string[]; onChange: (v: string[]) => void; placeholder: string; autoFocus?: boolean }) {
   const { values, onChange } = props;
   const refs = useRef<(HTMLInputElement | null)[]>([]);
@@ -262,6 +268,12 @@ function Lines(props: { label: string; testId: string; values: string[]; onChang
   useLayoutEffect(() => {
     if (focus !== null) refs.current[focus]?.focus();
   }, [focus, values.length]);
+  const full = values.length >= MAX_LINES;
+  const addAfter = (i: number) => {
+    if (full) return;
+    onChange([...values.slice(0, i + 1), '', ...values.slice(i + 1)]);
+    setFocus(i + 1);
+  };
   return (
     <div data-testid={props.testId} className="flex flex-col gap-1">
       <span className="caps text-muted">{props.label}</span>
@@ -280,8 +292,7 @@ function Lines(props: { label: string; testId: string; values: string[]; onChang
             onKeyDown={(e) => {
               if (e.key === 'Enter' && v.trim()) {
                 e.preventDefault();
-                onChange([...values.slice(0, i + 1), '', ...values.slice(i + 1)]);
-                setFocus(i + 1);
+                addAfter(i);
               } else if (e.key === 'Backspace' && !v && values.length > 1) {
                 e.preventDefault();
                 onChange(values.filter((_, j) => j !== i));
@@ -292,6 +303,11 @@ function Lines(props: { label: string; testId: string; values: string[]; onChang
           />
         </div>
       ))}
+      {!full && (
+        <button type="button" data-testid="reflect-add" onClick={() => addAfter(values.length - 1)} className="h-7 self-start px-2 text-[12px] text-muted hover:text-text">
+          + Add
+        </button>
+      )}
     </div>
   );
 }

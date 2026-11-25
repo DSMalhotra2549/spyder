@@ -98,11 +98,13 @@ Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a f
  ╭──────────────────────────────────────────╮
  │ ● YESTERDAY                              │  ← caps green; or the date: FRI, NOV 20
  │ How did yesterday go?                    │  ← 15/600 text
- │ TODAY'S WINS                             │  ← caps muted
+ │ WINS                                     │  ← caps muted (P100)
  │ •  Shipped the midnight card             │  ← one input per line, 13 px, borderless until hover/focus
  │ •  │                                     │     Enter adds a line, Backspace on an empty one removes it
+ │    + Add                                 │  ← 12 px muted; gone at 10 lines (P100)
  │ HOW I'LL IMPROVE                         │
  │ •  One thing to do differently           │  ← placeholder faint
+ │    + Add                                 │
  │ [Skip]                                   │  ← secondary pill; `Save` primary once anything changed (P99)
  ╰──────────────────────────────────────────╯
 ```

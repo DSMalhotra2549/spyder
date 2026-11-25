@@ -36,13 +36,28 @@ test('at midnight the card asks about the day that ended; Save writes its wins a
     await expect(done).toHaveText('Save');
     await wins.first().press('Enter');
     await s.prompt.keyboard.type('Fixed the flaky test');
-    await card.getByTestId('reflect-improve').getByTestId('reflect-line').first().fill('Sleep before midnight');
+    // P100: the label is "Wins"; + Add adds a line, up to 10 a section.
+    await expect(card.getByTestId('reflect-win')).toContainText('Wins');
+    await expect(card.getByTestId('reflect-win')).not.toContainText('Today');
+    const improve = card.getByTestId('reflect-improve');
+    await improve.getByTestId('reflect-line').first().fill('Sleep before midnight');
+    await improve.getByTestId('reflect-add').click();
+    await s.prompt.keyboard.type('Plan the day the night before');
     await shot(s.prompt, 'prompt-reflect');
+    for (let n = 2; n < 10; n++) await improve.getByTestId('reflect-add').click();
+    await expect(improve.getByTestId('reflect-line')).toHaveCount(10);
+    await expect(improve.getByTestId('reflect-add')).toHaveCount(0);
+    await improve.getByTestId('reflect-line').last().fill('Tenth');
+    await improve.getByTestId('reflect-line').last().press('Enter'); // full: no 11th line
+    await expect(improve.getByTestId('reflect-line')).toHaveCount(10);
+    await shot(s.prompt, 'prompt-reflect-full');
     await done.click();
 
     await expect.poll(() => promptView(s)).toBeNull();
     expect(items(s)).toEqual([
       { kind: 'improve', text: 'Sleep before midnight' },
+      { kind: 'improve', text: 'Plan the day the night before' },
+      { kind: 'improve', text: 'Tenth' },
       { kind: 'win', text: 'Shipped the midnight card' },
       { kind: 'win', text: 'Fixed the flaky test' },
     ]);
@@ -53,7 +68,7 @@ test('at midnight the card asks about the day that ended; Save writes its wins a
     const values = (kind: string) =>
       d.getByTestId(`bullets-${kind}`).getByTestId('bullet-input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
     await expect.poll(() => values('win')).toEqual(['Shipped the midnight card', 'Fixed the flaky test']);
-    expect(await values('improve')).toEqual(['Sleep before midnight']);
+    expect(await values('improve')).toEqual(['Sleep before midnight', 'Plan the day the night before', 'Tenth']);
 
     // Asked once: not again later that night.
     await s.debug.setNow(new Date('2026-11-25T01:00:00').getTime());

@@ -7,6 +7,18 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: The midnight card: Wins, + Add, up to 10 (P100)
+
+**What**
+- The midnight card's first section reads "Wins" instead of "Today's wins".
+- Each section has a "+ Add" button for another line, up to 10 lines each. The card grows with its lines, and scrolls inside once the prompt window is at its tallest.
+
+**Why**
+The card is about yesterday, and the user wants an obvious way to add several wins and improvements.
+
+**If you pull this**
+- Nothing special.
+
 ## 2026-11-26: Clearer heading for yesterday's improvements (P99)
 
 **What**
