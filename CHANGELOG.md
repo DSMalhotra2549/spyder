@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Release 0.2.0
+
+**What**
+- Spyder 0.2.0: everything from P75 to P94 since 0.1.0, packaged as `Spyder Setup 0.2.0.exe`.
+
+**Why**
+The user asked for a new release.
+
+**If you pull this**
+- `package.json` version is 0.2.0, tagged `v0.2.0`.
+
 ## 2026-11-25: e2e runs stay off your screen
 
 **What**
