@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Efficiency after the duration (P103)
+
+**What**
+- In Today's block log, the efficiency picker moved to the right of the duration.
+
+**Why**
+The user asked for the duration next to the tag and the rating after it.
+
+**If you pull this**
+- Nothing changes beyond the column order.
+
 ## 2026-11-26: Today at a glance (P102)
 
 **What**

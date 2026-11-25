@@ -512,14 +512,14 @@ function BlockRow({
         )}
       </span>
       <TagSelect testId="block-tag" label={`Tag of ${text}`} value={x.tag} disabled={x.running} onChange={onTag} />
+      <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
+        {dur(x.daySec)}
+      </span>
       {x.tag === 'work' ? (
         <EfficiencySelect testId="block-efficiency" label={`Efficiency of ${text}`} value={x.efficiency} mixed={mixed} disabled={x.running} onChange={onRate} />
       ) : (
         <span className="w-[64px] shrink-0" />
       )}
-      <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
-        {dur(x.daySec)}
-      </span>
       <span className="flex w-[88px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
         {!x.running && (
           <>
@@ -611,6 +611,7 @@ function QuietRow({ e, onFill }: { e: Exclude<LogEntry, { type: 'session' }>; on
       <span className="h-4 w-[3px] shrink-0 rounded-pill bg-faint/60" />
       <span className="min-w-0 flex-1 truncate text-faint">{e.type === 'away' ? 'Away' : 'Untracked'}</span>
       <span className="w-[64px] shrink-0 text-right tabular">{dur(e.sec)}</span>
+      <span className="w-[64px] shrink-0" />
       <span className="flex w-[88px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
         {e.type === 'untracked' && (
           <IconBtn label="Account for this time" testId="untracked-fill" onClick={onFill}>
