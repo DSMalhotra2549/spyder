@@ -1,6 +1,6 @@
-// Prompt window (#/prompt): accounting for ended blocks (P60, with P70's asks) or the start reminder (P59). DESIGN.md §3.
+// Prompt window (#/prompt): accounting for ended blocks (P60, with P70's asks), the midnight card (P98) or the start reminder (P59). DESIGN.md §3.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import type { AccountBlockVM, AccountVM, ReminderVM } from '../../core/promptView';
+import type { AccountBlockVM, AccountVM, ReflectVM, ReminderVM } from '../../core/promptView';
 import type { Efficiency, EngineError, Tag } from '../../core/types';
 import type { BlockAnswer, Ok, PromptWindowState } from '../../preload/api';
 import { fmtHM } from '../../core/format';
@@ -36,6 +36,7 @@ export function PromptWindow() {
   return (
     <div ref={root} className="p-2">
       {st?.view === 'account' && <AccountCard key={st.blocks.map((b) => b.id).join()} p={st} />}
+      {st?.view === 'reflect' && <ReflectCard key={st.date} p={st} />}
       {st?.view === 'reminder' && <ReminderCard p={st} />}
     </div>
   );
@@ -220,6 +221,73 @@ function Asks({ p }: { p: AccountVM }) {
               setDone((d) => [...d, a.key]);
               void window.spyder.saveRule({ ...a.ruleTarget, category: c });
             }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const cleanLines = (xs: string[]) => xs.map((x) => x.trim()).filter(Boolean);
+
+/** P98: after a day ends, its wins and how I'll improve. Both optional: until something changes, the button skips. */
+function ReflectCard({ p }: { p: ReflectVM }) {
+  const [wins, setWins] = useState(p.wins.length ? p.wins : ['']);
+  const [improves, setImproves] = useState(p.improves.length ? p.improves : ['']);
+  const [error, setError] = useState<string | null>(null);
+  const lists = { win: cleanLines(wins), improve: cleanLines(improves) };
+  const changed = JSON.stringify(lists) !== JSON.stringify({ win: p.wins, improve: p.improves });
+  const done = async () => setError(errText(await window.spyder.saveReflection(p.date, changed ? lists : null)));
+  return (
+    <Card testId="prompt-reflect" color="var(--color-green)" heading={p.heading}>
+      <div className="text-[15px] font-semibold text-text">{p.title}</div>
+      <Lines label="Today's wins" testId="reflect-win" values={wins} onChange={setWins} placeholder="Something that went well" autoFocus />
+      <Lines label="How I'll improve" testId="reflect-improve" values={improves} onChange={setImproves} placeholder="One thing to do differently" />
+      <div className="flex items-center gap-2">
+        <Btn pill variant={changed ? 'primary' : 'secondary'} data-testid="reflect-done" onClick={() => void done()}>
+          {changed ? 'Save' : 'Skip for today'}
+        </Btn>
+      </div>
+      {error && <div className="text-[12px] text-red">{error}</div>}
+    </Card>
+  );
+}
+
+/** One line per item: Enter adds the next line, Backspace on an empty line removes it. */
+function Lines(props: { label: string; testId: string; values: string[]; onChange: (v: string[]) => void; placeholder: string; autoFocus?: boolean }) {
+  const { values, onChange } = props;
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const [focus, setFocus] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (focus !== null) refs.current[focus]?.focus();
+  }, [focus, values.length]);
+  return (
+    <div data-testid={props.testId} className="flex flex-col gap-1">
+      <span className="caps text-muted">{props.label}</span>
+      {values.map((v, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="text-faint">•</span>
+          <input
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            data-testid="reflect-line"
+            value={v}
+            placeholder={props.placeholder}
+            autoFocus={props.autoFocus && i === 0}
+            onChange={(e) => onChange(values.map((x, j) => (j === i ? e.target.value : x)))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && v.trim()) {
+                e.preventDefault();
+                onChange([...values.slice(0, i + 1), '', ...values.slice(i + 1)]);
+                setFocus(i + 1);
+              } else if (e.key === 'Backspace' && !v && values.length > 1) {
+                e.preventDefault();
+                onChange(values.filter((_, j) => j !== i));
+                setFocus(Math.max(0, i - 1));
+              }
+            }}
+            className="h-8 min-w-0 flex-1 rounded-control border border-transparent bg-transparent px-2 text-[13px] text-text outline-none placeholder:text-faint hover:border-border focus:border-accent focus:bg-surface-2"
           />
         </div>
       ))}

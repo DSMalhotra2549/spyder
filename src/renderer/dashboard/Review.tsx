@@ -65,11 +65,11 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
         </div>
         <div className="col-span-5 flex min-w-0 flex-col gap-4">
           <Card title="Today's wins">
-            <Bullets key={`w${vm.date}`} date={vm.date} kind="win" items={vm.items.filter((i) => i.kind === 'win')} placeholder="Something that went well" />
+            <Bullets key={`w${vm.date}:${vm.reflectedMs}`} date={vm.date} kind="win" items={vm.items.filter((i) => i.kind === 'win')} placeholder="Something that went well" />
           </Card>
           <Card title="How I'll improve">
             <Bullets
-              key={`i${vm.date}`}
+              key={`i${vm.date}:${vm.reflectedMs}`}
               date={vm.date}
               kind="improve"
               items={vm.items.filter((i) => i.kind === 'improve')}

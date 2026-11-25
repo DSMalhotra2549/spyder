@@ -119,6 +119,9 @@ export function Settings() {
                   onCommit={(v) => void set({ goalSec: Math.round(v * 3600) })}
                 />
               </Field>
+              <Field label="Ask about the day at midnight" hint="wins and how you'll improve, for the day that ended">
+                <Toggle testId="set-askReflection" label="Ask about the day at midnight" on={s.askReflection} onChange={(v) => void set({ askReflection: v })} />
+              </Field>
             </Card>
             <Card title="Look">
               <Field label="Theme">

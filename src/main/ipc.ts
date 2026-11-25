@@ -106,6 +106,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('answerBlocks', (answers: BlockAnswer[]) => host.answer(answers));
   h('answerSuggestions', (prefix: string) => repo.answerSuggestions(ctx.db, prefix));
   h('getPrompt', () => host.promptState());
+  h('saveReflection', (date: string, lists: { win: string[]; improve: string[] } | null) => host.saveReflection(date, lists));
 
   // Editing blocks after the fact (P64)
   const editor = new BlockEditor(ctx, host);
@@ -149,8 +150,16 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
 
   // Review
   h('getReview', (date?: string) => report.reviewVM(ctx.db, date, ctx.clock.now(), ctx.settings));
-  h('saveReviewItem', (it: Parameters<typeof report.saveReviewItem>[1]) => report.saveReviewItem(ctx.db, it, ctx.clock.now()));
-  h('deleteReviewItem', (id: string) => report.deleteReviewItem(ctx.db, id));
+  // P98: the midnight card follows what the review already has.
+  h('saveReviewItem', (it: Parameters<typeof report.saveReviewItem>[1]) => {
+    const r = report.saveReviewItem(ctx.db, it, ctx.clock.now());
+    host.dataChanged();
+    return r;
+  });
+  h('deleteReviewItem', (id: string) => {
+    report.deleteReviewItem(ctx.db, id);
+    host.dataChanged();
+  });
   h('completeReview', (date: string) => report.completeReview(ctx.db, date, ctx.clock.now(), ctx.settings));
   h('listKpis', () => report.listKpis(ctx.db));
   h('saveKpi', (k: Parameters<typeof report.saveKpi>[1]) => report.saveKpi(ctx.db, k));

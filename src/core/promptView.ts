@@ -1,6 +1,7 @@
-// Prompt view models and copy for the block loop (P59, P60, P70).
+// Prompt view models and copy for the block loop (P59, P60, P70) and the midnight card (P98).
 import type { AskRow } from './asks';
 import { fmtDuration, fmtTime } from './format';
+import { addDays, dateKey, dayStartFromKey } from './schedule';
 
 /** An ended block waiting to be accounted for, with its hints. */
 export interface PendingBlock {
@@ -46,7 +47,18 @@ export interface ReminderVM {
   lengthSec: number;
 }
 
-export type PromptVM = AccountVM | ReminderVM;
+/** P98: after a day ends, its wins and how I'll improve (both optional). */
+export interface ReflectVM {
+  view: 'reflect';
+  heading: string;
+  title: string;
+  date: string;
+  /** What the day's review already has, filled in and editable. */
+  wins: string[];
+  improves: string[];
+}
+
+export type PromptVM = AccountVM | ReminderVM | ReflectVM;
 
 /** P95: the hint on a block filled over time Spyder was asleep or off. */
 export const GAP_HINT = 'Computer asleep or off · a break until answered';
@@ -82,5 +94,18 @@ export function reminderView(lengthSec: number): ReminderVM {
     title: 'Work hours have started',
     body: `Press Start to begin ${fmtDuration(lengthSec)} blocks.`,
     lengthSec,
+  };
+}
+
+export function reflectView(date: string, today: string, wins: string[], improves: string[]): ReflectVM {
+  const ms = dayStartFromKey(date);
+  const yesterday = dateKey(addDays(dayStartFromKey(today), -1)) === date;
+  return {
+    view: 'reflect',
+    heading: yesterday ? 'Yesterday' : new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    title: `How did ${yesterday ? 'yesterday' : new Date(ms).toLocaleDateString('en-US', { weekday: 'long' })} go?`,
+    date,
+    wins,
+    improves,
   };
 }

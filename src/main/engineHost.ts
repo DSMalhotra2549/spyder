@@ -6,7 +6,7 @@ import { categorize, type ActivityCategory, type ActivityKey, type Rule } from '
 import { fmtClock } from '../core/format';
 import { initialNudge, nudgeMessage, stepNudge, type NudgeState } from '../core/nudge';
 import type { AskRow } from '../core/asks';
-import { accountView, reminderView, type PendingBlock, type PromptVM } from '../core/promptView';
+import { accountView, reflectView, reminderView, type PendingBlock, type PromptVM } from '../core/promptView';
 import { addDays, dateKey, mergeOverride, minutesOfDay, startOfDay, workWindow, type DayOverride } from '../core/schedule';
 import type { ScheduleRow } from '../core/settings';
 import { isEfficiency, TAGS, tagOf, type Ctx, type Effect, type EngineError, type EngineEvent, type EngineState, type Tag } from '../core/types';
@@ -15,6 +15,7 @@ import type { AppCtx } from './context';
 import * as repo from './db/repo';
 import { toast } from './notify';
 import { listToAsk, refreshReview, summaryFor } from './report';
+import { reflectDay, saveReflection, type ReflectDay } from './reflect';
 import { saveSettings, loadSettings } from './settings';
 import { setTrayTooltip } from './tray';
 import { hidePrompt, openDashboard, showPrompt } from './windows';
@@ -42,6 +43,8 @@ export class EngineHost {
   private asks: AskRow[] = [];
   private pendingDirty = true;
   private pendingDay = '';
+  /** P98: the day the midnight card asks about; recomputed with the pending blocks. */
+  private reflect: ReflectDay | null = null;
   private lastWidget = '';
   private lastPrompt = '';
   private lastPendingCount = 0;
@@ -181,6 +184,15 @@ export class EngineHost {
     return { ok: true };
   }
 
+  /** P98: the midnight card's Save (lists) or Skip for today (null). */
+  saveReflection(date: string, lists: { win: string[]; improve: string[] } | null): Result {
+    if (date !== this.reflect?.date) return { error: 'invalid', message: 'That day isn’t being asked about' };
+    const clean = (xs: unknown) => (Array.isArray(xs) ? xs.filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter(Boolean) : []);
+    saveReflection(this.app.db, date, lists && { win: clean(lists.win), improve: clean(lists.improve) }, this.app.clock.now());
+    this.dataChanged();
+    return { ok: true };
+  }
+
   // ---- nudge (plan §8) ---------------------------------------------------------------
   feedSample(sample: ActivitySample, tsMs = this.app.clock.now()): ActivityCategory {
     const category = categorize(sample, this.rules);
@@ -253,6 +265,7 @@ export class EngineHost {
       // P70: what these blocks used that still wants the user's label.
       const span = this.pending.length ? [Math.min(...this.pending.map((b) => b.startMs)), Math.max(...this.pending.map((b) => b.endMs))] : null;
       this.asks = span ? listToAsk(this.app.db, span[0], span[1]) : [];
+      this.reflect = reflectDay(this.app.db, now);
       this.pendingDirty = false;
       this.pendingDay = day;
     }
@@ -279,6 +292,9 @@ export class EngineHost {
     const pending = this.pendingBlocks();
     const canContinue = !this.state.loop && !!this.state.cut && dateKey(this.state.cut.atMs) === dateKey(this.app.clock.now());
     if (pending.length) return accountView(pending, repo.lastAnswer(this.app.db), canContinue, this.asks);
+    // P98: after today's blocks are accounted for, the day that ended.
+    const r = this.app.settings.askReflection ? this.reflect : null;
+    if (r) return reflectView(r.date, dateKey(this.app.clock.now()), r.wins, r.improves);
     if (this.state.reminder) return reminderView(this.app.settings.blockLengthSec);
     return null;
   }

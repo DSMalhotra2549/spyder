@@ -7,6 +7,20 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: The midnight card (P98)
+
+**What**
+- Once a day ends, the prompt asks for its wins and how I'll improve, the same columns as Review. Both are optional: the button reads "Skip for today" until you type, then "Save". What you save shows on that day's Review.
+- If the laptop was asleep or off at midnight, it asks on the next wake or launch, about the last day with blocks. Each day is asked about once, and not at all if its review already has a win and an improvement.
+- Settings → Goal → "Ask about the day at midnight" turns it off.
+
+**Why**
+The user wants to write the day's wins and improvements every day without opening the dashboard.
+
+**If you pull this**
+- Migration 007 adds the `reflections` table. New setting `askReflection` (on by default) and IPC method `saveReflection(date, lists | null)`. `ReviewVM` gains `reflectedMs`.
+- The e2e helper's `SPYDER_DEFAULTS` now turns `askReflection` off, so specs that cross midnight don't see the card; `reflect.spec.ts` turns it on.
+
 ## 2026-11-26: Productive is the Review headline (P97)
 
 **What**

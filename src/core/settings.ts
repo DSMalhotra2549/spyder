@@ -33,6 +33,8 @@ export interface Settings {
   glassTint: number;
   /** P93: the accent colour of every window, #rrggbb; null = Spyder purple (per theme). */
   accentColor: string | null;
+  /** P98: after a day ends, the prompt asks for its wins and how I'll improve. */
+  askReflection: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -59,6 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showAppTrack: true,
   glassTint: 55,
   accentColor: null,
+  askReflection: true,
 };
 
 export interface ScheduleRow {

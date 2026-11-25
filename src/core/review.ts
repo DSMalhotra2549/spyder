@@ -30,6 +30,8 @@ export interface ReviewVM {
   today: string;
   summary: DaySummary;
   completedMs: number | null;
+  /** P98: when the midnight card was saved or skipped for this day. */
+  reflectedMs: number | null;
   items: ReviewItem[];
   kpis: Kpi[];
   kpiValues: Record<string, number>;

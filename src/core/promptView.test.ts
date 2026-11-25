@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { T } from './engine.testkit';
-import { accountView, reminderView } from './promptView';
+import { accountView, reflectView, reminderView } from './promptView';
 
 const blk = (h: number, m: number, extra = {}) => ({ id: `b${h}${m}`, startMs: T(h, m), endMs: T(h, m + 15), awaySec: 0, apps: [], ...extra });
 
@@ -23,5 +23,16 @@ describe('prompt copy (P59, P60)', () => {
 
   it('the start reminder names the block length', () => {
     expect(reminderView(900)).toMatchObject({ heading: 'Not started', title: 'Work hours have started', body: 'Press Start to begin 15m blocks.' });
+  });
+
+  it('the midnight card names yesterday, or the weekday of an older day (P98)', () => {
+    expect(reflectView('2026-11-24', '2026-11-25', ['Shipped'], [])).toMatchObject({
+      view: 'reflect',
+      heading: 'Yesterday',
+      title: 'How did yesterday go?',
+      wins: ['Shipped'],
+      improves: [],
+    });
+    expect(reflectView('2026-11-20', '2026-11-23', [], [])).toMatchObject({ heading: 'Fri, Nov 20', title: 'How did Friday go?' });
   });
 });

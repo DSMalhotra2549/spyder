@@ -62,7 +62,7 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
     // Invisible windows that never take focus, so a run doesn't take over the screen; SPYDER_E2E_SHOW=1 to watch.
     ...(process.env.SPYDER_E2E_SHOW === '1' ? {} : { SPYDER_QUIET: '1' }),
     // Specs start from the work-hours loop and the bar's workday %; P82 made Track from startup and the goal % the defaults.
-    SPYDER_DEFAULTS: JSON.stringify({ trackFromStartup: false, barPercent: 'day' }),
+    SPYDER_DEFAULTS: JSON.stringify({ trackFromStartup: false, barPercent: 'day', askReflection: false }),
     ...opts.env,
   };
   delete env.ELECTRON_RENDERER_URL;

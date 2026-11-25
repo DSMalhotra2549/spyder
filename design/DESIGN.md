@@ -93,6 +93,20 @@ Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a f
 - Efficiency (P75): between the input and the buttons, a muted caps `EFFICIENCY` and a `surface-2` group of `25% 50% 75% 100%` (24 px, 12/500, picked = `accent` fill, `on-accent` text; clicking it again clears). In "Each separately" the same group without the label sits at the right of each block line, hidden while the row's Break is on.
 - Errors 12 px `red` under the buttons.
 
+### Midnight card (P98)
+```
+ ╭──────────────────────────────────────────╮
+ │ ● YESTERDAY                              │  ← caps green; or the date: FRI, NOV 20
+ │ How did yesterday go?                    │  ← 15/600 text
+ │ TODAY'S WINS                             │  ← caps muted
+ │ •  Shipped the midnight card             │  ← one input per line, 13 px, borderless until hover/focus
+ │ •  │                                     │     Enter adds a line, Backspace on an empty one removes it
+ │ HOW I'LL IMPROVE                         │
+ │ •  One thing to do differently           │  ← placeholder faint
+ │ [Skip for today]                         │  ← secondary pill; `Save` primary once anything changed
+ ╰──────────────────────────────────────────╯
+```
+
 ### Start reminder (P59)
 Heading `NOT STARTED` in `away`, title `Work hours have started`, body `Press Start to begin 15m blocks.`, then `Start` (primary) and `Not now`.
 

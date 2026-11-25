@@ -169,6 +169,10 @@ One entry under "Today's wins" in a review.
 **Improvement**:
 One entry under "How I'll improve" in a review.
 
+**Midnight card**:
+The prompt that, once a day ends, asks for that day's wins and improvements (P98). Saved or skipped, a day isn't asked about again.
+_Avoid_: reflection (only the table name), journal
+
 **KPI**:
 A user-defined daily number (e.g. "Calls made") recorded in the review and charted over time.
 _Avoid_: metric, stat
