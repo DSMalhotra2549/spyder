@@ -31,6 +31,8 @@ export interface Settings {
   showAppTrack: boolean;
   /** P90: how strongly the dashboard's glass is tinted, 0 (clear glass) to 100 (solid) percent. */
   glassTint: number;
+  /** P93: the accent colour of every window, #rrggbb; null = Spyder purple (per theme). */
+  accentColor: string | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   appColors: {},
   showAppTrack: true,
   glassTint: 55,
+  accentColor: null,
 };
 
 export interface ScheduleRow {
@@ -113,6 +116,9 @@ export function cleanSettings(partial: Record<string, unknown>): Partial<Setting
       if (v === null || (typeof v === 'object' && typeof (v as { x: unknown }).x === 'number' && typeof (v as { y: unknown }).y === 'number')) out[k] = v;
     } else if (key === 'workColor' || key === 'gymColor' || key === 'foodColor') {
       if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) out[k] = v.toLowerCase();
+    } else if (key === 'accentColor') {
+      if (v === null) out[k] = null;
+      else if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) out[k] = v.toLowerCase();
     } else if (key === 'appColors') {
       if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
         out[k] = Object.fromEntries(
@@ -124,4 +130,19 @@ export function cleanSettings(partial: Record<string, unknown>): Partial<Setting
     } else if (typeof v === typeof def) out[k] = v;
   }
   return out as Partial<Settings>;
+}
+
+/**
+ * P93: the CSS that puts a picked accent colour on a window, or null to keep Spyder purple. Hover is a step lighter
+ * in dark and darker in light; text on the accent is dark or white by the colour's lightness.
+ */
+export function accentCss(color: string | null): string | null {
+  const m = color ? /^#(..)(..)(..)$/.exec(color) : null;
+  if (!m) return null;
+  const [r, g, b] = m.slice(1).map((h) => parseInt(h, 16) / 255);
+  const ink = 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#111114' : '#ffffff';
+  return (
+    `:root:root { --color-accent: ${color}; --color-accent-hover: color-mix(in srgb, ${color} 88%, white); --color-on-accent: ${ink}; }\n` +
+    `@media (prefers-color-scheme: light) { :root:root { --color-accent-hover: color-mix(in srgb, ${color} 88%, black); } }`
+  );
 }

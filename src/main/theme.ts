@@ -1,6 +1,7 @@
 // Light / Dark / System (P57). nativeTheme.themeSource drives `prefers-color-scheme` in every window,
 // so the renderer's CSS tokens follow it live; only native window backgrounds need setting here.
 import { nativeTheme, type BrowserWindow, type WebContents } from 'electron';
+import { accentCss } from '../core/settings';
 import type { AppCtx } from './context';
 
 /** The dashboard's window buttons sit on the glass, so their symbols follow the theme. */
@@ -17,21 +18,25 @@ const FONT: Record<AppCtx['settings']['font'], string | null> = {
   system: null,
   atkinson: "'Atkinson Hyperlegible Next VF', 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif",
 };
-const fontCss = new WeakMap<WebContents, string>();
+const styleCss = new WeakMap<WebContents, string>();
 
-/** Puts the chosen font on one window (P78); runs again after every load, since a load drops inserted CSS. */
-export async function applyFontTo(ctx: AppCtx, win: BrowserWindow | null): Promise<void> {
+/**
+ * Puts the chosen font (P78) and accent colour (P93) on one window; runs again after every load, since a load drops
+ * inserted CSS.
+ */
+export async function applyStyleTo(ctx: AppCtx, win: BrowserWindow | null): Promise<void> {
   if (!win || win.isDestroyed()) return;
   const wc = win.webContents;
-  const old = fontCss.get(wc);
+  const old = styleCss.get(wc);
   if (old) {
-    fontCss.delete(wc);
+    styleCss.delete(wc);
     await wc.removeInsertedCSS(old).catch(() => undefined);
   }
   const stack = FONT[ctx.settings.font];
-  if (stack) fontCss.set(wc, await wc.insertCSS(`:root { --font-sans: ${stack}; }`));
+  const css = [stack && `:root { --font-sans: ${stack}; }`, accentCss(ctx.settings.accentColor)].filter(Boolean).join('\n');
+  if (css) styleCss.set(wc, await wc.insertCSS(css));
 }
 
-export function applyFont(ctx: AppCtx): void {
-  for (const w of [ctx.widget, ctx.prompt, ctx.dashboard]) void applyFontTo(ctx, w);
+export function applyStyle(ctx: AppCtx): void {
+  for (const w of [ctx.widget, ctx.prompt, ctx.dashboard]) void applyStyleTo(ctx, w);
 }

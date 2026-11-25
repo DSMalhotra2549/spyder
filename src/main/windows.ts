@@ -6,7 +6,7 @@ import { helperPath } from './capture/chromeUrl';
 import type { AppCtx } from './context';
 import { rendererUrl } from './paths';
 import { saveSettings } from './settings';
-import { applyFontTo, titleBarOverlay } from './theme';
+import { applyStyleTo, titleBarOverlay } from './theme';
 
 /** The bar (P49): 512 × 34 plus an 8 px margin on every side (design/DESIGN.md §2). */
 export const WIDGET_SIZE = { width: 528, height: 50 } as const;
@@ -24,7 +24,7 @@ const webPreferences = () => ({
 });
 
 function load(ctx: AppCtx, win: BrowserWindow, hash: string): void {
-  win.webContents.on('did-finish-load', () => void applyFontTo(ctx, win)); // P78
+  win.webContents.on('did-finish-load', () => void applyStyleTo(ctx, win)); // P78, P93
   const r = rendererUrl(hash);
   if (r.url) void win.loadURL(r.url);
   else void win.loadFile(r.file!, { hash: r.hash });

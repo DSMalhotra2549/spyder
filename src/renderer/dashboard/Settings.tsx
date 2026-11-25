@@ -176,6 +176,23 @@ export function Settings() {
                   onChange={(v) => void set({ barPercent: v })}
                 />
               </Field>
+              <Field label="Accent colour" hint="in every window">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    data-testid="set-accentColor"
+                    aria-label="Accent colour"
+                    value={s.accentColor ?? (matchMedia('(prefers-color-scheme: light)').matches ? '#6a4ff0' : '#7b61ff')}
+                    onChange={(e) => void set({ accentColor: e.target.value })}
+                    className="h-8 w-10 cursor-pointer rounded-control border border-border bg-surface p-0.5"
+                  />
+                  {s.accentColor !== null && (
+                    <Btn size="sm" variant="ghost" data-testid="reset-accentColor" onClick={() => void set({ accentColor: null })}>
+                      Reset to default
+                    </Btn>
+                  )}
+                </div>
+              </Field>
               {(
                 [
                   ['workColor', 'Work colour', 'for work blocks'],

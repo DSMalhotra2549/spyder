@@ -7,6 +7,19 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Accent colour in Settings (P93)
+
+**What**
+- Settings → Look has an **Accent colour** swatch: pick any colour and it replaces Spyder purple at once in the dashboard, the bar and the prompt (buttons, selection, toggles, highlights). `Reset to default` brings back the purple.
+- Text on the accent turns dark when the picked colour is light, so it stays readable.
+
+**Why**
+The user wanted to choose the accent colour themselves.
+
+**If you pull this**
+- New setting `accentColor` (`#rrggbb`, or `null` = Spyder purple, the default). Nothing changes until it's set.
+- `applyFont` / `applyFontTo` in `src/main/theme.ts` are now `applyStyle` / `applyStyleTo`; they insert the accent CSS along with the font. New e2e screenshot `settings-accent.png` (theme spec).
+
 ## 2026-11-25: Prompt glass like the dashboard (P92)
 
 **What**

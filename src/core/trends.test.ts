@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { daySummary, type DayData } from './aggregate';
 import type { Rule } from './categorize';
 import { DEFAULT_RULES } from './defaults';
-import { cleanSettings, DEFAULT_SETTINGS } from './settings';
+import { accentCss, cleanSettings, DEFAULT_SETTINGS } from './settings';
 import { relabelFirefox } from './titlePatterns';
 import { addMonths, dayEfficiency, dayLite, monthDates, rangeStats, stackTotal, topApps, weekDates, weekStart, type DayLite } from './trends';
 
@@ -118,6 +118,24 @@ describe('cleanSettings', () => {
     expect(cleanSettings({ glassTint: -5 })).toEqual({ glassTint: 0 });
     expect(cleanSettings({ glassTint: 140 })).toEqual({ glassTint: 100 });
     expect(cleanSettings({ glassTint: '50' })).toEqual({});
+  });
+
+  it('P93: the accent colour is a #rrggbb hex or null (Spyder purple), null by default', () => {
+    expect(DEFAULT_SETTINGS.accentColor).toBeNull();
+    expect(cleanSettings({ accentColor: '#E11D48' })).toEqual({ accentColor: '#e11d48' });
+    expect(cleanSettings({ accentColor: null })).toEqual({ accentColor: null });
+    expect(cleanSettings({ accentColor: 'red' })).toEqual({});
+    expect(cleanSettings({ accentColor: '#abc' })).toEqual({});
+  });
+
+  it('P93: a picked accent gets its own hover, and dark text on a light colour', () => {
+    expect(accentCss(null)).toBeNull();
+    const dark = accentCss('#1d4ed8')!;
+    expect(dark).toContain('--color-accent: #1d4ed8;');
+    expect(dark).toContain('--color-on-accent: #ffffff;');
+    expect(dark).toContain('color-mix(in srgb, #1d4ed8 88%, white)');
+    expect(dark).toContain('color-mix(in srgb, #1d4ed8 88%, black)');
+    expect(accentCss('#facc15')).toContain('--color-on-accent: #111114;');
   });
 
   it('P67: the work colour is a #rrggbb hex, green by default', () => {
