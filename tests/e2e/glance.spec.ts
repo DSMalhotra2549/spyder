@@ -73,7 +73,7 @@ test('Today at a glance (P102)', async () => {
     await rows.filter({ hasText: 'Code review' }).first().getByTestId('block-group').click();
     await expect(rows.filter({ hasText: 'Code review' })).toHaveCount(1);
 
-    // Rating a collapsed run rates its blocks; different ratings read `mixed`.
+    // Rating a collapsed run rates its blocks; different ratings show their time-weighted mean (P104), never `mixed`.
     await code.getByTestId('block-efficiency').selectOption('75');
     await expect(code.getByTestId('block-efficiency')).toHaveValue('75');
     const rated = expected(dir, nowMs).summary.sessions.filter((x) => x.name === 'Code review');
@@ -81,7 +81,12 @@ test('Today at a glance (P102)', async () => {
     await code.getByTestId('block-group').click();
     await rows.filter({ hasText: 'Code review' }).nth(1).getByTestId('block-efficiency').selectOption('50');
     await rows.filter({ hasText: 'Code review' }).first().getByTestId('block-group').click();
-    await expect(code.getByTestId('block-efficiency')).toHaveValue('mixed');
+    const mix = expected(dir, nowMs).summary.sessions.filter((x) => x.name === 'Code review');
+    expect(new Set(mix.map((x) => x.efficiency)).size).toBe(2);
+    const mean = Math.round(mix.reduce((t, x) => t + x.daySec * x.efficiency!, 0) / mix.reduce((t, x) => t + x.daySec, 0));
+    expect([25, 50, 75, 100]).not.toContain(mean);
+    await expect(code.getByTestId('block-efficiency')).toHaveValue(String(mean));
+    await expect(code.getByTestId('block-efficiency').locator('option:checked')).toHaveText(`${mean}%`);
 
     // An unrated block shows no `—` until its row is hovered.
     const unrated = rows.filter({ hasText: 'Inbox zero' }).getByTestId('block-efficiency');

@@ -309,10 +309,9 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
             const collapsed = ids.length > 1;
             const run = lines(ids);
             const last = run[run.length - 1];
-            const rates = new Set(run.map((y) => y.efficiency));
-            // A collapsed run reads as one block over its whole span, rated alike or `mixed`.
+            // A collapsed run reads as one block over its whole span, rated as a merge would keep it (P104).
             const x: SessionLine = collapsed
-              ? { ...e, endMs: last.endMs, daySec: run.reduce((t, y) => t + y.daySec, 0), efficiency: rates.size === 1 ? e.efficiency : null, merged: false }
+              ? { ...e, endMs: last.endMs, daySec: run.reduce((t, y) => t + y.daySec, 0), efficiency: runEfficiency(run), merged: false }
               : e;
             const next = log[i + 1];
             const joinedNext = !collapsed && next?.type === 'session' && joinedWithPrev.has(next.id);
@@ -339,7 +338,6 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
                 joinedPrev={!collapsed && joinedWithPrev.has(e.id)}
                 joinedNext={joinedNext}
                 group={groupOf.get(e.id) ?? null}
-                mixed={collapsed && rates.size > 1}
                 checked={ids.every((id) => checked.has(id))}
                 picked={picked !== null && ids.includes(picked)}
                 onCheck={() => (collapsed ? toggleAll(ids) : toggle(e.id))}
@@ -405,12 +403,21 @@ function IconBtn({ label, testId, onClick, children, danger }: { label: string; 
   );
 }
 
+/** P104: a collapsed run's efficiency, as a merge would keep it: the time-weighted mean of its rated blocks (P75). */
+function runEfficiency(run: SessionLine[]): number | null {
+  const rated = run.filter((y) => y.efficiency !== null);
+  if (!rated.length) return null;
+  const sec = rated.reduce((t, y) => t + y.daySec, 0);
+  return Math.round(
+    sec > 0 ? rated.reduce((t, y) => t + y.daySec * y.efficiency!, 0) / sec : rated.reduce((t, y) => t + y.efficiency!, 0) / rated.length,
+  );
+}
+
 function BlockRow({
   x,
   joinedPrev,
   joinedNext,
   group,
-  mixed,
   checked,
   picked,
   onCheck,
@@ -425,7 +432,6 @@ function BlockRow({
   joinedPrev: boolean;
   joinedNext: boolean;
   group: { count: number; sec: number; open: boolean; onToggle: () => void } | null;
-  mixed: boolean;
   checked: boolean;
   picked: boolean;
   onCheck: () => void;
@@ -516,7 +522,7 @@ function BlockRow({
         {dur(x.daySec)}
       </span>
       {x.tag === 'work' ? (
-        <EfficiencySelect testId="block-efficiency" label={`Efficiency of ${text}`} value={x.efficiency} mixed={mixed} disabled={x.running} onChange={onRate} />
+        <EfficiencySelect testId="block-efficiency" label={`Efficiency of ${text}`} value={x.efficiency} disabled={x.running} onChange={onRate} />
       ) : (
         <span className="w-[64px] shrink-0" />
       )}
@@ -749,19 +755,16 @@ function EfficiencySelect({
   testId,
   label,
   value,
-  mixed,
   disabled,
   onChange,
 }: {
   testId: string;
   label: string;
   value?: number | null;
-  /** P102: a collapsed group whose blocks are rated differently. */
-  mixed?: boolean;
   disabled?: boolean;
   onChange: (e: Efficiency | null) => void;
 }) {
-  const picker = value === undefined && !mixed;
+  const picker = value === undefined;
   const odd = typeof value === 'number' && !EFFICIENCIES.includes(value as Efficiency);
   return (
     <span className="relative flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
@@ -770,7 +773,7 @@ function EfficiencySelect({
         aria-label={label}
         title={label}
         disabled={disabled}
-        value={picker ? '' : mixed ? 'mixed' : (value ?? 'none')}
+        value={picker ? '' : (value ?? 'none')}
         onChange={(e) => onChange(e.target.value === 'none' ? null : (Number(e.target.value) as Efficiency))}
         className={clsx(
           'h-7 cursor-pointer appearance-none rounded-control border bg-transparent pr-6 text-[12px] outline-none tabular focus-visible:border-accent',
@@ -780,18 +783,13 @@ function EfficiencySelect({
             : clsx(
                 'w-[64px] border-transparent pl-2 enabled:hover:border-border enabled:hover:bg-surface-2 enabled:hover:text-text',
                 // P102: not rated shows nothing until the row is hovered (or the picker is open).
-                value === null && !mixed ? 'text-transparent group-hover:text-faint focus:text-faint' : 'text-muted',
+                value === null ? 'text-transparent group-hover:text-faint focus:text-faint' : 'text-muted',
               ),
         )}
       >
         {picker && (
           <option value="" disabled>
             Rate…
-          </option>
-        )}
-        {mixed && (
-          <option value="mixed" disabled>
-            mixed
           </option>
         )}
         <option value="none">{picker ? 'Not rated' : '—'}</option>

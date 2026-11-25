@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Collapsed rows show their efficiency (P104)
+
+**What**
+- A collapsed row whose blocks are rated differently shows their time-weighted mean (e.g. `67%`), the same value a merge would keep, instead of `mixed`.
+
+**Why**
+The user asked never to show `mixed`, just the calculated efficiency.
+
+**If you pull this**
+- Nothing to do.
+
 ## 2026-11-26: Efficiency after the duration (P103)
 
 **What**
