@@ -7,6 +7,18 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Productive is the Review headline (P97)
+
+**What**
+- On Review, the Day summary card is now first and the Leftover card is under it.
+- Day summary leads with **productive time** against the daily goal in large type, e.g. "5h 23m/6h": red under the goal, green at or over it, and the plain text colour on a day off. The other five stats sit in one smaller row under it.
+
+**Why**
+Productive time and hitting the daily goal are what matter most to the user.
+
+**If you pull this**
+- Nothing special. `review.spec.ts` checks the headline's text and colour (new test id `review-productive`).
+
 ## 2026-11-26: No "Update review" (P96)
 
 **What**

@@ -50,9 +50,6 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
       />
       <div className="grid flex-1 grid-cols-12 gap-4 overflow-y-auto p-6" data-testid="review">
         <div className="col-span-7 flex min-w-0 flex-col gap-4">
-          <Card title="Leftover" right={vm.leftoverCount ? `${vm.leftoverCount} to account for` : undefined}>
-            <Leftovers s={vm.summary} onChanged={refresh} />
-          </Card>
           <Card title="Day summary">
             <MiniStats s={vm.summary} />
             <div className="mt-4 border-t border-border pt-4">
@@ -61,6 +58,9 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
             <div className="mt-4">
               <Timeline s={vm.summary} nowMs={-1} compact />
             </div>
+          </Card>
+          <Card title="Leftover" right={vm.leftoverCount ? `${vm.leftoverCount} to account for` : undefined}>
+            <Leftovers s={vm.summary} onChanged={refresh} />
           </Card>
         </div>
         <div className="col-span-5 flex min-w-0 flex-col gap-4">
@@ -83,9 +83,9 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
   );
 }
 
+/** P97: Productive against the goal is the headline, red under it and green at or over it (plain on a day off); the other five sit below. */
 function MiniStats({ s }: { s: DaySummary }) {
   const items: [string, string, string?][] = [
-    ['Productive', dur(s.productiveSec)],
     ['Work', dur(s.workSec)],
     ['Day score', pct(s.score)],
     // P75: the user's own rating, with the effective time under it.
@@ -93,18 +93,27 @@ function MiniStats({ s }: { s: DaySummary }) {
     ['Break', dur(s.breakSec)],
     ['Distracting', dur(s.distractingSec)],
   ];
+  const tone = s.window === null ? undefined : s.goalMet ? 'text-green' : 'text-red';
   return (
-    <div className="grid grid-cols-3 gap-x-3 gap-y-4">
-      {items.map(([k, v, sub]) => (
-        <div key={k} className="min-w-0">
-          <div className="section-label mb-1">{k}</div>
-          <div data-testid={k === 'Efficiency' ? 'review-efficiency' : undefined} className="text-[17px] font-semibold tabular">
-            {v}
-          </div>
-          {sub && <div className="mt-0.5 truncate text-[11px] text-muted tabular">{sub}</div>}
+    <>
+      <div className="mb-5">
+        <div className="section-label mb-1">Productive</div>
+        <div data-testid="review-productive" className={clsx('text-[32px] leading-tight font-bold tabular', tone)}>
+          {dur(s.productiveSec)}/{dur(s.goalSec)}
         </div>
-      ))}
-    </div>
+      </div>
+      <div className="grid grid-cols-5 gap-x-3">
+        {items.map(([k, v, sub]) => (
+          <div key={k} className="min-w-0">
+            <div className="section-label mb-1 truncate">{k}</div>
+            <div data-testid={k === 'Efficiency' ? 'review-efficiency' : undefined} className="text-[15px] font-semibold tabular">
+              {v}
+            </div>
+            {sub && <div className="mt-0.5 truncate text-[11px] text-muted tabular">{sub}</div>}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
