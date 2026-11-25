@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: No "Update review" (P96)
+
+**What**
+- Once a day's **review** is complete, the Review page shows only the green "✓ Reviewed at HH:MM" chip. The "Update review" button is gone.
+
+**Why**
+Re-completing only moved the completion time, because the saved day numbers already follow later edits (P52). The second label confused the user.
+
+**If you pull this**
+- Nothing special. `review.spec.ts` checks that the button is gone after completing.
+
 ## 2026-11-26: Time asleep or off is accounted for (P95)
 
 **What**

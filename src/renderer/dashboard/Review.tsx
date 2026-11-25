@@ -33,16 +33,18 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
         onDate={onDate}
         actions={
           <>
-            {vm.completedMs !== null && (
+            {/* P96: once complete, the chip replaces the button; there's no "Update review". */}
+            {vm.completedMs !== null ? (
               <span data-testid="reviewed-chip" className="flex h-7 items-center gap-1.5 rounded-control bg-green/12 px-2.5 text-[12px] font-medium text-green">
                 ✓ Reviewed at {fmtTime(vm.completedMs)}
               </span>
+            ) : (
+              <span title={blocked ? `Account for ${vm.leftoverCount} leftover item${vm.leftoverCount > 1 ? 's' : ''} first` : undefined}>
+                <Btn variant="primary" data-testid="complete-review" disabled={blocked} onClick={() => void complete()}>
+                  Complete review
+                </Btn>
+              </span>
             )}
-            <span title={blocked ? `Account for ${vm.leftoverCount} leftover item${vm.leftoverCount > 1 ? 's' : ''} first` : undefined}>
-              <Btn variant="primary" data-testid="complete-review" disabled={blocked} onClick={() => void complete()}>
-                {vm.completedMs !== null ? 'Update review' : 'Complete review'}
-              </Btn>
-            </span>
           </>
         }
       />

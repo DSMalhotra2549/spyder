@@ -80,6 +80,7 @@ test('review opens at 17:00, gates on leftovers, persists and completes', async 
     // Complete → reviews snapshot.
     await complete.click();
     await expect(d.getByTestId('reviewed-chip')).toContainText('Reviewed at 17:00');
+    await expect(complete).toHaveCount(0); // P96: no "Update review"
     const row = s.db().prepare('SELECT * FROM reviews WHERE date = ?').get('2026-11-24') as Record<string, number>;
     expect(row.completed_ms).toBeGreaterThan(0);
     expect(row.work_sec).toBe(15 * 60);
