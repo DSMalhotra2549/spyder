@@ -19,7 +19,7 @@ import { isAppUrl } from './paths';
 import { loadSettings } from './settings';
 import { applyTheme } from './theme';
 import { createTray } from './tray';
-import { createDashboard, createPrompt, createWidget, showWidget } from './windows';
+import { createDashboard, createPrompt, createWidget, QUIET, showWidget } from './windows';
 
 // Must happen before whenReady (plan §3).
 app.setName('Spyder');
@@ -74,6 +74,13 @@ async function boot(): Promise<void> {
     hotkeyOk: false,
   };
 
+  if (QUIET) {
+    app.on('browser-window-created', (_e, w) => {
+      w.setOpacity(0);
+      w.setIgnoreMouseEvents(true);
+      w.setSkipTaskbar(true);
+    });
+  }
   app.on('second-instance', () => showWidget(ctx));
   app.on('before-quit', () => {
     ctx.quitting = true;

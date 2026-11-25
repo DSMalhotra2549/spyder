@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: e2e runs stay off your screen
+
+**What**
+- `npm run test:e2e` no longer takes over the screen: the test windows are invisible and click-through, never steal focus or keyboard input, stay off the taskbar, and nudge toasts don't pop up. The app itself is unchanged.
+
+**Why**
+Test runs hijacked the user's screen and keyboard, so they couldn't work while the suite ran.
+
+**If you pull this**
+- New debug-only env var `SPYDER_QUIET=1` (ignored without `SPYDER_DEBUG=1`); the e2e helper sets it. Set `SPYDER_E2E_SHOW=1` to watch a run with real windows.
+
 ## 2026-11-25: Spider web in the sidebar (P94)
 
 **What**
