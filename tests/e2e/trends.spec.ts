@@ -64,6 +64,8 @@ test('Week and Month render from 60 seeded days', async () => {
     expect(await d.getByTestId('range-productive').innerText()).toBe(rt.productive);
     expect(await d.getByTestId('range-score').innerText()).toBe(rt.score);
     expect(await d.getByTestId('range-goals').innerText()).toBe(rt.goals);
+    // P102: every stat tile has its icon.
+    for (const k of ['productive', 'work', 'score', 'efficiency', 'goals']) await expect(d.getByTestId(`icon-range-${k}`)).toBeVisible();
     await d.mouse.move(0, 0);
     await shot(d, 'week');
 

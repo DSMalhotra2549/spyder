@@ -22,7 +22,7 @@ import {
 } from '../../core/trends';
 import { AppsList } from './Today';
 import { EfficiencyTrend } from './charts';
-import { CAT_COLOR, Card, StatCell, StatStrip, TopBar, useLoader } from './parts';
+import { CAT_COLOR, Card, StatCell, statIcon, StatStrip, TopBar, useLoader } from './parts';
 import { dur, pct, rangeTexts } from './stats';
 
 export const STACK_COLOR: Record<keyof DayStacks, string> = {
@@ -44,11 +44,11 @@ export function RangeStats({ vm }: { vm: RangeVM }) {
   const t = rangeTexts(vm.days);
   return (
     <StatStrip cols={5}>
-      <StatCell label="Productive" id="range-productive" value={t.productive} sub={t.productiveSub} />
-      <StatCell label="Work" id="range-work" value={t.work} sub={t.workSub} />
-      <StatCell label="Avg day score" id="range-score" value={t.score} sub="scheduled days" />
-      <StatCell label="Efficiency" id="range-efficiency" value={t.efficiency} sub={t.efficiencySub} />
-      <StatCell label="Goals hit" id="range-goals" value={t.goals} sub={`streak ${vm.streak} ${vm.streak === 1 ? 'day' : 'days'}`} />
+      <StatCell label="Productive" id="range-productive" icon={statIcon('target', 'icon-range-productive')} value={t.productive} sub={t.productiveSub} />
+      <StatCell label="Work" id="range-work" icon={statIcon('briefcase', 'icon-range-work')} value={t.work} sub={t.workSub} />
+      <StatCell label="Avg day score" id="range-score" icon={statIcon('star', 'icon-range-score')} value={t.score} sub="scheduled days" />
+      <StatCell label="Efficiency" id="range-efficiency" icon={statIcon('gauge', 'icon-range-efficiency')} value={t.efficiency} sub={t.efficiencySub} />
+      <StatCell label="Goals hit" id="range-goals" icon={statIcon('check', 'icon-range-goals')} value={t.goals} sub={`streak ${vm.streak} ${vm.streak === 1 ? 'day' : 'days'}`} />
     </StatStrip>
   );
 }

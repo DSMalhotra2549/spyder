@@ -9,7 +9,7 @@ import { EFFICIENCIES, TAG_LABEL, TAGS, type Efficiency, type EngineError, type 
 import type { EditResult, Ok } from '../../preload/api';
 import { AnswerInput, Btn } from '../ui/controls';
 import { answerText, AppSwatch, appColor, blockColor, ownAnswer, TAG_COLOR, Timeline, useAppColors } from './Timeline';
-import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, StatCell, StatStrip, Toggle, TopBar, useLoader } from './parts';
+import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, StatCell, statIcon, StatStrip, Toggle, TopBar, useLoader } from './parts';
 import { appTexts, dur, statTexts } from './stats';
 import { showEditResult } from './toast';
 
@@ -90,32 +90,21 @@ function SectionHead({ title, right, children }: { title: string; right?: ReactN
 
 // ---- stat row --------------------------------------------------------------------------
 
-/** P102: 14 px line icons for the stat tiles, drawn like the sidebar's. */
-const statIcon = (d: string, testId: string, className?: string) => (
-  <svg data-testid={testId} width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={clsx('shrink-0', className)} aria-hidden>
-    <path d={d} />
-  </svg>
-);
-const TARGET = 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM12 11.5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1z';
-const BRIEFCASE = 'M3.5 8a1 1 0 0 1 1-1h15a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1zM8.5 7V5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v2M3.5 13h17';
-const GAUGE = 'M4.6 18.5a9 9 0 1 1 14.8 0M12 14l3.5-4.5';
-const FLAME = 'M12 21c3.9 0 7-2.8 7-6.6 0-3.8-2.8-6.2-4.2-9.4-.5 2.3-1.8 3.7-3 4.5-.5-2.6-1.9-4.9-4.2-6.5.4 3.3-2.6 6-2.6 10.4 0 4.8 3.1 7.6 7 7.6z';
-
 /** P80: productive vs goal (with a thin bar) is the headline; then work, efficiency (P75), streak. Day score is on Review, Week and Month. */
 function StatRow({ vm, t }: { vm: DayVM; t: ReturnType<typeof statTexts> }) {
   const s = vm.summary;
   const frac = s.goalSec > 0 ? Math.min(1, s.productiveSec / s.goalSec) : 0;
   return (
     <StatStrip cols={4}>
-      <StatCell label="Productive" id="stat-productive" icon={statIcon(TARGET, 'icon-productive')} value={t.productive} sub={t.productiveSub} tone={s.goalMet ? 'green' : undefined}>
+      <StatCell label="Productive" id="stat-productive" icon={statIcon('target', 'icon-productive')} value={t.productive} sub={t.productiveSub} tone={s.goalMet ? 'green' : undefined}>
         <div className="mt-2.5 h-1.5 overflow-hidden rounded-pill bg-text/10">
           <div className={clsx('h-full rounded-pill', s.goalMet ? 'bg-green' : 'bg-productive')} style={{ width: `${frac * 100}%` }} />
         </div>
       </StatCell>
-      <StatCell label="Work" id="stat-work" icon={statIcon(BRIEFCASE, 'icon-work')} value={t.work} sub={t.workSub} />
-      <StatCell label="Efficiency" id="stat-efficiency" icon={statIcon(GAUGE, 'icon-efficiency')} value={t.efficiency} sub={t.efficiencySub} />
+      <StatCell label="Work" id="stat-work" icon={statIcon('briefcase', 'icon-work')} value={t.work} sub={t.workSub} />
+      <StatCell label="Efficiency" id="stat-efficiency" icon={statIcon('gauge', 'icon-efficiency')} value={t.efficiency} sub={t.efficiencySub} />
       {/* The flame is lit (orange) while the streak is alive. */}
-      <StatCell label="Streak" id="stat-streak" icon={statIcon(FLAME, 'icon-streak', vm.streak > 0 ? 'text-orange' : undefined)} value={t.streak} sub="goal met in a row" />
+      <StatCell label="Streak" id="stat-streak" icon={statIcon('flame', 'icon-streak', vm.streak > 0 ? 'text-orange' : undefined)} value={t.streak} sub="goal met in a row" />
     </StatStrip>
   );
 }

@@ -137,7 +137,7 @@ One centred column, max 960 px, 32 px between sections. Section heads: `section-
 6. Off-hours note, 12 px faint.
 
 ### Week
-Stat strip of 5, as on Today (P80): Productive, Work, Avg day score, Efficiency `83%` · `38m effective` (P75), Goals hit `3/5`. Stacked bar chart (8 cols, 280 px): one bar per day, stacks productive / neutral / distracting / uncategorized / break / away. Goal-hit marker: green ✓ dot above the bar. Right (5 cols): "Apps & sites", the top 10 ranked. Under them, once any block in the week is rated (P80), a full-width "Efficiency · by day" card: a 150 px line (0–100 %, a dot per day so a lone day shows).
+Stat strip of 5, as on Today (P80): Productive, Work, Avg day score, Efficiency `83%` · `38m effective` (P75), Goals hit `3/5`; label icons as on Today (P102): target, briefcase, star, gauge, check circle. Stacked bar chart (8 cols, 280 px): one bar per day, stacks productive / neutral / distracting / uncategorized / break / away. Goal-hit marker: green ✓ dot above the bar. Right (5 cols): "Apps & sites", the top 10 ranked. Under them, once any block in the week is rated (P80), a full-width "Efficiency · by day" card: a 150 px line (0–100 %, a dot per day so a lone day shows).
 
 ### Month
 The Week stat strip on top (P80). Calendar heatmap (custom SVG, 7 columns Mon–Sun, 44 px cells, radius 6): fill = `productive` at opacity (P80) scaled by productive hours (0 h → `surface-2`, ≥ goal → 100 %), day number top-left 11 px (dark ink above half the goal), a green dot ringed in `surface` if goal met; unscheduled days outlined only. Right: trend line charts (productive hours in `productive`, day score, efficiency (P75, 0–100 %, days off too, dots; only once a block is rated, P80)) and one small line chart per KPI.

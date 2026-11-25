@@ -11,6 +11,7 @@ Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
 **What**
 - Today's stat tiles have icons: a target (Productive), a briefcase (Work), a gauge (Efficiency) and a flame (Streak), orange while the streak is alive.
+- Week and Month's stat tiles have icons too: target, briefcase, a star (Avg day score), gauge and a check circle (Goals hit).
 - The running block's dot sends out a ring as it pulses.
 - Joined blocks start collapsed into one row with the whole time span and total duration. Click the `3 blocks · 45m ›` caption to open them. The collapsed row ticks, tags, rates (`mixed` when the ratings differ), re-answers and deletes all of its blocks.
 - An unrated work block no longer shows `—`; the cell stays empty until you hover the row.
