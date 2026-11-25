@@ -7,6 +7,70 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Spider web icon (P91)
+
+**What**
+- Spyder's app, installer and tray icon is now a spider web instead of the purple circle with an "S".
+
+**Why**
+The user wanted a spider web as Spyder's icon.
+
+**If you pull this**
+- `resources/icon.png` is now the source image; `scripts/make-icon.ps1` and `npm run icon` are gone (running it would have overwritten the web).
+
+## 2026-11-25: Glass tint slider in Settings (P90)
+
+**What**
+- Settings → Look has a **Glass tint** slider: 0 % is clear glass, 100 % is a solid sidebar colour, in steps of 5. It retints the dashboard's glass frame live as you drag and is kept; `Reset` brings back 55 %.
+
+**Why**
+The user wanted to choose how dark or see-through the glass is.
+
+**If you pull this**
+- New setting `glassTint` (whole percent 0–100, default 55); the dashboard reads it into the CSS variable `--glass-tint`. E2e: the slider is `set-glassTint`, its reset `reset-glassTint`; new screenshot `settings-glass-tint.png`.
+
+## 2026-11-25: Smoke-tinted glass sidebar (P89)
+
+**What**
+- The dashboard's glass frame (the sidebar and the edge around the content card) has a see-through smoke tint: charcoal in dark, frost in light. The glass still shows through, but the colour no longer follows the wallpaper.
+
+**Why**
+The user disliked the untinted sidebar's colour and wanted a calm, even one while keeping the Arc glass look.
+
+**If you pull this**
+- `--color-sidebar` is in use again, as the tint colour (at 55 %). `theme.spec.ts` checks the tint in both themes.
+
+## 2026-11-25: Visualizer page, today as a 24-hour star clock (P88)
+
+**What**
+- A **Visualizer** item in the sidebar's Day group, after Review, shows today as a 24-hour star clock (00 at the top, 12 at the bottom) on an always-dark night sky.
+- A slowly spinning ring of stars carries the bar: a comet at now, stars lit purple across the work hours passed. The bar's numbers sit in the middle.
+- Outward rings: the block track, then the app track (Today's timeline colours), with distraction flags, a now hand and hour labels; an inner ring fills toward the daily goal. Hover shows the timeline's details. View only, today only; stars hold still under reduced motion.
+
+**Why**
+The user wanted a clock view of the day as its own page, so nothing else in the app changes.
+
+**If you pull this**
+- New e2e spec `tests/e2e/visualizer.spec.ts` and screenshot `__shots__/visualizer.png`. Nav id `visualizer`, route `#/dashboard/visualizer`.
+
+## 2026-11-25: Arc look, glass dashboard and prompt, soft shapes (P87)
+
+**What**
+- The dashboard window is Windows 11 acrylic glass with no title bar; Windows' min/max/close sit over the glass and the top strip drags the window.
+- The sidebar is see-through glass; the current page is a frosted pill that slides between items; the timer card is frosted.
+- Each page sits on a floating rounded card. Bigger page title, stats as separate rounded tiles, block rows as soft rounded tiles (joined blocks form one tile). A row's checkbox and dropdown arrows show on hover or when ticked.
+- Short motion (page fade-in, tile lift, sliding pill), off when Windows animations are off.
+- The prompt window is acrylic glass too. The bar is unchanged.
+
+**Why**
+The user wanted Spyder much prettier, Arc-style, with real see-through glass. Appearance only; amends P56's flat style.
+
+**If you pull this**
+- Glass shows only on the focused window; unfocused, in battery saver or with Transparency effects off, Windows paints a flat colour.
+- `theme.spec.ts` now checks the resolved `--color-bg` token instead of `body`'s background, which is see-through. Screenshots in `__shots__` can't capture acrylic, so the sidebar looks washed out there.
+- `windowBackground()` is gone from `src/main/theme.ts`; use `titleBarOverlay()` for the dashboard's window buttons.
+- Known failure: `widget.spec.ts` test 8 fails most runs at `widgetOnTop` before the first minimize. The dashboard window's acrylic causes it (without it, the test passes). Merged as is on the user's call; the bar may sometimes drop behind other apps while the glass dashboard is open.
+
 ## 2026-11-25: Unmerge a merged block any time (P86)
 
 **What**

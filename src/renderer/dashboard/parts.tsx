@@ -70,6 +70,11 @@ export function applyTagColors(s: { workColor: string; gymColor: string; foodCol
   root.setProperty('--color-food', s.foodColor);
 }
 
+/** P90: how strongly the dashboard's glass is tinted, from Settings. */
+export function applyGlassTint(s: { glassTint: number }): void {
+  document.documentElement.style.setProperty('--glass-tint', `${s.glassTint}%`);
+}
+
 export function useLoader<T>(
   fn: () => Promise<T>,
   key: string,

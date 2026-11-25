@@ -3,7 +3,7 @@
 Visual source of truth for the renderer. Behavior lives in `SPYDER_PLAN.md` §12. References: `design/reference/INDEX.md`.
 The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel-style (P56): neutral greys, small type, Spyder purple as the only accent, colour only where it carries meaning, now in an Arc-style glass frame with soft rounded shapes (P87). Light, dark or follow Windows (P57).
 
-**Brand rule:** no Rize logo, wordmark, name, or the purple "agent orb". Spyder's own mark is an accent circle with a white "S" (tray/app icon only). In the widget the orb's slot is taken by a functional **workday ring**.
+**Brand rule:** no Rize logo, wordmark, name, or the purple "agent orb". Spyder's own mark is a spider web (tray/app icon only, P91). In the widget the orb's slot is taken by a functional **workday ring**.
 
 ## 1. Tokens (light and dark, P57)
 
@@ -13,7 +13,7 @@ The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel
 | Token | Dark | Light | Use |
 |---|---|---|---|
 | `--color-bg` | `#0E0E10` | `#FFFFFF` | dashboard content background |
-| `--color-sidebar` | `#09090B` | `#F7F7F8` | dashboard sidebar |
+| `--color-sidebar` | `#09090B` | `#F7F7F8` | dashboard glass tint (at 55 % by default, P89; Settings → Glass tint, P90) |
 | `--color-surface` | `#141417` | `#FFFFFF` | cards, tables, bar, prompt window |
 | `--color-surface-2` | `#1C1C20` | `#F3F3F5` | hover, selected nav, segmented control, timeline track |
 | `--color-border` | `#232328` | `#E8E8EC` | hairline borders, row dividers |
@@ -51,7 +51,7 @@ The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel
 - Spacing: 4-px grid (4, 8, 12, 16, 20, 24, 32). Card padding 16 (20 on dashboard stat cards).
 - Shadows: `--shadow-float` for the prompt window, `--shadow-pop` for menus, tooltips, the merge panel and the toast. Dashboard cards have no shadow, only the 1 px border.
 - Motion: 150 ms ease-out for hover/expand; pages fade in (200 ms, 6 px rise), stat tiles lift 2 px on hover, the sidebar pill slides (220 ms) (P87). All off under reduced motion. The timer never animates digits.
-- Glass (P87): the dashboard and prompt windows use Windows 11 acrylic (`backgroundMaterial`); glass shows only while the window is focused, otherwise Windows paints a flat colour. Frosted fills are `--color-text` at 6–16 % (`.glass-*` in `styles.css`).
+- Glass (P87): the dashboard and prompt windows use Windows 11 acrylic (`backgroundMaterial`); glass shows only while the window is focused, otherwise Windows paints a flat colour. Frosted fills are `--color-text` at 6–16 % (`.glass-*` in `styles.css`). The dashboard's glass frame (sidebar and the edge around the content card) is tinted with `sidebar` at 55 %: smoke, charcoal in dark and frost in light (P89). The strength is Settings → Look → Glass tint, 0–100 % (P90).
 
 ## 2. Widget (`#/widget`)
 
@@ -99,7 +99,7 @@ Heading `NOT STARTED` in `away`, title `Work hours have started`, body `Press St
 ## 4. Dashboard (`#/dashboard/*`)
 
 1200 × 800, min 960 × 640, acrylic glass window with no title bar (P87): Windows' min/max/close sit over the glass, and the top 36 px strip drags the window.
-- **Sidebar** 216 px, untinted glass; text and icons carry a soft glow in `bg` (P87). Top: 20 px accent square mark + "Spyder" 14/600, in the drag strip. Groups with 11/600 headings (`text` 55 %): Day (Today, Review, Visualizer) (P80, P88), Trends (Week, Month), Setup (Rules, Settings). Nav items 36 px tall, 16 px icons (inline SVG, 1.5 px stroke), radius 9; active = a frosted pill that slides to it, `text`, 600; inactive `text` 80 %, hover frosted. A badge (accent pill) on Review shows pending items.
+- **Sidebar** 216 px, smoke-tinted glass (P89); text and icons carry a soft glow in `bg` (P87). Top: 20 px accent square mark + "Spyder" 14/600, in the drag strip. Groups with 11/600 headings (`text` 55 %): Day (Today, Review, Visualizer) (P80, P88), Trends (Week, Month), Setup (Rules, Settings). Nav items 36 px tall, 16 px icons (inline SVG, 1.5 px stroke), radius 9; active = a frosted pill that slides to it, `text`, 600; inactive `text` 80 %, hover frosted. A badge (accent pill) on Review shows pending items.
 - **Sidebar footer** (a small frosted card, P59, P87; secondary buttons and the length box frosted): state dot + caption (`Block · 15m` with the timer, `Not started` in orange, or `Off hours`), then the block-length box (56 px number input, `min blocks`; Enter or blur applies it from the next block), then `Start` (primary, full width), or `Stop` (secondary) while the loop runs. Off hours: `Keep working +N` (P20, P62). Then a `Show widget` ghost button.
 - **Top bar** (56 px, no border, P87): page title 20/700, `‹ ›` (28 px ghost) and the date, right side page actions (Review: `Complete review` primary). Export lives in Settings only (P72).
 - **Content:** on a floating card (P87): 36 px below the window top, 8 px from the right and bottom edges, radius 12, `bg` at 97 %, soft shadow. Inside, padding 24, 12-column grid, gap 16. Cards: `surface`, 1 px `border`, radius card, padding 16, header = `section-title` + optional right-aligned muted total.
@@ -133,7 +133,7 @@ Today as a 24-hour star clock on a dark night sky (always dark, in both themes),
 Tabs (segmented): Rules · Title patterns · To sort (KPIs are on Review, P80). Each is an editable table with an `+ Add` row at top. Default rows show a muted `default` chip; user rows win. To sort (P70): rows `key · default chip (if pre-labelled) · time, all time · [Productive][Neutral][Distracting]` one-click buttons, the current category outlined; empty state "Everything you use has a category you picked".
 
 ### Settings
-Sections as cards, one per subject (P80), in two columns. Left (7 cols): Work hours (an "Every day" row first: a toggle (P84). On, it shows one start–end that turns all 7 days on with those hours (empty until both are filled, P82), and the 7-row grid and the "Today only" row collapse. Off, the label is muted with no range, and the 7-row grid (toggle, start time, end time) and the "Today only" override row show. It starts on while all 7 days are on with the same hours.), Blocks & nudges (Track from startup toggle (P76), then idle, keep-working step, nudge after, repeat nudge, distraction reset — number inputs with unit suffix; block length is only in the sidebar, P59). Right (5 cols): Goal; Look (Theme System / Light / Dark segmented control, P57; Font System / Atkinson Hyperlegible segmented control, P78; Bar percent Of day / Of goal segmented control, P82; Work colour, P67, Gym colour and Food colour, P74: each a 40 × 32 native colour swatch + `Reset to default` ghost button once changed; App colours, P79: a hint, one row per picked app — 36 × 28 native colour swatch · name · `Reset` ghost — then a name input + `Add`); Tracking (sample interval, app % scope); System (autostart toggle, widget hotkey field, data folder path + `Open folder`, `Export…` button). Orange warning banner at the top if the hotkey couldn't be registered; capture-unavailable banner: orange, top of page.
+Sections as cards, one per subject (P80), in two columns. Left (7 cols): Work hours (an "Every day" row first: a toggle (P84). On, it shows one start–end that turns all 7 days on with those hours (empty until both are filled, P82), and the 7-row grid and the "Today only" row collapse. Off, the label is muted with no range, and the 7-row grid (toggle, start time, end time) and the "Today only" override row show. It starts on while all 7 days are on with the same hours.), Blocks & nudges (Track from startup toggle (P76), then idle, keep-working step, nudge after, repeat nudge, distraction reset — number inputs with unit suffix; block length is only in the sidebar, P59). Right (5 cols): Goal; Look (Theme System / Light / Dark segmented control, P57; Font System / Atkinson Hyperlegible segmented control, P78; Glass tint, P90: a 96 px accent range slider (0–100 %, step 5) + the value + a `Reset` ghost once changed; Bar percent Of day / Of goal segmented control, P82; Work colour, P67, Gym colour and Food colour, P74: each a 40 × 32 native colour swatch + `Reset to default` ghost button once changed; App colours, P79: a hint, one row per picked app — 36 × 28 native colour swatch · name · `Reset` ghost — then a name input + `Add`); Tracking (sample interval, app % scope); System (autostart toggle, widget hotkey field, data folder path + `Open folder`, `Export…` button). Orange warning banner at the top if the hotkey couldn't be registered; capture-unavailable banner: orange, top of page.
 
 Toggles: 32 × 18 track, `surface-2` off / `accent` on, white 14 px knob.
 
@@ -145,5 +145,5 @@ Toggles: 32 × 18 track, `surface-2` off / `accent` on, white 14 px knob.
 - Durations displayed as `h:mm` in tables, `2h 15m` in prose and prompts, `38m` under an hour.
 
 ## 6. Tray & icon
-- Icon: 256 px accent (`#7B61FF`) circle with a white bold "S" (`scripts/make-icon.ps1`). Tray uses the PNG resized to 16/32.
+- Icon (P91): a spider web, dark outline with slate-blue fill (`resources/icon.png`, 256 px, transparent; edit the PNG directly). Tray uses the PNG resized to 16/32; electron-builder makes the .ico.
 - Notifications (nudge toast) use the system toast; title `Spyder`, body per plan §8.

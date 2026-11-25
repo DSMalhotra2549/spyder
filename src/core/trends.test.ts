@@ -111,6 +111,15 @@ describe('cleanSettings', () => {
     expect(Object.keys(cleanSettings({ ...DEFAULT_SETTINGS }))).toHaveLength(Object.keys(DEFAULT_SETTINGS).length);
   });
 
+  it('P90: the glass tint is a whole percent from 0 to 100, 55 by default', () => {
+    expect(DEFAULT_SETTINGS.glassTint).toBe(55);
+    expect(cleanSettings({ glassTint: 72.4 })).toEqual({ glassTint: 72 });
+    expect(cleanSettings({ glassTint: 0 })).toEqual({ glassTint: 0 });
+    expect(cleanSettings({ glassTint: -5 })).toEqual({ glassTint: 0 });
+    expect(cleanSettings({ glassTint: 140 })).toEqual({ glassTint: 100 });
+    expect(cleanSettings({ glassTint: '50' })).toEqual({});
+  });
+
   it('P67: the work colour is a #rrggbb hex, green by default', () => {
     expect(DEFAULT_SETTINGS.workColor).toBe('#3fb27f');
     expect(cleanSettings({ workColor: '#AB12cd' })).toEqual({ workColor: '#ab12cd' });

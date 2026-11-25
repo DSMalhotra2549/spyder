@@ -29,6 +29,8 @@ export interface Settings {
   appColors: Record<string, string>;
   /** P85: Today's timeline shows the app track (P77) and its legend. */
   showAppTrack: boolean;
+  /** P90: how strongly the dashboard's glass is tinted, 0 (clear glass) to 100 (solid) percent. */
+  glassTint: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -53,6 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
   font: 'system',
   appColors: {},
   showAppTrack: true,
+  glassTint: 55,
 };
 
 export interface ScheduleRow {
@@ -79,11 +82,13 @@ const MIN: Partial<Record<keyof Settings, number>> = {
   nudgeResetSec: 5,
   sampleIntervalSec: 1,
   keepWorkingStepMin: 5,
+  glassTint: 0,
 };
 
-/** Upper bounds (P59: blocks from 5 min to 3 h). */
+/** Upper bounds (P59: blocks from 5 min to 3 h; P90: the glass tint is a percent). */
 const MAX: Partial<Record<keyof Settings, number>> = {
   blockLengthSec: 10_800,
+  glassTint: 100,
 };
 
 const ENUMS: Partial<Record<keyof Settings, readonly unknown[]>> = {

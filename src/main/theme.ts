@@ -3,9 +3,6 @@
 import { nativeTheme, type BrowserWindow, type WebContents } from 'electron';
 import type { AppCtx } from './context';
 
-/** Matches --color-bg in src/renderer/styles.css, so a window never flashes the other theme while loading. */
-export const windowBackground = () => (nativeTheme.shouldUseDarkColors ? '#0E0E10' : '#FFFFFF');
-
 /** The dashboard's window buttons sit on the glass, so their symbols follow the theme. */
 export const titleBarOverlay = () => ({ color: '#00000000', symbolColor: nativeTheme.shouldUseDarkColors ? '#ECECEF' : '#18181B', height: 36 });
 

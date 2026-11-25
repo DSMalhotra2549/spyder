@@ -1,4 +1,4 @@
-# Spyder
+# <img src="resources/icon.png" alt="" width="40" align="top"> Spyder
 
 A personal Windows app that holds you accountable for your working time.
 
