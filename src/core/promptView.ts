@@ -129,8 +129,8 @@ export function reflectView(date: string, today: string, wins: string[], improve
   };
 }
 
-/** P99: "Yesterday I'll improve", or the weekday of an older day ("Friday I'll improve"). */
+/** P99: "Your “How I'll improve” from yesterday", or the weekday of an older day ("… from Friday"). */
 export function improvesView(date: string, today: string, items: string[]): ImprovesVM | null {
   if (!items.length) return null;
-  return { title: `${isYesterday(date, today) ? 'Yesterday' : weekday(date)} I'll improve`, items };
+  return { title: `Your “How I'll improve” from ${isYesterday(date, today) ? 'yesterday' : weekday(date)}`, items };
 }

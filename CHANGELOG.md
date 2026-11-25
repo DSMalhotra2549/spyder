@@ -7,6 +7,17 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Clearer heading for yesterday's improvements (P99)
+
+**What**
+- The heading above yesterday's improvements on the Block ended card and the start reminder now reads "Your “How I'll improve” from yesterday" (or "from Friday").
+
+**Why**
+The user found "Yesterday I'll improve" unclear.
+
+**If you pull this**
+- Nothing special.
+
 ## 2026-11-26: Yesterday's improvements in the morning (P99)
 
 **What**

@@ -111,7 +111,7 @@ Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a f
 Heading `NOT STARTED` in `away`, title `Work hours have started`, body `Press Start to begin 15m blocks.`, then `Start` (primary) and `Not now`.
 
 ### Yesterday's improvements (P99)
-At the bottom of the Block ended card (above the asks) and the start reminder, until a block of today is answered: a hairline, a muted caps `YESTERDAY I'LL IMPROVE` (or `FRIDAY I'LL IMPROVE`), then one 13 px `text` line per improvement with a `faint` bullet.
+At the bottom of the Block ended card (above the asks) and the start reminder, until a block of today is answered: a hairline, a muted caps `YOUR “HOW I'LL IMPROVE” FROM YESTERDAY` (or `… FROM FRIDAY`), then one 13 px `text` line per improvement with a `faint` bullet.
 
 ## 4. Dashboard (`#/dashboard/*`)
 

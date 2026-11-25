@@ -37,8 +37,8 @@ describe('prompt copy (P59, P60)', () => {
   });
 
   it("the last day's improvements are titled by yesterday or its weekday, and only shown when there are some (P99)", () => {
-    expect(improvesView('2026-11-24', '2026-11-25', ['Sleep earlier'])).toEqual({ title: "Yesterday I'll improve", items: ['Sleep earlier'] });
-    expect(improvesView('2026-11-20', '2026-11-23', ['Plan ahead'])?.title).toBe("Friday I'll improve");
+    expect(improvesView('2026-11-24', '2026-11-25', ['Sleep earlier'])).toEqual({ title: "Your “How I'll improve” from yesterday", items: ['Sleep earlier'] });
+    expect(improvesView('2026-11-20', '2026-11-23', ['Plan ahead'])?.title).toBe("Your “How I'll improve” from Friday");
     expect(improvesView('2026-11-24', '2026-11-25', [])).toBeNull();
   });
 });

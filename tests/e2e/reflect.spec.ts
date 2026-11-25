@@ -64,7 +64,7 @@ test('at midnight the card asks about the day that ended; Save writes its wins a
     await s.debug.setNow(new Date('2026-11-25T10:00:05').getTime());
     await expect.poll(async () => (await promptView(s))?.view).toBe('reminder');
     const improves = (where: string) => s.prompt.getByTestId(where).getByTestId('prompt-improves');
-    await expect(improves('prompt-reminder')).toContainText('Yesterday I\'ll improve');
+    await expect(improves('prompt-reminder')).toContainText('Your “How I\'ll improve” from yesterday');
     await expect(improves('prompt-reminder')).toContainText('Sleep before midnight');
     await s.prompt.getByTestId('reminder-start').click();
     await s.debug.setNow(new Date('2026-11-25T10:16:00').getTime());
