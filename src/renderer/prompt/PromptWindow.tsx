@@ -5,7 +5,7 @@ import type { Efficiency, EngineError, Tag } from '../../core/types';
 import type { BlockAnswer, Ok, PromptWindowState } from '../../preload/api';
 import { fmtHM } from '../../core/format';
 import { applyGlassTint, CategoryButtons, Segmented } from '../dashboard/parts';
-import { AnswerInput, Btn, EfficiencyPicker } from '../ui/controls';
+import { AnswerInput, Btn, EfficiencyPicker, WrapInput } from '../ui/controls';
 
 export function PromptWindow() {
   const [st, setSt] = useState<PromptWindowState>(null);
@@ -263,7 +263,7 @@ const MAX_LINES = 10;
 /** One line per item: Enter or + Add adds a line (up to 10), Backspace on an empty line removes it. */
 function Lines(props: { label: string; testId: string; values: string[]; onChange: (v: string[]) => void; placeholder: string; autoFocus?: boolean }) {
   const { values, onChange } = props;
-  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const refs = useRef<(HTMLTextAreaElement | null)[]>([]);
   const [focus, setFocus] = useState<number | null>(null);
   useLayoutEffect(() => {
     if (focus !== null) refs.current[focus]?.focus();
@@ -278,20 +278,20 @@ function Lines(props: { label: string; testId: string; values: string[]; onChang
     <div data-testid={props.testId} className="flex flex-col gap-1">
       <span className="caps text-muted">{props.label}</span>
       {values.map((v, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="text-faint">•</span>
-          <input
-            ref={(el) => {
+        <div key={i} className="flex items-start gap-2">
+          <span className="pt-[7px] text-[13px] leading-[18px] text-faint">•</span>
+          <WrapInput
+            inputRef={(el) => {
               refs.current[i] = el;
             }}
             data-testid="reflect-line"
             value={v}
             placeholder={props.placeholder}
             autoFocus={props.autoFocus && i === 0}
-            onChange={(e) => onChange(values.map((x, j) => (j === i ? e.target.value : x)))}
+            onChange={(t) => onChange(values.map((x, j) => (j === i ? t : x)))}
             onKeyDown={(e) => {
+              if (e.key === 'Enter') e.preventDefault(); // never a line break (P101)
               if (e.key === 'Enter' && v.trim()) {
-                e.preventDefault();
                 addAfter(i);
               } else if (e.key === 'Backspace' && !v && values.length > 1) {
                 e.preventDefault();
@@ -299,7 +299,7 @@ function Lines(props: { label: string; testId: string; values: string[]; onChang
                 setFocus(Math.max(0, i - 1));
               }
             }}
-            className="h-8 min-w-0 flex-1 rounded-control border border-transparent bg-transparent px-2 text-[13px] text-text outline-none placeholder:text-faint hover:border-border focus:border-accent focus:bg-surface-2"
+            className="min-h-8 min-w-0 flex-1 rounded-control border border-transparent bg-transparent px-2 py-[6px] text-[13px] text-text outline-none placeholder:text-faint hover:border-border focus:border-accent focus:bg-surface-2"
           />
         </div>
       ))}
@@ -321,7 +321,7 @@ function Improves({ v }: { v: ImprovesVM | null }) {
       {v.items.map((t, i) => (
         <div key={i} className="flex gap-2 text-[13px] text-text">
           <span className="text-faint">•</span>
-          <span className="min-w-0">{t}</span>
+          <span className="min-w-0 break-words">{t}</span>
         </div>
       ))}
     </div>

@@ -99,7 +99,7 @@ Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a f
  │ ● YESTERDAY                              │  ← caps green; or the date: FRI, NOV 20
  │ How did yesterday go?                    │  ← 15/600 text
  │ WINS                                     │  ← caps muted (P100)
- │ •  Shipped the midnight card             │  ← one input per line, 13 px, borderless until hover/focus
+ │ •  Shipped the midnight card             │  ← one field per line, 13 px, borderless until hover/focus; long text wraps and the field grows (P101)
  │ •  │                                     │     Enter adds a line, Backspace on an empty one removes it
  │    + Add                                 │  ← 12 px muted; gone at 10 lines (P100)
  │ HOW I'LL IMPROVE                         │

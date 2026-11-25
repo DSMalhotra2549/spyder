@@ -5,7 +5,7 @@ import type { DaySummary } from '../../core/aggregate';
 import { fmtDuration, fmtTime } from '../../core/format';
 import type { Kpi, ReviewItem } from '../../core/review';
 import type { Tag } from '../../core/types';
-import { AnswerInput, Btn, inputCls } from '../ui/controls';
+import { AnswerInput, Btn, inputCls, WrapInput } from '../ui/controls';
 import { Timeline } from './Timeline';
 import { TimeSplit } from './TimeSplit';
 import { Card, TopBar, useLoader } from './parts';
@@ -193,7 +193,7 @@ function Bullets({ date, kind, items, placeholder }: { date: string; kind: Revie
   const [rows, setRows] = useState<Row[]>(() => initial.map(({ key, item }) => ({ key, text: item.text })));
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [drag, setDrag] = useState<number | null>(null);
-  const refs = useRef(new Map<string, HTMLInputElement>());
+  const refs = useRef(new Map<string, HTMLTextAreaElement>());
   // Saved state per row key. Refs, not state: Enter and the blur that follows both save, and the
   // second save must see the id the first one got.
   const ids = useRef(new Map(initial.map(({ key, item }) => [key, item.id])));
@@ -267,7 +267,8 @@ function Bullets({ date, kind, items, placeholder }: { date: string; kind: Revie
       {rows.map((r, i) => (
         <div
           key={r.key}
-          className={clsx('group flex h-9 items-center gap-1.5', drag === i && 'opacity-40')}
+          // P101: a long entry wraps onto more lines instead of being cut off.
+          className={clsx('group flex min-h-9 items-start gap-1.5 py-0.5', drag === i && 'opacity-40')}
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => drop(i)}
         >
@@ -276,34 +277,35 @@ function Bullets({ date, kind, items, placeholder }: { date: string; kind: Revie
             onDragStart={() => setDrag(i)}
             onDragEnd={() => setDrag(null)}
             title="Drag to reorder"
-            className="cursor-grab px-1 text-[13px] text-faint select-none hover:text-muted"
+            className="cursor-grab px-1 pt-[7px] text-[13px] leading-[18px] text-faint select-none hover:text-muted"
           >
             ⋮⋮
           </span>
-          <input
-            ref={(el) => {
+          <WrapInput
+            inputRef={(el) => {
               if (el) refs.current.set(r.key, el);
               else refs.current.delete(r.key);
             }}
             data-testid="bullet-input"
             value={r.text}
             placeholder={placeholder}
-            onChange={(e) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, text: e.target.value } : x)))}
+            onChange={(t) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, text: t } : x)))}
             // Empty rows stay until deleted: removing one on blur would shift the layout under the click
             // that caused the blur. Unsaved empty rows are gone on the next load.
             onBlur={() => void persist(r.key, r.text)}
             onKeyDown={(e) => {
+              if (e.key === 'Enter') e.preventDefault();
               if (e.key === 'Enter' && r.text.trim()) {
                 void persist(r.key, r.text);
                 addAfter(i);
               }
             }}
-            className="h-8 min-w-0 flex-1 rounded-control border border-transparent bg-transparent px-2 text-[13px] text-text outline-none placeholder:text-faint hover:border-border focus:border-accent focus:bg-surface-2"
+            className="min-h-8 min-w-0 flex-1 rounded-control border border-transparent bg-transparent px-2 py-[6px] text-[13px] text-text outline-none placeholder:text-faint hover:border-border focus:border-accent focus:bg-surface-2"
           />
           <button
             aria-label="Delete"
             onClick={() => remove(r.key)}
-            className="h-6 w-6 rounded-chip text-[14px] text-faint opacity-0 group-hover:opacity-100 hover:bg-surface-2 hover:text-text"
+            className="mt-1 h-6 w-6 shrink-0 rounded-chip text-[14px] text-faint opacity-0 group-hover:opacity-100 hover:bg-surface-2 hover:text-text"
           >
             ×
           </button>

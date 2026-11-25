@@ -7,6 +7,18 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Long wins and improvements wrap (P101)
+
+**What**
+- On the Review page and in the midnight card, a long win or improvement wraps onto more lines and its field grows to show all of it. Nothing is cut off.
+- Enter still adds the next line; it never puts a line break inside an entry.
+
+**Why**
+Long entries were cut off in their one-line fields.
+
+**If you pull this**
+- Nothing special. Those fields are now `<textarea>`s (new `WrapInput` in `ui/controls.tsx`); the test ids are unchanged.
+
 ## 2026-11-26: The midnight card: Wins, + Add, up to 10 (P100)
 
 **What**

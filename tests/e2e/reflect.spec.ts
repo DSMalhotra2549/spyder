@@ -3,6 +3,15 @@ import { expect, test } from '@playwright/test';
 import { launch, shot, type Launched as Session } from './helpers';
 
 const DAY = '2026-11-24';
+// P101: long enough to need three lines or more in the card and on Review.
+const LONG = 'Fixed the flaky widget test by waiting for the bar to settle on top before minimizing it, then checked it held over ten runs in a row';
+
+/** A wrapping entry is taller than one line, and none of its text is hidden. */
+async function wrapsFully(el: import('@playwright/test').Locator) {
+  const m = await el.evaluate((t) => ({ h: t.clientHeight, sh: t.scrollHeight }));
+  expect(m.h).toBeGreaterThan(40);
+  expect(m.sh).toBeLessThanOrEqual(m.h);
+}
 // The real defaults the other specs use, but with the midnight card on (its default).
 const env = { SPYDER_DEFAULTS: JSON.stringify({ trackFromStartup: false, barPercent: 'day' }) };
 
@@ -35,7 +44,8 @@ test('at midnight the card asks about the day that ended; Save writes its wins a
     await wins.first().fill('Shipped the midnight card');
     await expect(done).toHaveText('Save');
     await wins.first().press('Enter');
-    await s.prompt.keyboard.type('Fixed the flaky test');
+    await s.prompt.keyboard.type(LONG);
+    await wrapsFully(wins.nth(1));
     // P100: the label is "Wins"; + Add adds a line, up to 10 a section.
     await expect(card.getByTestId('reflect-win')).toContainText('Wins');
     await expect(card.getByTestId('reflect-win')).not.toContainText('Today');
@@ -59,7 +69,7 @@ test('at midnight the card asks about the day that ended; Save writes its wins a
       { kind: 'improve', text: 'Plan the day the night before' },
       { kind: 'improve', text: 'Tenth' },
       { kind: 'win', text: 'Shipped the midnight card' },
-      { kind: 'win', text: 'Fixed the flaky test' },
+      { kind: 'win', text: LONG },
     ]);
 
     // The day's Review shows them in its columns.
@@ -67,7 +77,9 @@ test('at midnight the card asks about the day that ended; Save writes its wins a
     await d.evaluate((day) => (location.hash = `#/dashboard/review/${day}`), DAY);
     const values = (kind: string) =>
       d.getByTestId(`bullets-${kind}`).getByTestId('bullet-input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
-    await expect.poll(() => values('win')).toEqual(['Shipped the midnight card', 'Fixed the flaky test']);
+    await expect.poll(() => values('win')).toEqual(['Shipped the midnight card', LONG]);
+    await wrapsFully(d.getByTestId('bullets-win').getByTestId('bullet-input').nth(1));
+    await shot(d, 'review-long-win');
     expect(await values('improve')).toEqual(['Sleep before midnight', 'Plan the day the night before', 'Tenth']);
 
     // Asked once: not again later that night.
