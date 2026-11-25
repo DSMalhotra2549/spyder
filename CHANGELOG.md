@@ -7,6 +7,18 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Yesterday's improvements in the morning (P99)
+
+**What**
+- The next day, the Block ended card and the start reminder show yesterday's "How I'll improve" items at the bottom, until you answer your first block of the day.
+- The midnight card's button reads "Skip" instead of "Skip for today".
+
+**Why**
+The user wants to see yesterday's improvements when starting the day. The start reminder alone wouldn't do, because it never shows with Track from startup on.
+
+**If you pull this**
+- Nothing special. `accountView` and `reminderView` take an optional `improves`, and their view models gain an `improves` field.
+
 ## 2026-11-26: The midnight card (P98)
 
 **What**

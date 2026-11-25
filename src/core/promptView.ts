@@ -34,6 +34,14 @@ export interface AccountVM {
   /** P70: apps and sites used in these blocks that still want the user's label, most time first. */
   asks: AskRow[];
   askTitle: string;
+  /** P99: the last day's improvements, until the first block of today is answered. */
+  improves: ImprovesVM | null;
+}
+
+/** P99: what the user said they'd improve, on the last day with blocks. */
+export interface ImprovesVM {
+  title: string;
+  items: string[];
 }
 
 /** P70: the prompt asks about at most this many apps and sites. */
@@ -45,6 +53,7 @@ export interface ReminderVM {
   title: string;
   body: string;
   lengthSec: number;
+  improves: ImprovesVM | null;
 }
 
 /** P98: after a day ends, its wins and how I'll improve (both optional). */
@@ -73,7 +82,13 @@ export function blockHint(b: PendingBlock): string | null {
   return parts.length ? parts.join(' · ') : null;
 }
 
-export function accountView(blocks: PendingBlock[], lastAnswer: string | null, canContinue: boolean, asks: AskRow[] = []): AccountVM {
+export function accountView(
+  blocks: PendingBlock[],
+  lastAnswer: string | null,
+  canContinue: boolean,
+  asks: AskRow[] = [],
+  improves: ImprovesVM | null = null,
+): AccountVM {
   const one = blocks.length === 1;
   return {
     view: 'account',
@@ -84,28 +99,38 @@ export function accountView(blocks: PendingBlock[], lastAnswer: string | null, c
     canContinue,
     asks: asks.slice(0, PROMPT_ASKS),
     askTitle: asks.length === 1 ? 'How does this count?' : 'How do these count?',
+    improves,
   };
 }
 
-export function reminderView(lengthSec: number): ReminderVM {
+export function reminderView(lengthSec: number, improves: ImprovesVM | null = null): ReminderVM {
   return {
     view: 'reminder',
     heading: 'Not started',
     title: 'Work hours have started',
     body: `Press Start to begin ${fmtDuration(lengthSec)} blocks.`,
     lengthSec,
+    improves,
   };
 }
 
+const isYesterday = (date: string, today: string) => dateKey(addDays(dayStartFromKey(today), -1)) === date;
+const weekday = (date: string) => new Date(dayStartFromKey(date)).toLocaleDateString('en-US', { weekday: 'long' });
+
 export function reflectView(date: string, today: string, wins: string[], improves: string[]): ReflectVM {
-  const ms = dayStartFromKey(date);
-  const yesterday = dateKey(addDays(dayStartFromKey(today), -1)) === date;
+  const yesterday = isYesterday(date, today);
   return {
     view: 'reflect',
-    heading: yesterday ? 'Yesterday' : new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-    title: `How did ${yesterday ? 'yesterday' : new Date(ms).toLocaleDateString('en-US', { weekday: 'long' })} go?`,
+    heading: yesterday ? 'Yesterday' : new Date(dayStartFromKey(date)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    title: `How did ${yesterday ? 'yesterday' : weekday(date)} go?`,
     date,
     wins,
     improves,
   };
+}
+
+/** P99: "Yesterday I'll improve", or the weekday of an older day ("Friday I'll improve"). */
+export function improvesView(date: string, today: string, items: string[]): ImprovesVM | null {
+  if (!items.length) return null;
+  return { title: `${isYesterday(date, today) ? 'Yesterday' : weekday(date)} I'll improve`, items };
 }

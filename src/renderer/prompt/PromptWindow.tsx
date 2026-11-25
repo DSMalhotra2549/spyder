@@ -1,6 +1,6 @@
 // Prompt window (#/prompt): accounting for ended blocks (P60, with P70's asks), the midnight card (P98) or the start reminder (P59). DESIGN.md §3.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import type { AccountBlockVM, AccountVM, ReflectVM, ReminderVM } from '../../core/promptView';
+import type { AccountBlockVM, AccountVM, ImprovesVM, ReflectVM, ReminderVM } from '../../core/promptView';
 import type { Efficiency, EngineError, Tag } from '../../core/types';
 import type { BlockAnswer, Ok, PromptWindowState } from '../../preload/api';
 import { fmtHM } from '../../core/format';
@@ -195,6 +195,7 @@ function AccountCard({ p }: { p: AccountVM }) {
         </>
       )}
       {error && <div className="text-[12px] text-red">{error}</div>}
+      <Improves v={p.improves} />
       <Asks p={p} />
     </Card>
   );
@@ -245,7 +246,7 @@ function ReflectCard({ p }: { p: ReflectVM }) {
       <Lines label="How I'll improve" testId="reflect-improve" values={improves} onChange={setImproves} placeholder="One thing to do differently" />
       <div className="flex items-center gap-2">
         <Btn pill variant={changed ? 'primary' : 'secondary'} data-testid="reflect-done" onClick={() => void done()}>
-          {changed ? 'Save' : 'Skip for today'}
+          {changed ? 'Save' : 'Skip'}
         </Btn>
       </div>
       {error && <div className="text-[12px] text-red">{error}</div>}
@@ -295,6 +296,22 @@ function Lines(props: { label: string; testId: string; values: string[]; onChang
   );
 }
 
+/** P99: what the user said they'd improve on the last day, until the first block of today is answered. */
+function Improves({ v }: { v: ImprovesVM | null }) {
+  if (!v) return null;
+  return (
+    <div data-testid="prompt-improves" className="flex flex-col gap-1 border-t border-border pt-3">
+      <span className="caps text-muted">{v.title}</span>
+      {v.items.map((t, i) => (
+        <div key={i} className="flex gap-2 text-[13px] text-text">
+          <span className="text-faint">•</span>
+          <span className="min-w-0">{t}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Work hours with no loop running (P59). */
 function ReminderCard({ p }: { p: ReminderVM }) {
   const [error, setError] = useState<string | null>(null);
@@ -311,6 +328,7 @@ function ReminderCard({ p }: { p: ReminderVM }) {
         </Btn>
       </div>
       {error && <div className="text-[12px] text-red">{error}</div>}
+      <Improves v={p.improves} />
     </Card>
   );
 }

@@ -103,12 +103,15 @@ Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a f
  │ •  │                                     │     Enter adds a line, Backspace on an empty one removes it
  │ HOW I'LL IMPROVE                         │
  │ •  One thing to do differently           │  ← placeholder faint
- │ [Skip for today]                         │  ← secondary pill; `Save` primary once anything changed
+ │ [Skip]                                   │  ← secondary pill; `Save` primary once anything changed (P99)
  ╰──────────────────────────────────────────╯
 ```
 
 ### Start reminder (P59)
 Heading `NOT STARTED` in `away`, title `Work hours have started`, body `Press Start to begin 15m blocks.`, then `Start` (primary) and `Not now`.
+
+### Yesterday's improvements (P99)
+At the bottom of the Block ended card (above the asks) and the start reminder, until a block of today is answered: a hairline, a muted caps `YESTERDAY I'LL IMPROVE` (or `FRIDAY I'LL IMPROVE`), then one 13 px `text` line per improvement with a `faint` bullet.
 
 ## 4. Dashboard (`#/dashboard/*`)
 

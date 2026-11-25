@@ -1,4 +1,5 @@
 // P98: the midnight card. After a day ends, the prompt asks for its wins and how I'll improve, once per day.
+// P99: the next day, the prompt shows those improvements until the first block is answered.
 import { randomUUID } from 'node:crypto';
 import { dateKey, startOfDay } from '../core/schedule';
 import type { Db } from './db/db';
@@ -14,18 +15,31 @@ export interface ReflectDay {
  * review already has both a win and an improvement.
  */
 export function reflectDay(db: Db, nowMs: number): ReflectDay | null {
+  const last = lastDay(db, nowMs);
+  if (!last || db.get('SELECT 1 AS x FROM reflections WHERE date = ?', last.date)) return null;
+  return last.wins.length && last.improves.length ? null : last;
+}
+
+/** The last day before today with blocks, with its wins and improvements. */
+export function lastDay(db: Db, nowMs: number): ReflectDay | null {
   const last = db.get<{ s: number | null }>('SELECT MAX(started_ms) AS s FROM sessions WHERE deleted_ms IS NULL AND started_ms < ?', startOfDay(nowMs));
   if (last?.s == null) return null;
   const date = dateKey(last.s);
-  if (db.get('SELECT 1 AS x FROM reflections WHERE date = ?', date)) return null;
   const items = db.all<{ kind: string; text: string }>('SELECT kind, text FROM review_items WHERE date = ? ORDER BY sort, created_ms', date);
-  const wins = items.filter((i) => i.kind === 'win').map((i) => i.text);
-  const improves = items.filter((i) => i.kind === 'improve').map((i) => i.text);
-  if (wins.length && improves.length) return null;
-  return { date, wins, improves };
+  return { date, wins: items.filter((i) => i.kind === 'win').map((i) => i.text), improves: items.filter((i) => i.kind === 'improve').map((i) => i.text) };
 }
 
-/** Saves the card: the lists replace the day's wins and improvements; null (Skip for today) leaves them. Either way the day is done. */
+/** P99: a block of today already has the user's answer (a filled gap's preset answer doesn't count). */
+export function answeredToday(db: Db, nowMs: number, gapAnswer: string): boolean {
+  return !!db.get(
+    `SELECT 1 AS x FROM sessions WHERE deleted_ms IS NULL AND started_ms >= ?
+      AND ((kind = 'open' AND name IS NOT NULL) OR (kind = 'break' AND name IS NOT ?))`,
+    startOfDay(nowMs),
+    gapAnswer,
+  );
+}
+
+/** Saves the card: the lists replace the day's wins and improvements; null (Skip) leaves them. Either way the day is done. */
 export function saveReflection(db: Db, date: string, lists: { win: string[]; improve: string[] } | null, nowMs: number): void {
   db.transaction(() => {
     if (lists) {

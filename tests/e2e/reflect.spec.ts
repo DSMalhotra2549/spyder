@@ -28,7 +28,7 @@ test('at midnight the card asks about the day that ended; Save writes its wins a
     await expect(card).toContainText('Yesterday');
     await expect(card).toContainText('How did yesterday go?');
     const done = s.prompt.getByTestId('reflect-done');
-    await expect(done).toHaveText('Skip for today');
+    await expect(done).toHaveText('Skip');
 
     // Enter adds the next line.
     const wins = card.getByTestId('reflect-win').getByTestId('reflect-line');
@@ -59,6 +59,25 @@ test('at midnight the card asks about the day that ended; Save writes its wins a
     await s.debug.setNow(new Date('2026-11-25T01:00:00').getTime());
     await s.debug.tick();
     expect(await promptView(s)).toBeNull();
+
+    // P99: the next morning, the start reminder and the Block ended card show yesterday's improvements…
+    await s.debug.setNow(new Date('2026-11-25T10:00:05').getTime());
+    await expect.poll(async () => (await promptView(s))?.view).toBe('reminder');
+    const improves = (where: string) => s.prompt.getByTestId(where).getByTestId('prompt-improves');
+    await expect(improves('prompt-reminder')).toContainText('Yesterday I\'ll improve');
+    await expect(improves('prompt-reminder')).toContainText('Sleep before midnight');
+    await s.prompt.getByTestId('reminder-start').click();
+    await s.debug.setNow(new Date('2026-11-25T10:16:00').getTime());
+    await expect.poll(async () => (await promptView(s))?.view).toBe('account');
+    await expect(improves('prompt-account')).toContainText('Sleep before midnight');
+    await shot(s.prompt, 'prompt-improves');
+    // …until the first block of the day is answered.
+    await s.prompt.getByLabel('Answer').fill('Planning the day');
+    await s.prompt.getByTestId('account-save').click();
+    await s.debug.setNow(new Date('2026-11-25T10:31:00').getTime());
+    await expect.poll(async () => (await promptView(s))?.view).toBe('account');
+    await expect(s.prompt.getByTestId('prompt-account')).toBeVisible();
+    await expect(improves('prompt-account')).toHaveCount(0);
   } finally {
     await s.close();
   }
@@ -86,7 +105,7 @@ test('the setting turns it off; a day with both written is not asked; one writte
     const card = s.prompt.getByTestId('prompt-reflect');
     await expect(card.getByTestId('reflect-win').getByTestId('reflect-line')).toHaveValue('Wrote it on Review');
     const done = s.prompt.getByTestId('reflect-done');
-    await expect(done).toHaveText('Skip for today');
+    await expect(done).toHaveText('Skip');
     await done.click();
     await expect.poll(() => promptView(s)).toBeNull();
     expect(items(s)).toEqual([{ kind: 'win', text: 'Wrote it on Review' }]);

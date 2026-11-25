@@ -118,7 +118,7 @@ export interface SpyderApi {
 
   answerSuggestions(prefix: string): Promise<string[]>;
   getPrompt(): Promise<PromptWindowState>;
-  /** P98: the midnight card: the lists replace the day's wins and improvements; null = Skip for today. */
+  /** P98: the midnight card: the lists replace the day's wins and improvements; null = Skip. */
   saveReflection(date: string, lists: { win: string[]; improve: string[] } | null): Promise<Ok | EngineError>;
   onPrompt(cb: (p: PromptWindowState) => void): () => void;
 

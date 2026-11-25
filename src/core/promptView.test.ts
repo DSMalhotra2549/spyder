@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { T } from './engine.testkit';
-import { accountView, reflectView, reminderView } from './promptView';
+import { accountView, improvesView, reflectView, reminderView } from './promptView';
 
 const blk = (h: number, m: number, extra = {}) => ({ id: `b${h}${m}`, startMs: T(h, m), endMs: T(h, m + 15), awaySec: 0, apps: [], ...extra });
 
@@ -34,5 +34,11 @@ describe('prompt copy (P59, P60)', () => {
       improves: [],
     });
     expect(reflectView('2026-11-20', '2026-11-23', [], [])).toMatchObject({ heading: 'Fri, Nov 20', title: 'How did Friday go?' });
+  });
+
+  it("the last day's improvements are titled by yesterday or its weekday, and only shown when there are some (P99)", () => {
+    expect(improvesView('2026-11-24', '2026-11-25', ['Sleep earlier'])).toEqual({ title: "Yesterday I'll improve", items: ['Sleep earlier'] });
+    expect(improvesView('2026-11-20', '2026-11-23', ['Plan ahead'])?.title).toBe("Friday I'll improve");
+    expect(improvesView('2026-11-24', '2026-11-25', [])).toBeNull();
   });
 });
