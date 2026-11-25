@@ -10,7 +10,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { fmtHM } from '../../core/format';
 import { dayStartFromKey } from '../../core/schedule';
 import {
   STACK_KEYS,
@@ -24,7 +23,7 @@ import {
 import { AppsList } from './Today';
 import { EfficiencyTrend } from './charts';
 import { CAT_COLOR, Card, StatCell, StatStrip, TopBar, useLoader } from './parts';
-import { pct, rangeTexts } from './stats';
+import { dur, pct, rangeTexts } from './stats';
 
 export const STACK_COLOR: Record<keyof DayStacks, string> = {
   ...CAT_COLOR,
@@ -179,7 +178,7 @@ function TopLabel({ x, y, width, value, byDate }: LabelProps & { byDate: Map<str
           fill="var(--color-muted)"
           className="tabular"
         >
-          {fmtHM(total)}
+          {dur(total)}
         </text>
       )}
       {d.goalMet && d.scheduled && (
@@ -217,11 +216,11 @@ function BarTip({
         <div key={k} className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full" style={{ background: STACK_COLOR[k] }} />
           <span className="text-muted">{STACK_LABEL[k]}</span>
-          <span className="ml-auto pl-4 tabular">{fmtHM(d.stacks[k])}</span>
+          <span className="ml-auto pl-4 tabular">{dur(d.stacks[k])}</span>
         </div>
       ))}
       <div className="mt-1 border-t border-border pt-1 text-muted">
-        Productive {fmtHM(d.productiveSec)} · score {pct(d.score)}
+        Productive {dur(d.productiveSec)} · score {pct(d.score)}
         {d.goalMet && d.scheduled ? ' · goal met' : ''}
       </div>
     </div>

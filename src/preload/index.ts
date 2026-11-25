@@ -18,12 +18,12 @@ const methods = [
   'hideWidget', 'minimizeWidget', 'openDashboard', 'resizePrompt',
   'getDay', 'saveRule', 'getReview', 'saveReviewItem', 'deleteReviewItem', 'completeReview', 'listKpis', 'saveKpi',
   'setKpiValue', 'showWidget',
-  'getRange', 'listToAsk', 'listRules', 'deleteRule', 'listTitlePatterns', 'saveTitlePattern', 'deleteTitlePattern',
+  'getRange', 'listToAsk', 'appIcons', 'listRules', 'deleteRule', 'listTitlePatterns', 'saveTitlePattern', 'deleteTitlePattern',
   'getSchedule', 'setSchedule', 'setDayOverride', 'openDataFolder', 'exportData', 'showInFolder',
 ] as const;
 
 const debugNames = ['state', 'setNow', 'advance', 'setScale', 'tick', 'simulateIdle', 'simulateSuspend',
-  'simulateResume', 'simulateLock', 'simulateUnlock', 'injectActivity', 'trayInfo', 'flush', 'killProbe', 'triggerHotkey'] as const;
+  'simulateResume', 'simulateLock', 'simulateUnlock', 'injectActivity', 'trayInfo', 'flush', 'killProbe', 'triggerHotkey', 'rememberAppPath'] as const;
 
 const api = {
   ...Object.fromEntries(methods.map((m) => [m, invoke(m)])),

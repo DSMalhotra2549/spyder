@@ -112,3 +112,9 @@ export function seed(dataDir: string, days: number, to: string): void {
   });
   if (r.status !== 0) throw new Error(`seed failed: ${r.stderr}${r.stdout}`);
 }
+
+/** P102: open every collapsed run in Today's block log, so each block has its own row. */
+export async function openRuns(d: Page): Promise<void> {
+  const closed = d.locator('[data-testid=block-group][aria-expanded=false]');
+  while ((await closed.count()) > 0) await closed.first().click();
+}

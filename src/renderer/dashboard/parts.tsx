@@ -218,6 +218,7 @@ export function StatCell({
   value,
   sub,
   tone,
+  icon,
   children,
 }: {
   label: string;
@@ -225,11 +226,16 @@ export function StatCell({
   value: string;
   sub: string;
   tone?: 'green';
+  /** P102: a small icon before the label, so a tile is found without reading it. */
+  icon?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <div className="tile-lift min-w-0 rounded-[14px] bg-surface-2/50 px-5 py-4">
-      <div className="section-label mb-1.5">{label}</div>
+      <div className="section-label mb-1.5 flex items-center gap-1.5">
+        {icon}
+        {label}
+      </div>
       <div data-testid={id} className={clsx('text-[26px] leading-tight font-bold tracking-[-0.02em] tabular', tone === 'green' && 'text-green')}>
         {value}
       </div>

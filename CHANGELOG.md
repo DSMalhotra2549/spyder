@@ -7,6 +7,24 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Today at a glance (P102)
+
+**What**
+- Today's stat tiles have icons: a target (Productive), a briefcase (Work), a gauge (Efficiency) and a flame (Streak), orange while the streak is alive.
+- The running block's dot sends out a ring as it pulses.
+- Joined blocks start collapsed into one row with the whole time span and total duration. Click the `3 blocks · 45m ›` caption to open them. The collapsed row ticks, tags, rates (`mixed` when the ratings differ), re-answers and deletes all of its blocks.
+- An unrated work block no longer shows `—`; the cell stays empty until you hover the row.
+- Every duration on screen reads `1h 26m` (was `1:26` in Apps & sites, Week, Month, Rules and the prompt's app list). Exports are unchanged.
+- Apps & sites shows each app's real icon, read from its program file; a site shows its browser's icon.
+
+**Why**
+The user wants Today easier to take in at a glance.
+
+**If you pull this**
+- Migration 008 adds the `app_paths` table. Apps get their icon once capture has seen them run after this update; older apps show none until then.
+- `AppRow` has a new `exe` field. New IPC `appIcons(exes)` and debug hook `rememberAppPath(exe, path)`.
+- e2e: block rows of joined blocks are hidden until opened; `openRuns(d)` in `tests/e2e/helpers.ts` opens them all. `fmtHM` is now used only by the export.
+
 ## 2026-11-26: Long wins and improvements wrap (P101)
 
 **What**

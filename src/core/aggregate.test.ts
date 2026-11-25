@@ -103,6 +103,11 @@ describe('daySummary', () => {
     expect(d.categoryTotals).toEqual({ productive: 6600, neutral: 1200, distracting: 1200, uncategorized: 0 });
   });
 
+  it('each app row carries the program it ran in; a site, its browser (P102)', () => {
+    expect(d.apps[0].exe).toBe('code.exe');
+    expect(d.apps.find((a) => a.key === 'youtube.com')!.exe).toBe('chrome.exe'); // seen in Chrome first, then Firefox
+  });
+
   it('off-hours activity is excluded from the work-hours scope but reported', () => {
     expect(d.apps.some((a) => a.key === 'reddit.com')).toBe(false);
     expect(d.offHoursActivitySec).toBe(50 * 60); // reddit 20 + code 20 + firefox 10

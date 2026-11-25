@@ -1,9 +1,9 @@
 // Text shown in the Today stat header (pure, so e2e tests format the same numbers the same way).
 import type { DaySummary } from '../../core/aggregate';
-import { fmtDuration, fmtHM } from '../../core/format';
+import { fmtDuration } from '../../core/format';
 import { rangeStats, type DayLite } from '../../core/trends';
 
-/** Report durations: `5h 12m`, `38m`, `0m` (no seconds in reports). */
+/** Every duration on screen (P102): `5h 12m`, `38m`, `0m` (no seconds in reports). */
 export const dur = (sec: number) => (sec < 60 ? `${Math.max(0, Math.round(sec / 60))}m` : fmtDuration(sec));
 export const pct = (score: number | null) => (score === null ? '—' : `${Math.round(score * 100)}%`);
 export const appPct = (p: number) => `${p.toFixed(1)}%`;
@@ -26,7 +26,7 @@ export function statTexts(s: DaySummary, streak: number) {
 /** P75: `3h 36m effective`, or that nothing is rated. Short, so it fits a stat cell. */
 export const effSub = (ratedSec: number, effectiveSec: number) => (ratedSec > 0 ? `${dur(effectiveSec)} effective` : 'no blocks rated');
 
-export const appTexts = (a: DaySummary['apps'][number]) => ({ key: a.key, time: fmtHM(a.sec), pct: appPct(a.pct) });
+export const appTexts = (a: DaySummary['apps'][number]) => ({ key: a.key, time: dur(a.sec), pct: appPct(a.pct) });
 
 /** Texts of the Week / Month stat row. */
 export function rangeTexts(days: DayLite[]) {

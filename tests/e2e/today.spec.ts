@@ -5,7 +5,7 @@ import { Db } from '../../src/main/db/db';
 import { dayVM } from '../../src/main/report';
 import { loadSettings } from '../../src/main/settings';
 import { appTexts, statTexts } from '../../src/renderer/dashboard/stats';
-import { freshDataDir, launch, seed, shot } from './helpers';
+import { freshDataDir, launch, openRuns, seed, shot } from './helpers';
 
 const DATE = '2026-11-24';
 
@@ -61,6 +61,7 @@ test('Today matches aggregate(); a category change creates a user rule', async (
     // Only the top 5 show until "Show all"; every block is in the log right under the stats (P55, P64).
     expect(vm.summary.apps.length).toBeGreaterThan(5);
     await expect(rows).toHaveCount(5);
+    await openRuns(d);
     await expect(d.getByTestId('block-row')).toHaveCount(vm.summary.sessions.length);
     await d.mouse.move(0, 0);
     await shot(d, 'today');

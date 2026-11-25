@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { createClock, parseLocalIso } from '../core/clock';
 import { cleanSettings } from '../core/settings';
 import { Tracker } from './capture/tracker';
+import { rememberAppPath } from './appIcons';
 import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
 import { Db } from './db/db';
@@ -129,6 +130,7 @@ async function boot(): Promise<void> {
     host.saveHeartbeat();
   });
   addDebugHook('killProbe', () => t.fg.kill());
+  addDebugHook('rememberAppPath', (exe: string, path: string) => rememberAppPath(ctx.db, exe, path));
   if (!registerHotkey(ctx)) console.warn(`[spyder] hotkey ${ctx.settings.hotkey} is taken`);
   if (!Notification.isSupported()) console.warn('[spyder] notifications not supported');
 }

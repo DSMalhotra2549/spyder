@@ -3,7 +3,7 @@
 import clsx from 'clsx';
 import { useState, type ReactNode } from 'react';
 import type { Category, MatchType, PatternMatch } from '../../core/defaults';
-import { fmtHM } from '../../core/format';
+import { dur } from './stats';
 import { Btn, inputCls } from '../ui/controls';
 import {
   CAT_COLOR,
@@ -326,7 +326,7 @@ function InboxTab() {
           <Row key={a.key} testId="inbox-row">
             <span className="min-w-0 flex-1 truncate">{a.key}</span>
             {a.category !== 'uncategorized' && <DefaultChip />}
-            <span className="w-14 text-right text-muted tabular">{fmtHM(a.sec)}</span>
+            <span className="w-14 text-right text-muted tabular">{dur(a.sec)}</span>
             <CategoryButtons
               current={a.category}
               onPick={async (c) => {

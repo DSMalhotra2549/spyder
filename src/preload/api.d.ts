@@ -84,6 +84,8 @@ export interface DebugApi {
   flush(): Promise<void>;
   killProbe(): Promise<void>;
   triggerHotkey(): Promise<void>;
+  /** P102: as if capture had seen `exe` running from `path`. */
+  rememberAppPath(exe: string, path: string): Promise<void>;
 }
 
 export interface SpyderApi {
@@ -126,6 +128,8 @@ export interface SpyderApi {
   getRange(from: string, to: string): Promise<RangeVM>;
   /** P70: every app and site still waiting for the user's own label, all time. */
   listToAsk(): Promise<AskRow[]>;
+  /** P102: each app's own icon (PNG data URL) by exe; exes whose program file isn't known are left out. */
+  appIcons(exes: string[]): Promise<Record<string, string>>;
   listRules(): Promise<RuleVM[]>;
   saveRule(r: { id?: string; matchType: MatchType; pattern: string; category: Category }): Promise<void>;
   deleteRule(id: string): Promise<void>;

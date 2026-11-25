@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import type { AccountBlockVM, AccountVM, ImprovesVM, ReflectVM, ReminderVM } from '../../core/promptView';
 import type { Efficiency, EngineError, Tag } from '../../core/types';
 import type { BlockAnswer, Ok, PromptWindowState } from '../../preload/api';
-import { fmtHM } from '../../core/format';
+import { dur } from '../dashboard/stats';
 import { applyGlassTint, CategoryButtons, Segmented } from '../dashboard/parts';
 import { AnswerInput, Btn, EfficiencyPicker, WrapInput } from '../ui/controls';
 
@@ -213,7 +213,7 @@ function Asks({ p }: { p: AccountVM }) {
         <div key={a.key} data-testid="ask-row" className="flex flex-col gap-1">
           <div className="flex min-w-0 items-baseline gap-2 text-[12px]">
             <span className="truncate text-text">{a.key}</span>
-            <span className="tnum shrink-0 text-faint">{fmtHM(a.sec)}</span>
+            <span className="tnum shrink-0 text-faint">{dur(a.sec)}</span>
           </div>
           <CategoryButtons
             size="sm"

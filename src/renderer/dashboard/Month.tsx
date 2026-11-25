@@ -1,13 +1,12 @@
 // Month page (plan §12, design/DESIGN.md §4 Month): calendar heatmap, trend lines, KPI charts.
 import { format } from 'date-fns';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { fmtHM } from '../../core/format';
 import { dayStartFromKey } from '../../core/schedule';
 import { monthDates, type DayLite, type RangeVM } from '../../core/trends';
 import { axis, EfficiencyTrend, LineTip, Trend } from './charts';
 import { anyRated, RangeStats } from './Week';
 import { Card, Empty, TopBar, useLoader } from './parts';
-import { pct } from './stats';
+import { dur, pct } from './stats';
 
 export function Month({ date, onDate }: { date: string; onDate: (d: string) => void }) {
   const m = monthDates(date);
@@ -21,7 +20,7 @@ export function Month({ date, onDate }: { date: string; onDate: (d: string) => v
         <div className="mt-4 grid grid-cols-12 gap-4">
           <Card
             title="Productive hours"
-            right={`goal ${fmtHM(vm.days[0]?.goalSec ?? 0)}`}
+            right={`goal ${dur(vm.days[0]?.goalSec ?? 0)}`}
             className="col-span-5"
           >
             <Heatmap days={vm.days} />
@@ -31,7 +30,7 @@ export function Month({ date, onDate }: { date: string; onDate: (d: string) => v
               <Trend
                 days={vm.days}
                 value={(d) => d.productiveSec / 3600}
-                fmt={(v) => fmtHM(v * 3600)}
+                fmt={(v) => dur(v * 3600)}
                 unit="h"
                 color="var(--color-productive)"
                 testId="trend-productive"
@@ -93,7 +92,7 @@ function Heatmap({ days }: { days: DayLite[] }) {
           const empty = d.future || !d.scheduled;
           const tip = d.future
             ? format(dayStartFromKey(d.date), 'EEE, MMM d')
-            : `${format(dayStartFromKey(d.date), 'EEE, MMM d')} · productive ${fmtHM(d.productiveSec)} · score ${pct(d.score)}${d.goalMet ? ' · goal met' : ''}${d.scheduled ? '' : ' · day off'}`;
+            : `${format(dayStartFromKey(d.date), 'EEE, MMM d')} · productive ${dur(d.productiveSec)} · score ${pct(d.score)}${d.goalMet ? ' · goal met' : ''}${d.scheduled ? '' : ' · day off'}`;
           return (
             <g
               key={d.date}

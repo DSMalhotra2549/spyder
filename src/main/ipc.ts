@@ -7,6 +7,7 @@ import type { DayOverride } from '../core/schedule';
 import type { TitlePattern } from '../core/titlePatterns';
 import { isEfficiency, TAGS, type Efficiency, type EngineError, type Tag } from '../core/types';
 import type { BlockAnswer } from '../preload/api';
+import { appIcons } from './appIcons';
 import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
@@ -127,6 +128,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('getDay', (date?: string) => report.dayVM(ctx.db, date, ctx.clock.now(), ctx.settings));
   h('getRange', (from: string, to: string) => report.rangeVM(ctx.db, from, to, ctx.clock.now(), ctx.settings));
   h('listToAsk', () => report.listToAsk(ctx.db));
+  h('appIcons', (exes: string[]) => appIcons(ctx.db, Array.isArray(exes) ? exes.filter((x) => typeof x === 'string') : []));
   h('listRules', () => repo.listRules(ctx.db));
   h('saveRule', (r: { id?: string; matchType: Rule['matchType']; pattern: string; category: Rule['category'] }) => {
     repo.saveRule(ctx.db, r, ctx.clock.now());
