@@ -108,6 +108,8 @@ export interface SpyderApi {
   mergeRepeats(date: string): Promise<EditResult>;
   /** P86: splits a merged block back into the blocks its latest merge combined, as they were before it. */
   unmergeBlock(id: string): Promise<EditResult>;
+  /** P95: untracked time in [startMs, endMs) becomes one ended block with this answer and tag. */
+  fillUntracked(startMs: number, endMs: number, answer: string | null, tag: Tag): Promise<EditResult>;
   /** P66, P74: set the blocks' tag (Work, Break, Gym or Food); answers stay. */
   tagBlocks(ids: string[], tag: Tag): Promise<EditResult>;
   /** P75: rate work blocks 25, 50, 75 or 100% efficient, or clear the rating (null). */

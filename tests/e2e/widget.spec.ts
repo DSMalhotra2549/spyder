@@ -217,7 +217,7 @@ test('5. a loop started in off hours runs until Stop (P59)', async () => {
   await expect.poll(async () => (await host(s!)).engine.loop?.block.startedMs).toBe(t0 + 12 * 15 * MIN);
 });
 
-test('6. killed app → relaunch later → the loop stopped at the last heartbeat (P61)', async () => {
+test('6. killed app → relaunch later → the loop stopped at the last heartbeat; the gap is asked about (P61, P95)', async () => {
   const dataDir = freshDataDir();
   s = await launch({ dataDir });
   await startFromSidebar(s);
@@ -228,13 +228,23 @@ test('6. killed app → relaunch later → the loop stopped at the last heartbea
   execSync(`taskkill /F /T /PID ${s.app.process().pid}`, { stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 1500));
   s = await launch({ dataDir, now: '2026-11-24T11:40:00' });
-  await expect(s.prompt.getByTestId('prompt-account')).toContainText('What did you do 11:00–11:10?');
+  // The cut block, and the time Spyder was off as a break block (P95).
+  const p = s.prompt.getByTestId('prompt-account');
+  await expect(p).toContainText('What did you do in these 2 blocks?');
+  await expect(p).toContainText('11:00–11:10');
+  await expect(p).toContainText('Computer asleep or off');
   expect((await host(s)).engine.loop).toBeNull();
-  await s.prompt.getByLabel('Answer').fill('Setup');
+  await p.getByTestId('account-mode').locator('[data-value=each]').click();
+  const rows = s.prompt.getByTestId('account-row');
+  await rows.nth(0).getByLabel('Answer').fill('Setup');
+  await rows.nth(1).getByTestId('account-row-break').click();
   await s.prompt.getByTestId('account-save').click();
   // Then the start reminder: nothing restarts by itself.
   await expect(s.prompt.getByTestId('prompt-reminder')).toBeVisible();
-  expect(blocks(s)).toHaveLength(1);
+  expect(blocks(s).map((b) => [b.kind, b.name])).toEqual([
+    ['open', 'Setup'],
+    ['break', 'Break'],
+  ]);
 });
 
 test('7. position persists; hide and hotkey', async () => {

@@ -246,17 +246,45 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
       ) : (
         <ul className="flex flex-col gap-1">
           {log.map((e, i) => {
-            if (e.type !== 'session') return <QuietRow key={`${e.type}${e.startMs}`} e={e} />;
+            if (e.type === 'untracked' && editing === `untracked:${e.startMs}`) {
+              // P95: untracked time becomes a block with this answer (Save = work, Break = break), with Undo.
+              return (
+                <EditRow
+                  key={`fill${e.startMs}`}
+                  startMs={e.startMs}
+                  endMs={e.endMs}
+                  initial=""
+                  tag="work"
+                  testId="untracked-edit-row"
+                  submit={async (answer, tag) => {
+                    const r = await window.spyder.fillUntracked(e.startMs, e.endMs, answer, tag ?? 'work');
+                    if ('error' in r) return r.message;
+                    setEditing(null);
+                    await after(r);
+                    return null;
+                  }}
+                  onCancel={() => setEditing(null)}
+                />
+              );
+            }
+            if (e.type !== 'session') return <QuietRow key={`${e.type}${e.startMs}`} e={e} onFill={() => setEditing(`untracked:${e.startMs}`)} />;
             const next = log[i + 1];
             const joinedNext = next?.type === 'session' && joinedWithPrev.has(next.id);
             return editing === e.id ? (
               <EditRow
                 key={e.id}
-                x={e}
-                onDone={async (saved) => {
+                startMs={e.startMs}
+                endMs={e.endMs}
+                initial={ownAnswer(e) ?? ''}
+                tag={e.tag}
+                submit={async (answer, tag) => {
+                  const r = await window.spyder.answerBlocks([{ id: e.id, answer, tag }]);
+                  if ('error' in r) return r.message;
                   setEditing(null);
-                  if (saved) await reload();
+                  await reload();
+                  return null;
                 }}
+                onCancel={() => setEditing(null)}
               />
             ) : (
               <BlockRow
@@ -452,26 +480,43 @@ function BlockRow({
   );
 }
 
-/** Re-answer one block inline (P64, P66): Save keeps its tag, Break makes it a break. Enter saves, Escape cancels. */
-function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Promise<void> }) {
-  const [text, setText] = useState(ownAnswer(x) ?? '');
+/**
+ * Answer one stretch inline: re-answer a block (P64, P66; Save keeps its tag) or account for untracked time (P95; Save
+ * makes work). Break makes a break. Enter saves, Escape cancels. `submit` returns an error to show, or null when done.
+ */
+function EditRow({
+  startMs,
+  endMs,
+  initial,
+  tag: current,
+  testId = 'block-edit-row',
+  submit,
+  onCancel,
+}: {
+  startMs: number;
+  endMs: number | null;
+  initial: string;
+  tag: Tag;
+  testId?: string;
+  submit: (answer: string | null, tag?: Tag) => Promise<string | null>;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const save = async (tag?: Tag) => {
-    if ((tag ?? x.tag) === 'work' && !text.trim()) return setError('Say what you did, or pick Break');
-    const r = await window.spyder.answerBlocks([{ id: x.id, answer: text.trim() || null, tag }]);
-    if ('error' in r) return setError(r.message);
-    await onDone(true);
+    if ((tag ?? current) === 'work' && !text.trim()) return setError('Say what you did, or pick Break');
+    setError(await submit(text.trim() || null, tag));
   };
   return (
     <li
-      data-testid="block-edit-row"
+      data-testid={testId}
       className="flex flex-col gap-1 rounded-[10px] bg-surface-2 py-2 pr-2 pl-3"
       onKeyDown={(e) => {
-        if (e.key === 'Escape') void onDone(false);
+        if (e.key === 'Escape') onCancel();
       }}
     >
       <div className="flex items-center gap-2">
-        <span className="w-[92px] shrink-0 pl-7 text-[13px] text-muted tabular">{span(x.startMs, x.endMs)}</span>
+        <span className="w-[92px] shrink-0 pl-7 text-[13px] text-muted tabular">{span(startMs, endMs)}</span>
         <div className="min-w-0 flex-1">
           <AnswerInput value={text} onChange={setText} onEnter={() => void save()} autoFocus />
         </div>
@@ -481,7 +526,7 @@ function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Pr
         <Btn data-testid="edit-break" onClick={() => void save('break')}>
           Break
         </Btn>
-        <Btn variant="ghost" onClick={() => void onDone(false)}>
+        <Btn variant="ghost" onClick={onCancel}>
           Cancel
         </Btn>
       </div>
@@ -490,8 +535,8 @@ function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Pr
   );
 }
 
-/** Untracked spans: read-only lines in the log. */
-function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
+/** Away and untracked spans: quiet lines in the log. An untracked one can be accounted for (P95). */
+function QuietRow({ e, onFill }: { e: Exclude<LogEntry, { type: 'session' }>; onFill: () => void }) {
   return (
     <li data-testid={e.type === 'away' ? 'log-away' : 'log-untracked'} className={clsx(rowCls, 'bg-surface-2/20 text-muted')}>
       <span className="w-4 shrink-0" />
@@ -499,7 +544,15 @@ function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
       <span className="h-4 w-[3px] shrink-0 rounded-pill bg-faint/60" />
       <span className="min-w-0 flex-1 truncate text-faint">{e.type === 'away' ? 'Away' : 'Untracked'}</span>
       <span className="w-[64px] shrink-0 text-right tabular">{dur(e.sec)}</span>
-      <span className="w-[88px] shrink-0" />
+      <span className="flex w-[88px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+        {e.type === 'untracked' && (
+          <IconBtn label="Account for this time" testId="untracked-fill" onClick={onFill}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M10.5 2.5l3 3L6 13H3v-3z" />
+            </svg>
+          </IconBtn>
+        )}
+      </span>
     </li>
   );
 }

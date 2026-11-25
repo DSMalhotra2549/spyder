@@ -1,7 +1,7 @@
 // Engine host (ADR-0011): owns EngineState, ticks it with clock time, applies effects (DB, review, day
 // overrides), writes answers, and pushes view models to the bar, the dashboard and the prompt window.
 import { randomUUID } from 'node:crypto';
-import { inLoop, initialState, reduce, widgetView } from '../core/blockEngine';
+import { GAP_ANSWER, inLoop, initialState, reduce, widgetView } from '../core/blockEngine';
 import { categorize, type ActivityCategory, type ActivityKey, type Rule } from '../core/categorize';
 import { fmtClock } from '../core/format';
 import { initialNudge, nudgeMessage, stepNudge, type NudgeState } from '../core/nudge';
@@ -35,6 +35,8 @@ export class EngineHost {
   private distractTarget: string | null = null;
   /** Away intervals seen since launch: hints for accounting, never stored (P61). */
   private awayLog: { startMs: number; endMs: number }[] = [];
+  /** P95: blocks filled over time Spyder was asleep or off, asked about in the prompt until answered (not stored). */
+  private gaps = new Set<string>();
   /** Today's blocks waiting for an answer; recomputed when blocks or answers change. */
   private pending: PendingBlock[] = [];
   private asks: AskRow[] = [];
@@ -102,6 +104,11 @@ export class EngineHost {
       else if ('setDayOverride' in e) this.applyOverride(e.setDayOverride.date, e.setDayOverride.endMin, ctx);
       else if ('awayEnded' in e) this.awayLog.push(e.awayEnded);
       else if ('blockEnded' in e) this.productiveCache.atMs = Number.NaN;
+      else if ('db' in e && e.db === 'insertGapBlock') {
+        this.gaps.add(e.row.id);
+        this.productiveCache.atMs = Number.NaN;
+        refreshReview(this.app.db, dateKey(e.row.startMs), ctx.now, this.app.settings);
+      }
     }
     if (dbFx.length) this.pendingDirty = true;
     if (r.effects.length) this.saveHeartbeat();
@@ -165,6 +172,7 @@ export class EngineHost {
       clean.push({ id: a.id, answer: text, tag, ...(a.efficiency !== undefined && { efficiency: a.efficiency }) });
     }
     repo.writeAnswers(this.app.db, clean);
+    for (const a of clean) this.gaps.delete(a.id);
     const dates = new Set(
       clean.map((a) => dateKey(this.app.db.get<{ s: number }>('SELECT started_ms AS s FROM sessions WHERE id = ?', a.id)!.s)),
     );
@@ -230,13 +238,18 @@ export class EngineHost {
     const day = dateKey(now);
     if (this.pendingDirty || day !== this.pendingDay) {
       const from = startOfDay(now);
-      this.pending = repo.pendingBlocks(this.app.db, from, addDays(from, 1)).map((b) => ({
-        id: b.id,
-        startMs: b.start_ms,
-        endMs: b.end_ms,
-        awaySec: this.awaySecIn(b.start_ms, b.end_ms, now),
-        apps: repo.topApps(this.app.db, b.start_ms, b.end_ms),
-      }));
+      this.pending = repo.pendingBlocks(this.app.db, from, addDays(from, 1), [...this.gaps], GAP_ANSWER).map((b) => {
+        const gap = this.gaps.has(b.id);
+        return {
+          id: b.id,
+          startMs: b.start_ms,
+          endMs: b.end_ms,
+          // P95: a filled gap is all away; its hint says why instead.
+          awaySec: gap ? 0 : this.awaySecIn(b.start_ms, b.end_ms, now),
+          apps: gap ? [] : repo.topApps(this.app.db, b.start_ms, b.end_ms),
+          ...(gap && { gap: true }),
+        };
+      });
       // P70: what these blocks used that still wants the user's label.
       const span = this.pending.length ? [Math.min(...this.pending.map((b) => b.startMs)), Math.max(...this.pending.map((b) => b.endMs))] : null;
       this.asks = span ? listToAsk(this.app.db, span[0], span[1]) : [];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FRESH_HEARTBEAT_MS, inLoop, initialState } from './blockEngine';
+import { FRESH_HEARTBEAT_MS, GAP_ANSWER, inLoop, initialState } from './blockEngine';
 import { Sim, T } from './engine.testkit';
 import type { EngineState } from './types';
 
@@ -280,5 +280,73 @@ describe('Track from startup (P76)', () => {
     const b = booted();
     b.settings.barPercent = 'goal';
     expect(b.view().goalPct).toBe(true);
+  });
+});
+
+describe('time asleep or off becomes break blocks (P95)', () => {
+  function on(at: number) {
+    const s = new Sim();
+    s.settings.trackFromStartup = true;
+    s.send({ type: 'BOOT', heartbeat: null }, at);
+    return s;
+  }
+  const gaps = (s: Sim, effects = s.log) => s.db('insertGapBlock', effects).map(({ startMs, endMs, name }) => ({ startMs, endMs, name }));
+
+  it('a nap with the laptop asleep becomes one break block from the sleep to the wake, before the fresh loop', () => {
+    const s = on(T(11));
+    s.send({ type: 'AWAY_BEGIN', atMs: T(13, 2), reason: 'suspend' }, T(13, 2));
+    expect(gaps(s)).toEqual([]);
+    s.send({ type: 'AWAY_END' }, T(15, 4));
+    expect(gaps(s, s.fx)).toEqual([{ startMs: T(13, 2), endMs: T(15, 4), name: GAP_ANSWER }]);
+    expect(s.state.loop!.block.startedMs).toBe(T(15, 4));
+  });
+
+  it('only the work hours of a sleep are filled; the night stays untracked, and days off get nothing', () => {
+    const s = on(T(16));
+    s.send({ type: 'AWAY_BEGIN', atMs: T(16, 30), reason: 'suspend' }, T(16, 30));
+    s.send({ type: 'AWAY_END' }, T(11, 0, 0, 25));
+    expect(gaps(s)).toEqual([
+      { startMs: T(16, 30), endMs: T(17), name: GAP_ANSWER },
+      { startMs: T(10, 0, 0, 25), endMs: T(11, 0, 0, 25), name: GAP_ANSWER },
+    ]);
+
+    const w = on(T(16, 0, 0, 27)); // Friday afternoon to Saturday
+    w.send({ type: 'AWAY_BEGIN', atMs: T(17, 0, 0, 27), reason: 'suspend' }, T(17, 0, 0, 27));
+    w.send({ type: 'AWAY_END' }, T(12, 0, 0, 28));
+    expect(gaps(w)).toEqual([]);
+  });
+
+  it('a sleep under a minute is no block', () => {
+    const s = on(T(11));
+    s.send({ type: 'AWAY_BEGIN', atMs: T(11, 5), reason: 'suspend' }, T(11, 5));
+    s.send({ type: 'AWAY_END' }, T(11, 5, 50));
+    expect(gaps(s)).toEqual([]);
+  });
+
+  it('a sleep Spyder missed is filled from the last heartbeat', () => {
+    const s = on(T(10, 7));
+    for (let t = T(10, 7); t <= T(10, 10); t += 15_000) s.tick(t);
+    s.tick(T(13));
+    expect(gaps(s, s.fx)).toEqual([{ startMs: T(10, 10), endMs: T(13), name: GAP_ANSWER }]);
+  });
+
+  it('Spyder not running is filled too, with or without Track from startup', () => {
+    for (const trackFromStartup of [true, false]) {
+      const s = new Sim();
+      s.settings.trackFromStartup = trackFromStartup;
+      s.send({ type: 'BOOT', heartbeat: null }, T(10, 7));
+      if (!trackFromStartup) s.send({ type: 'START', lengthSec: 15 * MIN });
+      const r = new Sim();
+      r.settings.trackFromStartup = trackFromStartup;
+      r.send({ type: 'BOOT', heartbeat: { tsMs: T(10, 30), state: structuredClone(s.state) } }, T(12));
+      expect(gaps(r, r.fx)).toEqual([{ startMs: T(10, 30), endMs: T(12), name: GAP_ANSWER }]);
+    }
+  });
+
+  it('nothing is filled when the loop wasn’t running', () => {
+    const s = booted(T(10, 7));
+    const r = new Sim();
+    r.send({ type: 'BOOT', heartbeat: { tsMs: T(10, 30), state: structuredClone(s.state) } }, T(12));
+    expect(gaps(r, r.fx)).toEqual([]);
   });
 });

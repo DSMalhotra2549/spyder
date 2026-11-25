@@ -7,6 +7,19 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Time asleep or off is accounted for (P95)
+
+**What**
+- When the laptop sleeps or Spyder isn't running while the loop runs, the work hours of that gap become a **break** block reading "Computer asleep or off". The prompt asks about it on return, alongside the other ended blocks. If it's never answered it stays a break, so it never counts as work. The night (outside work hours) stays untracked.
+- Every **untracked** row in Today's block log gets a ✎. It opens the inline answer (Save = work, Break = break), and the span becomes one block, with Undo.
+
+**Why**
+The user wants every minute of the day accounted for. A 2-hour nap with the laptop asleep showed only as untracked, with no way to say what it was.
+
+**If you pull this**
+- New engine DB effect `insertGapBlock` and IPC method `fillUntracked(startMs, endMs, answer, tag)`. No migration and no new settings.
+- Waking after a sleep in work hours now adds a break block before the fresh loop, so specs that count blocks across a sleep or restart may see one more.
+
 ## 2026-11-25: Release 0.2.0
 
 **What**
