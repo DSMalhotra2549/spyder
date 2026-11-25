@@ -7,6 +7,19 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Visualizer page, today as a 24-hour star clock (P88)
+
+**What**
+- A **Visualizer** item in the sidebar's Day group, after Review, shows today as a 24-hour star clock (00 at the top, 12 at the bottom) on an always-dark night sky.
+- A slowly spinning ring of stars carries the bar: a comet at now, stars lit purple across the work hours passed. The bar's numbers sit in the middle.
+- Outward rings: the block track, then the app track (Today's timeline colours), with distraction flags, a now hand and hour labels; an inner ring fills toward the daily goal. Hover shows the timeline's details. View only, today only; stars hold still under reduced motion.
+
+**Why**
+The user wanted a clock view of the day as its own page, so nothing else in the app changes.
+
+**If you pull this**
+- New e2e spec `tests/e2e/visualizer.spec.ts` and screenshot `__shots__/visualizer.png`. Nav id `visualizer`, route `#/dashboard/visualizer`.
+
 ## 2026-11-25: Arc look, glass dashboard and prompt, soft shapes (P87)
 
 **What**
