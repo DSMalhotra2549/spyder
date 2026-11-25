@@ -21,7 +21,7 @@ export function navigate(path: string): void {
 export function Router() {
   const [root, ...rest] = useRoute();
   useEffect(() => {
-    document.body.className = root === 'dashboard' ? 'dashboard' : 'transparent';
+    document.body.className = root === 'dashboard' || root === 'prompt' ? root : 'transparent';
   }, [root]);
   if (root === 'widget') return <Widget />;
   if (root === 'prompt') return <PromptWindow />;

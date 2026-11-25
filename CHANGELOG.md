@@ -7,6 +7,19 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-25: Prompt glass like the dashboard (P92)
+
+**What**
+- The prompt (Block ended, start reminder) now looks like the dashboard: a smoke-tinted glass frame with a solid rounded card inside, so its text is crisp whether or not the window is focused.
+- The grey bar at the bottom of the prompt is gone.
+- Settings → Glass tint now tints the prompt's frame too.
+
+**Why**
+The prompt looked faded and out of place next to the glass dashboard, with a stray grey bar at the bottom.
+
+**If you pull this**
+- The prompt's `<body>` has class `prompt` (was `transparent`); the `.glass-prompt` frosting rules are gone. New e2e screenshot `prompt-glass-tint.png` (theme spec).
+
 ## 2026-11-25: Spider web icon (P91)
 
 **What**

@@ -13,7 +13,7 @@ The bar follows Rize's desktop widget (P23, P43). The dashboard is Linear/Vercel
 | Token | Dark | Light | Use |
 |---|---|---|---|
 | `--color-bg` | `#0E0E10` | `#FFFFFF` | dashboard content background |
-| `--color-sidebar` | `#09090B` | `#F7F7F8` | dashboard glass tint (at 55 % by default, P89; Settings → Glass tint, P90) |
+| `--color-sidebar` | `#09090B` | `#F7F7F8` | dashboard and prompt glass tint (at 55 % by default, P89; Settings → Glass tint, P90; prompt P92) |
 | `--color-surface` | `#141417` | `#FFFFFF` | cards, tables, bar, prompt window |
 | `--color-surface-2` | `#1C1C20` | `#F3F3F5` | hover, selected nav, segmented control, timeline track |
 | `--color-border` | `#232328` | `#E8E8EC` | hairline borders, row dividers |
@@ -76,7 +76,7 @@ Modelled on the real Rize widget (described in `design/reference/INDEX.md`): a f
 
 ## 3. Prompt window (`#/prompt`)
 
-420 px wide, height = content (main resizes to the content's height). Acrylic glass window (P87): Windows draws the rounded corners and shadow; the card fills it with `surface` at 70 %, 20 px padding; the input, secondary buttons and efficiency group are frosted. Styled like the reference popover card (`rize-autotag-example.png` in `design/reference/INDEX.md`). It pops on top when it appears and again whenever another block ends (P60); it never closes on Esc.
+420 px wide, height = content (main resizes to the content's height). Acrylic glass window (P87): Windows draws the rounded corners and shadow. Like the dashboard (P92): the whole window is the smoke-tinted glass frame (`sidebar` at the Glass tint, P89/P90), and inside it, 8 px in, sits the content card (12 px radius, 97 % solid `bg`, the dashboard content card's shadow, 20 px padding) with plain controls. Styled like the reference popover card (`rize-autotag-example.png` in `design/reference/INDEX.md`). It pops on top when it appears and again whenever another block ends (P60); it never closes on Esc.
 
 ### Accounting (P60)
 ```

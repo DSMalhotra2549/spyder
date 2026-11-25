@@ -4,15 +4,26 @@ import type { AccountBlockVM, AccountVM, ReminderVM } from '../../core/promptVie
 import type { Efficiency, EngineError, Tag } from '../../core/types';
 import type { BlockAnswer, Ok, PromptWindowState } from '../../preload/api';
 import { fmtHM } from '../../core/format';
-import { CategoryButtons, Segmented } from '../dashboard/parts';
+import { applyGlassTint, CategoryButtons, Segmented } from '../dashboard/parts';
 import { AnswerInput, Btn, EfficiencyPicker } from '../ui/controls';
 
 export function PromptWindow() {
   const [st, setSt] = useState<PromptWindowState>(null);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    void window.spyder.getPrompt().then(setSt);
-    return window.spyder.onPrompt(setSt);
+    // The glass frame follows Settings → Glass tint (P92). This window lives on hidden, so re-read it with each prompt and on focus.
+    const tint = () => void window.spyder.getSettings().then(applyGlassTint);
+    const show = (p: PromptWindowState) => {
+      setSt(p);
+      tint();
+    };
+    window.addEventListener('focus', tint);
+    void window.spyder.getPrompt().then(show);
+    const off = window.spyder.onPrompt(show);
+    return () => {
+      off();
+      window.removeEventListener('focus', tint);
+    };
   }, []);
   // The window's height follows the content.
   useLayoutEffect(() => {
@@ -23,7 +34,7 @@ export function PromptWindow() {
     return () => ro.disconnect();
   }, []);
   return (
-    <div ref={root} className="glass-prompt">
+    <div ref={root} className="p-2">
       {st?.view === 'account' && <AccountCard key={st.blocks.map((b) => b.id).join()} p={st} />}
       {st?.view === 'reminder' && <ReminderCard p={st} />}
     </div>
@@ -34,7 +45,7 @@ function Card({ color, heading, right, testId, children }: { color: string; head
   return (
     <div
       data-testid={testId}
-      className="flex flex-col gap-3 bg-surface/70 px-5 pt-4 pb-5"
+      className="flex flex-col gap-3 overflow-hidden rounded-[12px] bg-bg/97 px-5 pt-4 pb-5 shadow-[0_8px_30px_rgba(0,0,0,0.3),0_0_0_1px_var(--color-border)]"
       style={{ borderTop: `2px solid ${color}` }}
     >
       <div className="drag flex items-center gap-2">

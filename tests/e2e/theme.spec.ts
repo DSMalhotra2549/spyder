@@ -74,3 +74,18 @@ test('theme switches live and covers every page and the bar', async () => {
     await s.close();
   }
 });
+
+test("the prompt's glass frame takes the Glass tint, around a solid content card (P92)", async () => {
+  const s = await launch();
+  try {
+    await s.dashboard.evaluate(() => window.spyder.setSettings({ theme: 'dark', glassTint: 80 }));
+    await s.dashboard.evaluate(() => window.spyder.start(900));
+    await s.debug.advance(900);
+    await expect(s.prompt.getByTestId('prompt-account')).toBeVisible();
+    await expect.poll(() => bg(s.prompt, 'body')).toBe('color(srgb 0.0352941 0.0352941 0.0431373 / 0.8)');
+    expect(await bg(s.prompt, '[data-testid=prompt-account]')).toMatch(/ \/ 0\.97\)$/);
+    await shot(s.prompt, 'prompt-glass-tint');
+  } finally {
+    await s.close();
+  }
+});
