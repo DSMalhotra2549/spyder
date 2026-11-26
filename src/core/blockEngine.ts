@@ -2,7 +2,7 @@
 // length; each block runs for that length and the next one starts the moment it ends. Answers are
 // written by the host straight to the DB (they don't change the loop), so the engine only runs blocks,
 // the start reminder, the end of work hours and away hints.
-import { dateKey, inWork, minutesOfDay, startOfDay, workdayPct } from './schedule';
+import { addDays, dateKey, inWork, minutesOfDay, startOfDay, workdayPct } from './schedule';
 import type { Ctx, Effect, EngineError, EngineEvent, EngineState, Loop, ReduceResult, RunningBlock } from './types';
 
 export const HEARTBEAT_EVERY_MS = 15_000;
@@ -10,6 +10,10 @@ export const HEARTBEAT_EVERY_MS = 15_000;
 export const FRESH_HEARTBEAT_MS = 60_000;
 export const MIN_BLOCK_SEC = 300;
 export const MAX_BLOCK_SEC = 10_800;
+/** P95: the answer a block over time Spyder was asleep or off starts with. */
+export const GAP_ANSWER = 'Computer asleep or off';
+/** P95: shorter stretches of a gap aren't worth a block. */
+export const GAP_MIN_MS = 60_000;
 
 export function initialState(): EngineState {
   return {
@@ -119,7 +123,10 @@ function apply(r: Run, ev: EngineEvent): void {
       if (!a) return;
       r.st.away = null;
       r.emit({ awayEnded: { startMs: a.startMs, endMs: r.now } });
-      if (a.reason === 'suspend' && fromStartup(r)) autoStart(r, a.startMs);
+      if (a.reason === 'suspend' && fromStartup(r)) {
+        fillGap(r, a.startMs, r.now);
+        autoStart(r, a.startMs);
+      }
       return;
     }
   }
@@ -137,6 +144,7 @@ function boot(r: Run, hb: { tsMs: number; state: EngineState } | null): void {
       // Blocks that had already ended before Spyder stopped are still theirs; the rest is untracked.
       rollTo(r, loop, hb.tsMs);
       r.closeBlock(loop.block, hb.tsMs);
+      fillGap(r, hb.tsMs, r.now);
       r.st.loop = null;
       r.st.lastReminderMs = null;
     }
@@ -168,6 +176,21 @@ function sleep(r: Run, at: number): void {
   r.heartbeat();
 }
 
+/**
+ * P95: the work hours between `from` and `to` (Spyder asleep or off while the loop ran) become break blocks, one per
+ * day, which the prompt asks about on return. Time outside work hours stays untracked.
+ */
+function fillGap(r: Run, from: number, to: number): void {
+  for (let day = startOfDay(from); day < to; day = addDays(day, 1)) {
+    const w = r.ctx.window(day);
+    if (!w) continue;
+    const startMs = Math.max(from, w.startMs);
+    const endMs = Math.min(to, w.endMs);
+    if (endMs - startMs < GAP_MIN_MS) continue;
+    r.emit({ db: 'insertGapBlock', row: { id: r.ctx.newId(), segmentId: r.ctx.newId(), startMs, endMs, name: GAP_ANSWER, createdMs: r.now } });
+  }
+}
+
 /** Ends every block whose time is up by `limit`, starting the next at each boundary. */
 function rollTo(r: Run, loop: Loop, limit: number): void {
   for (;;) {
@@ -191,6 +214,7 @@ function tick(r: Run): void {
     if (last !== null && now - last > FRESH_HEARTBEAT_MS) {
       // P76: a sleep Spyder wasn't told about (no heartbeat for a minute) ends the loop like one it was.
       endLoop(r, loop, last);
+      fillGap(r, last, now);
       autoStart(r, last);
     } else if (loop.block.startedMs < startOfDay(now)) {
       // P76: each day stands on its own: the block running at midnight is cut there.

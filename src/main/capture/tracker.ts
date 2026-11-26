@@ -4,6 +4,7 @@ import { isIgnoredExe } from '../../core/defaults';
 import { flushMerge, initialMerge, mergeSample, type ActivityRow, type ActivitySampleRow, type MergeState } from '../../core/merge';
 import { resolveDomain, type OmniboxMemo } from '../../core/url';
 import type { AppCtx } from '../context';
+import { rememberAppPath } from '../appIcons';
 import { insertActivity } from '../db/repo';
 import type { EngineHost } from '../engineHost';
 import type { IdleSource } from '../idle';
@@ -90,6 +91,7 @@ export class Tracker {
     const fg = await this.fg.sample();
     if (!fg) return null;
     if (isIgnoredExe(fg.exe)) return { exe: fg.exe, appName: fg.appName, title: null, domain: null, browser: null, isPrivate: false };
+    rememberAppPath(this.app.db, fg.exe, fg.path);
     const browser = BROWSERS[fg.exe] ?? null;
     const base = { exe: fg.exe, appName: fg.appName, title: fg.title || null, domain: null, browser, isPrivate: false };
     if (browser === 'firefox') return { ...base, ...this.firefox.parse(fg.title) };

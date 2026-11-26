@@ -8,7 +8,7 @@ import { dayVM, rangeVM } from '../../src/main/report';
 import { loadSettings } from '../../src/main/settings';
 import { weekDates } from '../../src/core/trends';
 import { rangeTexts, statTexts } from '../../src/renderer/dashboard/stats';
-import { freshDataDir, launch, shot, type Launched } from './helpers';
+import { freshDataDir, launch, openRuns, shot, type Launched } from './helpers';
 
 const DATE = '2026-11-24';
 
@@ -69,6 +69,7 @@ test('rate in the prompt, change on Today with Undo, merge keeps the mean, total
   const d = s.dashboard;
   await d.evaluate(() => window.spyder.openDashboard('today'));
   await d.getByTestId('block-log').waitFor();
+  await openRuns(d);
   const nowMs = (await s.debug.state()).now as number;
   const check = async () => {
     const vm = withDb(dir, (db) => dayVM(db, DATE, nowMs, loadSettings(db)));

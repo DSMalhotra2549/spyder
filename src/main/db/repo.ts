@@ -66,7 +66,24 @@ function applyOne(db: Db, e: DbEffect): void {
       db.run('DELETE FROM segments WHERE session_id = ?', e.id);
       db.run('DELETE FROM sessions WHERE id = ?', e.id);
       return;
+    case 'insertGapBlock':
+      insertEndedBlock(db, { ...e.row, tag: 'break' });
+      return;
   }
+}
+
+/** An ended block with one segment over [startMs, endMs): a filled gap (P95). A break's name is never NULL. */
+export function insertEndedBlock(
+  db: Db,
+  b: { id: string; segmentId: string; startMs: number; endMs: number; tag: Tag; name: string | null; createdMs: number },
+): void {
+  db.run(
+    `INSERT INTO sessions (id, kind, tag, name, status, started_ms, ended_ms, elapsed_sec, end_reason, created_ms)
+     VALUES (?, ?, ?, ?, 'done', ?, ?, ?, 'done', ?)`,
+    b.id, b.tag === 'work' ? 'open' : 'break', b.tag === 'gym' || b.tag === 'food' ? b.tag : null,
+    b.tag === 'work' ? b.name : (b.name ?? BREAK_NAME), b.startMs, b.endMs, Math.round((b.endMs - b.startMs) / 1000), b.createdMs,
+  );
+  db.run(`INSERT INTO segments (id, session_id, start_ms, end_ms, source) VALUES (?, ?, ?, ?, 'live')`, b.segmentId, b.id, b.startMs, b.endMs);
 }
 
 // ---- heartbeat ---------------------------------------------------------------
@@ -132,12 +149,20 @@ export function upsertOverride(db: Db, o: DayOverride): void {
 // ---- sessions & projects -------------------------------------------------------
 // ---- blocks (ADR-0011: a block is a session row of kind 'open' or 'break') ---------
 /** Ended blocks in [fromMs, toMs) not accounted for yet, oldest first (P60). */
-export function pendingBlocks(db: Db, fromMs: number, toMs: number): { id: string; start_ms: number; end_ms: number }[] {
+/** Ended work blocks without an answer, plus the filled gaps in `gapIds` still reading `gapName` (P95). */
+export function pendingBlocks(
+  db: Db,
+  fromMs: number,
+  toMs: number,
+  gapIds: string[] = [],
+  gapName = '',
+): { id: string; start_ms: number; end_ms: number }[] {
   return db.all(
     `SELECT id, started_ms AS start_ms, ended_ms AS end_ms FROM sessions
-      WHERE kind = 'open' AND name IS NULL AND status = 'done' AND deleted_ms IS NULL AND ended_ms IS NOT NULL
+      WHERE ((kind = 'open' AND name IS NULL) OR (id IN (${gapIds.map(() => '?').join(',')}) AND name = ?))
+        AND status = 'done' AND deleted_ms IS NULL AND ended_ms IS NOT NULL
         AND started_ms >= ? AND started_ms < ? ORDER BY started_ms`,
-    fromMs, toMs,
+    ...gapIds, gapName, fromMs, toMs,
   );
 }
 

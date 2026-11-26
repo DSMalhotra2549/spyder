@@ -5,7 +5,7 @@ import type { DaySummary } from '../../core/aggregate';
 import { fmtDuration, fmtTime } from '../../core/format';
 import type { Kpi, ReviewItem } from '../../core/review';
 import type { Tag } from '../../core/types';
-import { AnswerInput, Btn, inputCls } from '../ui/controls';
+import { AnswerInput, Btn, inputCls, WrapInput } from '../ui/controls';
 import { Timeline } from './Timeline';
 import { TimeSplit } from './TimeSplit';
 import { Card, TopBar, useLoader } from './parts';
@@ -33,24 +33,23 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
         onDate={onDate}
         actions={
           <>
-            {vm.completedMs !== null && (
+            {/* P96: once complete, the chip replaces the button; there's no "Update review". */}
+            {vm.completedMs !== null ? (
               <span data-testid="reviewed-chip" className="flex h-7 items-center gap-1.5 rounded-control bg-green/12 px-2.5 text-[12px] font-medium text-green">
                 ✓ Reviewed at {fmtTime(vm.completedMs)}
               </span>
+            ) : (
+              <span title={blocked ? `Account for ${vm.leftoverCount} leftover item${vm.leftoverCount > 1 ? 's' : ''} first` : undefined}>
+                <Btn variant="primary" data-testid="complete-review" disabled={blocked} onClick={() => void complete()}>
+                  Complete review
+                </Btn>
+              </span>
             )}
-            <span title={blocked ? `Account for ${vm.leftoverCount} leftover item${vm.leftoverCount > 1 ? 's' : ''} first` : undefined}>
-              <Btn variant="primary" data-testid="complete-review" disabled={blocked} onClick={() => void complete()}>
-                {vm.completedMs !== null ? 'Update review' : 'Complete review'}
-              </Btn>
-            </span>
           </>
         }
       />
       <div className="grid flex-1 grid-cols-12 gap-4 overflow-y-auto p-6" data-testid="review">
         <div className="col-span-7 flex min-w-0 flex-col gap-4">
-          <Card title="Leftover" right={vm.leftoverCount ? `${vm.leftoverCount} to account for` : undefined}>
-            <Leftovers s={vm.summary} onChanged={refresh} />
-          </Card>
           <Card title="Day summary">
             <MiniStats s={vm.summary} />
             <div className="mt-4 border-t border-border pt-4">
@@ -60,14 +59,17 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
               <Timeline s={vm.summary} nowMs={-1} compact />
             </div>
           </Card>
+          <Card title="Leftover" right={vm.leftoverCount ? `${vm.leftoverCount} to account for` : undefined}>
+            <Leftovers s={vm.summary} onChanged={refresh} />
+          </Card>
         </div>
         <div className="col-span-5 flex min-w-0 flex-col gap-4">
           <Card title="Today's wins">
-            <Bullets key={`w${vm.date}`} date={vm.date} kind="win" items={vm.items.filter((i) => i.kind === 'win')} placeholder="Something that went well" />
+            <Bullets key={`w${vm.date}:${vm.reflectedMs}`} date={vm.date} kind="win" items={vm.items.filter((i) => i.kind === 'win')} placeholder="Something that went well" />
           </Card>
           <Card title="How I'll improve">
             <Bullets
-              key={`i${vm.date}`}
+              key={`i${vm.date}:${vm.reflectedMs}`}
               date={vm.date}
               kind="improve"
               items={vm.items.filter((i) => i.kind === 'improve')}
@@ -81,9 +83,9 @@ export function Review({ date, onDate, onChanged }: { date?: string; onDate: (d:
   );
 }
 
+/** P97: Productive against the goal is the headline, red under it and green at or over it (plain on a day off); the other five sit below. */
 function MiniStats({ s }: { s: DaySummary }) {
   const items: [string, string, string?][] = [
-    ['Productive', dur(s.productiveSec)],
     ['Work', dur(s.workSec)],
     ['Day score', pct(s.score)],
     // P75: the user's own rating, with the effective time under it.
@@ -91,18 +93,27 @@ function MiniStats({ s }: { s: DaySummary }) {
     ['Break', dur(s.breakSec)],
     ['Distracting', dur(s.distractingSec)],
   ];
+  const tone = s.window === null ? undefined : s.goalMet ? 'text-green' : 'text-red';
   return (
-    <div className="grid grid-cols-3 gap-x-3 gap-y-4">
-      {items.map(([k, v, sub]) => (
-        <div key={k} className="min-w-0">
-          <div className="section-label mb-1">{k}</div>
-          <div data-testid={k === 'Efficiency' ? 'review-efficiency' : undefined} className="text-[17px] font-semibold tabular">
-            {v}
-          </div>
-          {sub && <div className="mt-0.5 truncate text-[11px] text-muted tabular">{sub}</div>}
+    <>
+      <div className="mb-5">
+        <div className="section-label mb-1">Productive</div>
+        <div data-testid="review-productive" className={clsx('text-[32px] leading-tight font-bold tabular', tone)}>
+          {dur(s.productiveSec)}/{dur(s.goalSec)}
         </div>
-      ))}
-    </div>
+      </div>
+      <div className="grid grid-cols-5 gap-x-3">
+        {items.map(([k, v, sub]) => (
+          <div key={k} className="min-w-0">
+            <div className="section-label mb-1 truncate">{k}</div>
+            <div data-testid={k === 'Efficiency' ? 'review-efficiency' : undefined} className="text-[15px] font-semibold tabular">
+              {v}
+            </div>
+            {sub && <div className="mt-0.5 truncate text-[11px] text-muted tabular">{sub}</div>}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -182,7 +193,7 @@ function Bullets({ date, kind, items, placeholder }: { date: string; kind: Revie
   const [rows, setRows] = useState<Row[]>(() => initial.map(({ key, item }) => ({ key, text: item.text })));
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [drag, setDrag] = useState<number | null>(null);
-  const refs = useRef(new Map<string, HTMLInputElement>());
+  const refs = useRef(new Map<string, HTMLTextAreaElement>());
   // Saved state per row key. Refs, not state: Enter and the blur that follows both save, and the
   // second save must see the id the first one got.
   const ids = useRef(new Map(initial.map(({ key, item }) => [key, item.id])));
@@ -256,7 +267,8 @@ function Bullets({ date, kind, items, placeholder }: { date: string; kind: Revie
       {rows.map((r, i) => (
         <div
           key={r.key}
-          className={clsx('group flex h-9 items-center gap-1.5', drag === i && 'opacity-40')}
+          // P101: a long entry wraps onto more lines instead of being cut off.
+          className={clsx('group flex min-h-9 items-start gap-1.5 py-0.5', drag === i && 'opacity-40')}
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => drop(i)}
         >
@@ -265,34 +277,35 @@ function Bullets({ date, kind, items, placeholder }: { date: string; kind: Revie
             onDragStart={() => setDrag(i)}
             onDragEnd={() => setDrag(null)}
             title="Drag to reorder"
-            className="cursor-grab px-1 text-[13px] text-faint select-none hover:text-muted"
+            className="cursor-grab px-1 pt-[7px] text-[13px] leading-[18px] text-faint select-none hover:text-muted"
           >
             ⋮⋮
           </span>
-          <input
-            ref={(el) => {
+          <WrapInput
+            inputRef={(el) => {
               if (el) refs.current.set(r.key, el);
               else refs.current.delete(r.key);
             }}
             data-testid="bullet-input"
             value={r.text}
             placeholder={placeholder}
-            onChange={(e) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, text: e.target.value } : x)))}
+            onChange={(t) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, text: t } : x)))}
             // Empty rows stay until deleted: removing one on blur would shift the layout under the click
             // that caused the blur. Unsaved empty rows are gone on the next load.
             onBlur={() => void persist(r.key, r.text)}
             onKeyDown={(e) => {
+              if (e.key === 'Enter') e.preventDefault();
               if (e.key === 'Enter' && r.text.trim()) {
                 void persist(r.key, r.text);
                 addAfter(i);
               }
             }}
-            className="h-8 min-w-0 flex-1 rounded-control border border-transparent bg-transparent px-2 text-[13px] text-text outline-none placeholder:text-faint hover:border-border focus:border-accent focus:bg-surface-2"
+            className="min-h-8 min-w-0 flex-1 rounded-control border border-transparent bg-transparent px-2 py-[6px] text-[13px] text-text outline-none placeholder:text-faint hover:border-border focus:border-accent focus:bg-surface-2"
           />
           <button
             aria-label="Delete"
             onClick={() => remove(r.key)}
-            className="h-6 w-6 rounded-chip text-[14px] text-faint opacity-0 group-hover:opacity-100 hover:bg-surface-2 hover:text-text"
+            className="mt-1 h-6 w-6 shrink-0 rounded-chip text-[14px] text-faint opacity-0 group-hover:opacity-100 hover:bg-surface-2 hover:text-text"
           >
             ×
           </button>

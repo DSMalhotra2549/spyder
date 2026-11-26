@@ -12,6 +12,8 @@ import { Settings } from './Settings';
 import { Today } from './Today';
 import { Visualizer } from './Visualizer';
 import { Week } from './Week';
+// P94: the sidebar mark is the app icon (P91), one source file.
+import appIcon from '../../../resources/icon.png';
 import { applyGlassTint, applyTagColors, TopBar, useLoader } from './parts';
 import { Toast } from './toast';
 
@@ -64,7 +66,7 @@ export function Dashboard({ page, date }: { page: string; date?: string }) {
           <div aria-hidden className="glass-pill nav-pill pointer-events-none absolute inset-x-2.5 h-9 rounded-[9px]" style={{ top: pillTop }} />
         )}
         <div className="mb-5 flex h-8 items-center gap-2 px-2">
-          <div className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-accent text-[11px] font-bold text-on-accent">S</div>
+          <img src={appIcon} alt="" className="h-5 w-5 shrink-0" draggable={false} data-testid="sidebar-mark" />
           <span className="text-[14px] font-semibold tracking-[-0.01em]">Spyder</span>
         </div>
         {GROUPS.map((g) => (

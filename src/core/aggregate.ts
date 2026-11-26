@@ -77,6 +77,8 @@ export interface AppRow {
   sec: number;
   pct: number;
   category: ActivityCategory;
+  /** P102: the program it ran in (a site's browser), for its icon. */
+  exe: string;
   /** The rule a category change creates; null when the row can't be ruled (private browsing). */
   ruleTarget: { matchType: MatchType; pattern: string } | null;
 }
@@ -254,7 +256,7 @@ export function daySummary(
   // Apps & sites in scope.
   const scope: DaySummary['scope'] = settings.appPercentScope === 'work_hours' && win ? 'work_hours' : 'all_day';
   const [s0, s1] = scope === 'work_hours' && win ? [win.startMs, win.endMs] : [d0, d1];
-  const groups = new Map<string, { ms: number; byCat: Map<ActivityCategory, number>; target: AppRow['ruleTarget'] }>();
+  const groups = new Map<string, { ms: number; byCat: Map<ActivityCategory, number>; target: AppRow['ruleTarget']; exe: string }>();
   const categoryMs: Record<ActivityCategory, number> = { productive: 0, neutral: 0, distracting: 0, uncategorized: 0 };
   let offHoursMs = 0;
   for (const x of acts) {
@@ -263,7 +265,7 @@ export function daySummary(
     if (ms <= 0) continue;
     const key = appKey(x.a);
     let g = groups.get(key);
-    if (!g) groups.set(key, (g = { ms: 0, byCat: new Map(), target: ruleTarget(x.a) }));
+    if (!g) groups.set(key, (g = { ms: 0, byCat: new Map(), target: ruleTarget(x.a), exe: x.a.exe }));
     g.ms += ms;
     g.byCat.set(x.cat, (g.byCat.get(x.cat) ?? 0) + ms);
     categoryMs[x.cat] += ms;
@@ -276,6 +278,7 @@ export function daySummary(
       pct: totalMs > 0 ? (g.ms / totalMs) * 100 : 0,
       // A group can mix categories (title rules); show the one with the most time.
       category: [...g.byCat.entries()].sort((a, b) => b[1] - a[1])[0][0],
+      exe: g.exe,
       ruleTarget: g.target,
     }))
     .sort((a, b) => b.sec - a.sec || a.key.localeCompare(b.key));

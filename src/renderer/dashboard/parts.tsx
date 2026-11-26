@@ -212,12 +212,29 @@ export function StatStrip({ cols, children }: { cols: 4 | 5; children: ReactNode
   );
 }
 
+/** P102: 14 px line icons for the stat tiles, drawn like the sidebar's. */
+const STAT_ICONS = {
+  target: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM12 11.5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1z',
+  briefcase: 'M3.5 8a1 1 0 0 1 1-1h15a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1zM8.5 7V5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v2M3.5 13h17',
+  gauge: 'M4.6 18.5a9 9 0 1 1 14.8 0M12 14l3.5-4.5',
+  flame: 'M12 21c3.9 0 7-2.8 7-6.6 0-3.8-2.8-6.2-4.2-9.4-.5 2.3-1.8 3.7-3 4.5-.5-2.6-1.9-4.9-4.2-6.5.4 3.3-2.6 6-2.6 10.4 0 4.8 3.1 7.6 7 7.6z',
+  star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+  check: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 12.2l2.7 2.7L16 9.5',
+} as const;
+
+export const statIcon = (name: keyof typeof STAT_ICONS, testId: string, className?: string) => (
+  <svg data-testid={testId} width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={clsx('shrink-0', className)} aria-hidden>
+    <path d={STAT_ICONS[name]} />
+  </svg>
+);
+
 export function StatCell({
   label,
   id,
   value,
   sub,
   tone,
+  icon,
   children,
 }: {
   label: string;
@@ -225,11 +242,16 @@ export function StatCell({
   value: string;
   sub: string;
   tone?: 'green';
+  /** P102: a small icon before the label, so a tile is found without reading it. */
+  icon?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <div className="tile-lift min-w-0 rounded-[14px] bg-surface-2/50 px-5 py-4">
-      <div className="section-label mb-1.5">{label}</div>
+      <div className="section-label mb-1.5 flex items-center gap-1.5">
+        {icon}
+        {label}
+      </div>
       <div data-testid={id} className={clsx('text-[26px] leading-tight font-bold tracking-[-0.02em] tabular', tone === 'green' && 'text-green')}>
         {value}
       </div>

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { createClock, parseLocalIso } from '../core/clock';
 import { cleanSettings } from '../core/settings';
 import { Tracker } from './capture/tracker';
+import { rememberAppPath } from './appIcons';
 import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
 import { Db } from './db/db';
@@ -19,7 +20,7 @@ import { isAppUrl } from './paths';
 import { loadSettings } from './settings';
 import { applyTheme } from './theme';
 import { createTray } from './tray';
-import { createDashboard, createPrompt, createWidget, showWidget } from './windows';
+import { createDashboard, createPrompt, createWidget, QUIET, showWidget } from './windows';
 
 // Must happen before whenReady (plan §3).
 app.setName('Spyder');
@@ -74,6 +75,13 @@ async function boot(): Promise<void> {
     hotkeyOk: false,
   };
 
+  if (QUIET) {
+    app.on('browser-window-created', (_e, w) => {
+      w.setOpacity(0);
+      w.setIgnoreMouseEvents(true);
+      w.setSkipTaskbar(true);
+    });
+  }
   app.on('second-instance', () => showWidget(ctx));
   app.on('before-quit', () => {
     ctx.quitting = true;
@@ -122,6 +130,7 @@ async function boot(): Promise<void> {
     host.saveHeartbeat();
   });
   addDebugHook('killProbe', () => t.fg.kill());
+  addDebugHook('rememberAppPath', (exe: string, path: string) => rememberAppPath(ctx.db, exe, path));
   if (!registerHotkey(ctx)) console.warn(`[spyder] hotkey ${ctx.settings.hotkey} is taken`);
   if (!Notification.isSupported()) console.warn('[spyder] notifications not supported');
 }

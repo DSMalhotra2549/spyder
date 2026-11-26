@@ -36,6 +36,8 @@ test('theme switches live and covers every page and the bar', async () => {
     await expect.poll(() => bg(s.widget, '[data-testid=pill]')).toBe('rgb(255, 255, 255)');
     expect(s.db().prepare("SELECT value FROM settings WHERE key = 'theme'").get()).toEqual({ value: '"light"' });
 
+    // The sidebar mark is the app icon, and it loads (P94).
+    await expect.poll(() => d.getByTestId('sidebar-mark').evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     const pages = ['today', 'review', 'week', 'month', 'rules', 'settings'];
     for (const p of pages) {
       await d.evaluate((r) => window.spyder.openDashboard(r), p);
@@ -70,6 +72,62 @@ test('theme switches live and covers every page and the bar', async () => {
     await d.evaluate(() => window.spyder.openDashboard('settings'));
     await theme.locator('[data-value=system]').click();
     await expect.poll(async () => ((await s.debug.state()).theme as { source: string }).source).toBe('system');
+  } finally {
+    await s.close();
+  }
+});
+
+test("the prompt's glass frame takes the Glass tint, around a solid content card (P92)", async () => {
+  const s = await launch();
+  try {
+    await s.dashboard.evaluate(() => window.spyder.setSettings({ theme: 'dark', glassTint: 80 }));
+    await s.dashboard.evaluate(() => window.spyder.start(900));
+    await s.debug.advance(900);
+    await expect(s.prompt.getByTestId('prompt-account')).toBeVisible();
+    await expect.poll(() => bg(s.prompt, 'body')).toBe('color(srgb 0.0352941 0.0352941 0.0431373 / 0.8)');
+    expect(await bg(s.prompt, '[data-testid=prompt-account]')).toMatch(/ \/ 0\.97\)$/);
+    await shot(s.prompt, 'prompt-glass-tint');
+  } finally {
+    await s.close();
+  }
+});
+
+// The computed value of a colour token in a window.
+const token = (p: Page, name: string) =>
+  p.evaluate((n) => {
+    const probe = document.body.appendChild(document.createElement('div'));
+    probe.style.color = `var(${n})`;
+    const c = getComputedStyle(probe).color;
+    probe.remove();
+    return c;
+  }, name);
+
+test('the accent colour picked in Settings reaches every window, and Reset brings back Spyder purple (P93)', async () => {
+  const s = await launch();
+  try {
+    const d = s.dashboard;
+    await d.evaluate(() => window.spyder.setSettings({ theme: 'dark' }));
+    await d.evaluate(() => window.spyder.openDashboard('settings'));
+    const pick = d.getByTestId('set-accentColor');
+    await expect(pick).toHaveValue('#7b61ff');
+    await expect(d.getByTestId('reset-accentColor')).toHaveCount(0);
+
+    await pick.fill('#e11d48');
+    for (const w of [d, s.widget, s.prompt]) await expect.poll(() => token(w, '--color-accent')).toBe('rgb(225, 29, 72)');
+    expect(await token(d, '--color-on-accent')).toBe('rgb(255, 255, 255)');
+    expect(s.db().prepare("SELECT value FROM settings WHERE key = 'accentColor'").get()).toEqual({ value: '"#e11d48"' });
+    await d.mouse.move(0, 0);
+    await d.waitForTimeout(400); // let colour transitions finish
+    await shot(d, 'settings-accent');
+
+    // A light accent gets dark text on it.
+    await pick.fill('#facc15');
+    await expect.poll(() => token(d, '--color-on-accent')).toBe('rgb(17, 17, 20)');
+
+    await d.getByTestId('reset-accentColor').click();
+    for (const w of [d, s.widget]) await expect.poll(() => token(w, '--color-accent')).toBe('rgb(123, 97, 255)');
+    expect(await token(d, '--color-on-accent')).toBe('rgb(255, 255, 255)');
+    await expect(d.getByTestId('reset-accentColor')).toHaveCount(0);
   } finally {
     await s.close();
   }

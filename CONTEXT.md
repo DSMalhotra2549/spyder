@@ -67,6 +67,10 @@ A block tagged Work. Its time is work time.
 A block tagged Break, Gym or Food. It may have an answer (e.g. "took a nap") or none, in which case it reads its tag ("Break", "Gym", "Food"). It isn't work time.
 _Avoid_: pause
 
+**Computer asleep or off**:
+Work-hours time when the loop was running but the laptop slept or Spyder wasn't running. It becomes a break block reading "Computer asleep or off", which the prompt asks about on return (P95). Time outside work hours stays untracked.
+_Avoid_: sleep gap, downtime
+
 **Away time** (in a block):
 Minutes within a block when the user wasn't at the computer. The loop keeps running; away time is shown as a hint when the block is accounted for and isn't asked about separately.
 
@@ -87,7 +91,7 @@ Removing a block after the fact. Its time becomes untracked.
 _Avoid_: discard, remove
 
 **Untracked**:
-Work-hours time that belongs to no block: before Start was pressed, or because the user deleted the block it was in. It doesn't count as work time and isn't a leftover.
+Work-hours time that belongs to no block: before Start was pressed, or because the user deleted the block it was in. It doesn't count as work time and isn't a leftover. Any untracked span can be accounted for later on Today, which turns it into a block (P95).
 _Avoid_: gap, unaccounted, deleted time
 
 ### Activity
@@ -164,6 +168,10 @@ One entry under "Today's wins" in a review.
 
 **Improvement**:
 One entry under "How I'll improve" in a review.
+
+**Midnight card**:
+The prompt that, once a day ends, asks for that day's wins and improvements (P98). Saved or skipped, a day isn't asked about again.
+_Avoid_: reflection (only the table name), journal
 
 **KPI**:
 A user-defined daily number (e.g. "Calls made") recorded in the review and charted over time.

@@ -6,7 +6,13 @@ import { helperPath } from './capture/chromeUrl';
 import type { AppCtx } from './context';
 import { rendererUrl } from './paths';
 import { saveSettings } from './settings';
-import { applyFontTo, titleBarOverlay } from './theme';
+import { applyStyleTo, titleBarOverlay } from './theme';
+
+/**
+ * e2e only (SPYDER_QUIET with SPYDER_DEBUG): windows are invisible, click-through and never take focus, and no
+ * system toasts show, so a test run doesn't take over the screen. Playwright drives the pages without OS focus.
+ */
+export const QUIET = process.env.SPYDER_DEBUG === '1' && process.env.SPYDER_QUIET === '1';
 
 /** The bar (P49): 512 × 34 plus an 8 px margin on every side (design/DESIGN.md §2). */
 export const WIDGET_SIZE = { width: 528, height: 50 } as const;
@@ -24,7 +30,7 @@ const webPreferences = () => ({
 });
 
 function load(ctx: AppCtx, win: BrowserWindow, hash: string): void {
-  win.webContents.on('did-finish-load', () => void applyFontTo(ctx, win)); // P78
+  win.webContents.on('did-finish-load', () => void applyStyleTo(ctx, win)); // P78, P93
   const r = rendererUrl(hash);
   if (r.url) void win.loadURL(r.url);
   else void win.loadFile(r.file!, { hash: r.hash });
@@ -140,6 +146,7 @@ export function showPrompt(ctx: AppCtx): void {
   const [, h] = p.getSize();
   const pos = promptPosition(ctx, h);
   p.setPosition(pos.x, pos.y);
+  if (QUIET) return p.showInactive();
   p.show();
   p.setAlwaysOnTop(true, 'floating');
   p.focus();
@@ -247,6 +254,7 @@ export function openDashboard(ctx: AppCtx, route?: string): void {
     if (d.webContents.isLoading()) d.webContents.once('did-finish-load', go);
     else go();
   }
+  if (QUIET) return d.showInactive();
   d.show();
   d.focus();
 }

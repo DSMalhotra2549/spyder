@@ -84,6 +84,8 @@ export interface DebugApi {
   flush(): Promise<void>;
   killProbe(): Promise<void>;
   triggerHotkey(): Promise<void>;
+  /** P102: as if capture had seen `exe` running from `path`. */
+  rememberAppPath(exe: string, path: string): Promise<void>;
 }
 
 export interface SpyderApi {
@@ -108,6 +110,8 @@ export interface SpyderApi {
   mergeRepeats(date: string): Promise<EditResult>;
   /** P86: splits a merged block back into the blocks its latest merge combined, as they were before it. */
   unmergeBlock(id: string): Promise<EditResult>;
+  /** P95: untracked time in [startMs, endMs) becomes one ended block with this answer and tag. */
+  fillUntracked(startMs: number, endMs: number, answer: string | null, tag: Tag): Promise<EditResult>;
   /** P66, P74: set the blocks' tag (Work, Break, Gym or Food); answers stay. */
   tagBlocks(ids: string[], tag: Tag): Promise<EditResult>;
   /** P75: rate work blocks 25, 50, 75 or 100% efficient, or clear the rating (null). */
@@ -116,12 +120,16 @@ export interface SpyderApi {
 
   answerSuggestions(prefix: string): Promise<string[]>;
   getPrompt(): Promise<PromptWindowState>;
+  /** P98: the midnight card: the lists replace the day's wins and improvements; null = Skip. */
+  saveReflection(date: string, lists: { win: string[]; improve: string[] } | null): Promise<Ok | EngineError>;
   onPrompt(cb: (p: PromptWindowState) => void): () => void;
 
   getDay(date?: string): Promise<DayVM>;
   getRange(from: string, to: string): Promise<RangeVM>;
   /** P70: every app and site still waiting for the user's own label, all time. */
   listToAsk(): Promise<AskRow[]>;
+  /** P102: each app's own icon (PNG data URL) by exe; exes whose program file isn't known are left out. */
+  appIcons(exes: string[]): Promise<Record<string, string>>;
   listRules(): Promise<RuleVM[]>;
   saveRule(r: { id?: string; matchType: MatchType; pattern: string; category: Category }): Promise<void>;
   deleteRule(id: string): Promise<void>;

@@ -114,6 +114,14 @@ export interface SegmentRow {
   endMs?: number | null;
   source: 'live' | 'away_working';
 }
+export interface GapBlockRow {
+  id: string;
+  segmentId: string;
+  startMs: number;
+  endMs: number;
+  name: string;
+  createdMs: number;
+}
 export interface AwayInsertRow {
   id: string;
   startMs: number;
@@ -135,6 +143,8 @@ export type Effect =
   | { db: 'closeSegment'; row: { id: string; endMs: number } }
   /** A block cut before it lasted a second (Stop right after Start): removed, not kept as a 0 s block. */
   | { db: 'discardSession'; id: string }
+  /** P95: an ended break block over time Spyder was asleep or off, asked about on return. */
+  | { db: 'insertGapBlock'; row: GapBlockRow }
   /** A block ended; the host shows the accounting prompt (P60). */
   | { blockEnded: string }
   /** An away interval ended; kept in memory as a hint (P61). */

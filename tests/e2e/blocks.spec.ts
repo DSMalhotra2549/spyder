@@ -8,7 +8,7 @@ import { dayVM } from '../../src/main/report';
 import { loadSettings } from '../../src/main/settings';
 import { appRuns, appSlot, timeSplit } from '../../src/core/aggregate';
 import { dur, statTexts } from '../../src/renderer/dashboard/stats';
-import { freshDataDir, launch, seed, shot, type Launched } from './helpers';
+import { freshDataDir, launch, openRuns, seed, shot, type Launched } from './helpers';
 
 const DATE = '2026-11-24';
 
@@ -37,6 +37,7 @@ test('joined answers, re-answer, answer many, delete → undo, merge → undo on
   const d = s.dashboard;
   await d.evaluate(() => window.spyder.openDashboard('today'));
   await d.getByTestId('block-log').waitFor();
+  await openRuns(d);
   const nowMs = (await s.debug.state()).now as number;
   const vm0 = await expected(dir, nowMs);
   // Every block and the untracked gap, in time order.
@@ -166,6 +167,7 @@ test('joined answers, re-answer, answer many, delete → undo, merge → undo on
   await shot(d, 'today-timeline-no-apps');
   await d.reload();
   await d.getByTestId('block-log').waitFor();
+  await openRuns(d);
   await expect(d.getByTestId('app-track-toggle')).toHaveAttribute('aria-checked', 'false');
   await expect(d.locator('[data-block=app]')).toHaveCount(0);
   await d.getByTestId('app-track-toggle').click();
@@ -185,6 +187,7 @@ test('neighbours merge across a gap too short to show; Merge repeats merges ever
   const d = s.dashboard;
   await d.evaluate(() => window.spyder.openDashboard('today'));
   await d.getByTestId('block-log').waitFor();
+  await openRuns(d);
   await expect(rows(d, 'Code review').first().getByTestId('block-group')).toContainText('3 blocks');
   for (const r of (await rows(d, 'Code review').all()).slice(0, 2)) await r.getByTestId('block-check').click();
   await d.getByTestId('merge-open').click();
@@ -219,6 +222,7 @@ test('a merged block can be unmerged any time, even after a restart, back to the
   let d = s.dashboard;
   await d.evaluate(() => window.spyder.openDashboard('today'));
   await d.getByTestId('block-log').waitFor();
+  await openRuns(d);
   const nowMs = (await s.debug.state()).now as number;
   const vm0 = await expected(dir, nowMs);
   await expect(d.getByTestId('block-unmerge')).toHaveCount(0); // nothing is merged yet
@@ -238,6 +242,7 @@ test('a merged block can be unmerged any time, even after a restart, back to the
   d = s.dashboard;
   await d.evaluate(() => window.spyder.openDashboard('today'));
   await d.getByTestId('block-log').waitFor();
+  await openRuns(d);
   await expect(d.getByTestId('block-unmerge')).toHaveCount(1);
   await expect(rows(d, 'Reviews').getByTestId('block-unmerge')).toHaveCount(1);
   await rows(d, 'Reviews').hover();
@@ -247,6 +252,7 @@ test('a merged block can be unmerged any time, even after a restart, back to the
   await rows(d, 'Reviews').getByTestId('block-unmerge').click();
   await expect(d.getByTestId('toast')).toContainText('Unmerged “Reviews” into 3 blocks');
   await expect(rows(d, 'Reviews')).toHaveCount(0);
+  await openRuns(d);
   await expect(rows(d, 'Code review')).toHaveCount(3);
   for (const r of await rows(d, 'Code review').all()) await expect(r.getByTestId('block-efficiency')).toHaveValue('none');
   await expect(d.getByTestId('block-unmerge')).toHaveCount(0);
@@ -301,6 +307,7 @@ test('tags: Work/Break apart from the answer, per row and in bulk; merge needs o
   const kindName = (name: string) => s!.db().prepare('SELECT kind, name FROM sessions WHERE name = ? AND deleted_ms IS NULL').all(name);
   await d.evaluate(() => window.spyder.openDashboard('today'));
   await d.getByTestId('block-log').waitFor();
+  await openRuns(d);
   await expect(rows(d, 'Code review').first().getByTestId('block-tag')).toHaveValue('work');
   await expect(rows(d, 'Break').first().getByTestId('block-tag')).toHaveValue('break');
 
@@ -380,6 +387,7 @@ test('Gym and Food: break tags with their own colours, label and slices (P74)', 
   const d = s.dashboard;
   await d.evaluate(() => window.spyder.openDashboard('today'));
   await d.getByTestId('block-log').waitFor();
+  await openRuns(d);
   const firstBreak = (await rows(d, 'Break').first().getAttribute('data-session'))!;
 
   // A break tagged Gym reads "Gym", stays a break, and takes the gym colour.

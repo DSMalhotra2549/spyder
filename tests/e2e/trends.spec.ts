@@ -1,7 +1,7 @@
 // Phase 6: Week and Month pages over 60 seeded days; week bar totals equal daySummary sums.
 import { expect, test } from '@playwright/test';
 import { join } from 'node:path';
-import { fmtHM } from '../../src/core/format';
+import { dur } from '../../src/renderer/dashboard/stats';
 import { dayLite, monthDates, weekDates } from '../../src/core/trends';
 import { Db } from '../../src/main/db/db';
 import { summaryFor } from '../../src/main/report';
@@ -44,7 +44,7 @@ test('Week and Month render from 60 seeded days', async () => {
         .filter((x) => x.date <= TODAY)
         .map((x) => [x.date, x.workSec + x.breakSec + x.notWorkingSec + x.awayPendingSec] as const)
         .filter(([, t]) => t > 0)
-        .map(([date, t]) => [date, fmtHM(t)]),
+        .map(([date, t]) => [date, dur(t)]),
     );
     expect(Object.keys(want).length).toBeGreaterThanOrEqual(2); // Mon and Tue are seeded workdays
     const totals = d.getByTestId('week-total');
@@ -64,6 +64,8 @@ test('Week and Month render from 60 seeded days', async () => {
     expect(await d.getByTestId('range-productive').innerText()).toBe(rt.productive);
     expect(await d.getByTestId('range-score').innerText()).toBe(rt.score);
     expect(await d.getByTestId('range-goals').innerText()).toBe(rt.goals);
+    // P102: every stat tile has its icon.
+    for (const k of ['productive', 'work', 'score', 'efficiency', 'goals']) await expect(d.getByTestId(`icon-range-${k}`)).toBeVisible();
     await d.mouse.move(0, 0);
     await shot(d, 'week');
 

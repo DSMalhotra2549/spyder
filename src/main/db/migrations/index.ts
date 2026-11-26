@@ -5,6 +5,8 @@ import blocks from './003_blocks.sql?raw';
 import tags from './004_tags.sql?raw';
 import efficiency from './005_efficiency.sql?raw';
 import merges from './006_merges.sql?raw';
+import reflections from './007_reflections.sql?raw';
+import appPaths from './008_app_paths.sql?raw';
 import type { Migration } from '../migrate';
 
 export const MIGRATIONS: Migration[] = [
@@ -14,4 +16,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 4, sql: tags },
   { version: 5, sql: efficiency },
   { version: 6, sql: merges },
+  { version: 7, sql: reflections },
+  { version: 8, sql: appPaths },
 ];

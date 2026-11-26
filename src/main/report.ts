@@ -12,6 +12,7 @@ import { toAsk, type AskRow } from '../core/asks';
 import { dayLite, type RangeVM } from '../core/trends';
 import type { Db } from './db/db';
 import * as repo from './db/repo';
+import { reflectedMs } from './reflect';
 
 const DAY_MS = 86_400_000;
 
@@ -148,6 +149,7 @@ export function reviewVM(db: Db, date: string | undefined, nowMs: number, settin
     today,
     summary,
     completedMs: row?.completed_ms ?? null,
+    reflectedMs: reflectedMs(db, d),
     items: db.all<ReviewItem>('SELECT id, date, kind, text, sort FROM review_items WHERE date = ? ORDER BY sort, created_ms', d),
     kpis: listKpis(db).filter((k) => !k.archived),
     kpiValues: Object.fromEntries(

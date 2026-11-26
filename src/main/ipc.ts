@@ -7,6 +7,7 @@ import type { DayOverride } from '../core/schedule';
 import type { TitlePattern } from '../core/titlePatterns';
 import { isEfficiency, TAGS, type Efficiency, type EngineError, type Tag } from '../core/types';
 import type { BlockAnswer } from '../preload/api';
+import { appIcons } from './appIcons';
 import { applyAutostart } from './autostart';
 import type { AppCtx } from './context';
 import * as repo from './db/repo';
@@ -17,7 +18,7 @@ import * as report from './report';
 import { dateKey } from '../core/schedule';
 import { loadSettings, saveSettings } from './settings';
 import { BlockEditor } from './blockEdit';
-import { applyFont, applyTheme } from './theme';
+import { applyStyle, applyTheme } from './theme';
 import { isAppUrl } from './paths';
 import { hideWidget, minimizeWidget, openDashboard, resizePrompt, showWidget } from './windows';
 
@@ -47,7 +48,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
     if ('hotkey' in partial) registerHotkey(ctx);
     if ('autostart' in partial) applyAutostart(ctx);
     if ('theme' in partial) applyTheme(ctx);
-    if ('font' in partial) applyFont(ctx);
+    if ('font' in partial || 'accentColor' in partial) applyStyle(ctx);
     if ('goalSec' in partial || 'appPercentScope' in partial) host.reloadRules();
     if (partial.blockLengthSec !== undefined) host.setLength(partial.blockLengthSec);
     if (partial.trackFromStartup && !host.state.loop) host.start(ctx.settings.blockLengthSec); // P76
@@ -106,6 +107,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('answerBlocks', (answers: BlockAnswer[]) => host.answer(answers));
   h('answerSuggestions', (prefix: string) => repo.answerSuggestions(ctx.db, prefix));
   h('getPrompt', () => host.promptState());
+  h('saveReflection', (date: string, lists: { win: string[]; improve: string[] } | null) => host.saveReflection(date, lists));
 
   // Editing blocks after the fact (P64)
   const editor = new BlockEditor(ctx, host);
@@ -113,6 +115,9 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('mergeBlocks', (ids: string[], answer: string | null) => editor.merge(ids, answer));
   h('mergeRepeats', (date: string) => editor.mergeRepeats(date));
   h('unmergeBlock', (id: string) => editor.unmerge(id));
+  h('fillUntracked', (startMs: number, endMs: number, answer: string | null, tag: Tag) =>
+    TAGS.includes(tag) ? editor.fill(startMs, endMs, answer, tag) : { error: 'invalid', message: 'Pick Work, Break, Gym or Food' },
+  );
   h('tagBlocks', (ids: string[], tag: Tag) => (TAGS.includes(tag) ? editor.tag(ids, tag) : { error: 'invalid', message: 'Pick Work, Break, Gym or Food' }));
   h('rateBlocks', (ids: string[], efficiency: Efficiency | null) =>
     efficiency === null || isEfficiency(efficiency) ? editor.rate(ids, efficiency) : { error: 'invalid', message: 'Pick 25, 50, 75 or 100%' },
@@ -123,6 +128,7 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
   h('getDay', (date?: string) => report.dayVM(ctx.db, date, ctx.clock.now(), ctx.settings));
   h('getRange', (from: string, to: string) => report.rangeVM(ctx.db, from, to, ctx.clock.now(), ctx.settings));
   h('listToAsk', () => report.listToAsk(ctx.db));
+  h('appIcons', (exes: string[]) => appIcons(ctx.db, Array.isArray(exes) ? exes.filter((x) => typeof x === 'string') : []));
   h('listRules', () => repo.listRules(ctx.db));
   h('saveRule', (r: { id?: string; matchType: Rule['matchType']; pattern: string; category: Rule['category'] }) => {
     repo.saveRule(ctx.db, r, ctx.clock.now());
@@ -146,8 +152,16 @@ export function registerIpc(ctx: AppCtx, host: EngineHost, hooks: IpcHooks): voi
 
   // Review
   h('getReview', (date?: string) => report.reviewVM(ctx.db, date, ctx.clock.now(), ctx.settings));
-  h('saveReviewItem', (it: Parameters<typeof report.saveReviewItem>[1]) => report.saveReviewItem(ctx.db, it, ctx.clock.now()));
-  h('deleteReviewItem', (id: string) => report.deleteReviewItem(ctx.db, id));
+  // P98: the midnight card follows what the review already has.
+  h('saveReviewItem', (it: Parameters<typeof report.saveReviewItem>[1]) => {
+    const r = report.saveReviewItem(ctx.db, it, ctx.clock.now());
+    host.dataChanged();
+    return r;
+  });
+  h('deleteReviewItem', (id: string) => {
+    report.deleteReviewItem(ctx.db, id);
+    host.dataChanged();
+  });
   h('completeReview', (date: string) => report.completeReview(ctx.db, date, ctx.clock.now(), ctx.settings));
   h('listKpis', () => report.listKpis(ctx.db));
   h('saveKpi', (k: Parameters<typeof report.saveKpi>[1]) => report.saveKpi(ctx.db, k));

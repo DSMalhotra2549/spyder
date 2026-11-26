@@ -1,4 +1,4 @@
-// Editing blocks after the fact (P64, P66, P73, P74, P75, P86): delete, merge, unmerge, tag and rate, each with one-step Undo. Answering and
+// Editing blocks after the fact (P64, P66, P73, P74, P75, P86, P95): delete, merge, unmerge, tag, rate and fill untracked time, each with one-step Undo. Answering and
 // re-answering go through EngineHost.answer. The running block can't be edited until it ends.
 import { randomUUID } from 'node:crypto';
 import { alikeRuns, dayLog, neighbours } from '../core/aggregate';
@@ -6,7 +6,7 @@ import { dateKey } from '../core/schedule';
 import { TAG_LABEL, tagOf, type Efficiency, type EngineError, type Tag } from '../core/types';
 import type { AppCtx } from './context';
 import type { Db, Row } from './db/db';
-import { BREAK_NAME } from './db/repo';
+import { BREAK_NAME, insertEndedBlock } from './db/repo';
 import type { EngineHost } from './engineHost';
 import { refreshReview, summaryFor } from './report';
 
@@ -83,6 +83,30 @@ export class BlockEditor {
     this.db.run(`UPDATE sessions SET deleted_ms = ? WHERE id IN (${marks(rows.length)})`, this.app.clock.now(), ...rows.map((r) => r.id));
     const message = rows.length === 1 ? `Deleted “${answerOf(rows[0])}”` : `Deleted ${rows.length} blocks`;
     return this.finish({ id: randomUUID(), blocks: rows, segments: [], flags: [], dates: [...new Set(rows.map((r) => dateKey(r.started_ms as number)))] }, message);
+  }
+
+  /**
+   * P95: untracked time in [startMs, endMs) becomes one ended block with `answer` and `tag` (a work block needs an
+   * answer). Refused if any of it already belongs to a block or hasn't happened yet.
+   */
+  fill(startMs: number, endMs: number, answer: string | null, tag: Tag): EditResult {
+    const now = this.app.clock.now();
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs - startMs < 1000) return invalid('Pick a span of time');
+    if (endMs > now) return invalid('Only time that has passed can be accounted for');
+    if (dateKey(startMs) !== dateKey(endMs - 1)) return invalid('Account for one day at a time');
+    const taken = this.db.get(
+      `SELECT 1 AS x FROM segments g JOIN sessions s ON s.id = g.session_id
+        WHERE s.deleted_ms IS NULL AND g.start_ms < ? AND COALESCE(g.end_ms, ?) > ? LIMIT 1`,
+      endMs, now, startMs,
+    );
+    if (taken) return invalid('Some of that time already belongs to a block');
+    const text = answer?.trim() || null;
+    if (tag === 'work' && text === null) return invalid('Say what you did, or pick Break');
+    const id = randomUUID();
+    insertEndedBlock(this.db, { id, segmentId: randomUUID(), startMs, endMs, tag, name: text, createdMs: now });
+    // Undo hides the new block again, so its time is untracked as before.
+    const row = { ...this.db.get('SELECT * FROM sessions WHERE id = ?', id)!, deleted_ms: now };
+    return this.finish({ id: randomUUID(), blocks: [row], segments: [], flags: [], dates: [dateKey(startMs)] }, `Accounted for “${text ?? TAG_LABEL[tag]}”`);
   }
 
   /** The day's log, as Today shows it. */

@@ -80,14 +80,28 @@ test('review opens at 17:00, gates on leftovers, persists and completes', async 
     // Complete → reviews snapshot.
     await complete.click();
     await expect(d.getByTestId('reviewed-chip')).toContainText('Reviewed at 17:00');
+    await expect(complete).toHaveCount(0); // P96: no "Update review"
     const row = s.db().prepare('SELECT * FROM reviews WHERE date = ?').get('2026-11-24') as Record<string, number>;
     expect(row.completed_ms).toBeGreaterThan(0);
     expect(row.work_sec).toBe(15 * 60);
     expect(row.scheduled_sec).toBe(7 * 3600);
     expect(row.goal_sec).toBe(18_000);
     expect(row.goal_met).toBe(0);
+    // P97: Productive against the goal is the Day summary's headline, red under the goal.
+    const prod = d.getByTestId('review-productive');
+    await expect(prod).toHaveText('15m/5h');
+    await expect(prod).toHaveClass(/text-red/);
     await d.mouse.move(0, 0);
     await shot(d, 'review');
+    // Green once the goal is met.
+    await d.evaluate(() => window.spyder.setSettings({ goalSec: 600 }));
+    await d.reload();
+    await expect(prod).toHaveText('15m/10m');
+    await expect(prod).toHaveClass(/text-green/);
+    // Plain on a day off (Sunday).
+    await d.evaluate(() => (location.hash = '#/dashboard/review/2026-11-22'));
+    await expect(prod).toHaveText('0m/10m');
+    await expect(prod).not.toHaveClass(/text-(red|green)/);
   } finally {
     await s.close();
   }

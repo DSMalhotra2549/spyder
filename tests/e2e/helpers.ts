@@ -59,8 +59,10 @@ export async function launch(opts: LaunchOpts = {}): Promise<Launched> {
     SPYDER_CLOCK_SCALE: String(opts.scale ?? 1),
     SPYDER_FAKE_IDLE: '1',
     SPYDER_CAPTURE: '0',
+    // Invisible windows that never take focus, so a run doesn't take over the screen; SPYDER_E2E_SHOW=1 to watch.
+    ...(process.env.SPYDER_E2E_SHOW === '1' ? {} : { SPYDER_QUIET: '1' }),
     // Specs start from the work-hours loop and the bar's workday %; P82 made Track from startup and the goal % the defaults.
-    SPYDER_DEFAULTS: JSON.stringify({ trackFromStartup: false, barPercent: 'day' }),
+    SPYDER_DEFAULTS: JSON.stringify({ trackFromStartup: false, barPercent: 'day', askReflection: false }),
     ...opts.env,
   };
   delete env.ELECTRON_RENDERER_URL;
@@ -109,4 +111,10 @@ export function seed(dataDir: string, days: number, to: string): void {
     shell: true,
   });
   if (r.status !== 0) throw new Error(`seed failed: ${r.stderr}${r.stdout}`);
+}
+
+/** P102: open every collapsed run in Today's block log, so each block has its own row. */
+export async function openRuns(d: Page): Promise<void> {
+  const closed = d.locator('[data-testid=block-group][aria-expanded=false]');
+  while ((await closed.count()) > 0) await closed.first().click();
 }

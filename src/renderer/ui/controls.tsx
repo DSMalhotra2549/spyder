@@ -1,6 +1,6 @@
 // Shared controls (design/DESIGN.md §2–3).
 import clsx from 'clsx';
-import { useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
 import { EFFICIENCIES, type Efficiency } from '../../core/types';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -152,5 +152,51 @@ export function AnswerInput({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * P101: one line of text that wraps and grows instead of cutting off (a win or an improvement). A textarea without
+ * newlines: Enter is left to the caller, and pasted line breaks become spaces.
+ */
+export function WrapInput({
+  value,
+  onChange,
+  inputRef,
+  className,
+  ...rest
+}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> & {
+  value: string;
+  onChange: (v: string) => void;
+  inputRef?: (el: HTMLTextAreaElement | null) => void;
+}) {
+  const el = useRef<HTMLTextAreaElement | null>(null);
+  const fit = () => {
+    const t = el.current;
+    if (!t) return;
+    t.style.height = 'auto';
+    t.style.height = `${t.scrollHeight + t.offsetHeight - t.clientHeight}px`;
+  };
+  useLayoutEffect(fit, [value]);
+  // The width can change (the dashboard window), and with it the wrapping.
+  useLayoutEffect(() => {
+    const t = el.current;
+    if (!t) return;
+    const ro = new ResizeObserver(fit);
+    ro.observe(t);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <textarea
+      {...rest}
+      ref={(t) => {
+        el.current = t;
+        inputRef?.(t);
+      }}
+      rows={1}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/\r?\n/g, ' '))}
+      className={clsx('block resize-none overflow-hidden leading-[18px] break-words', className)}
+    />
   );
 }

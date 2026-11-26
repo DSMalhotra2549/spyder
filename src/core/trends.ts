@@ -104,11 +104,11 @@ export function rangeStats(days: DayLite[]): RangeStats {
 
 /** Apps & sites over several days; each row keeps the category with the most time. */
 export function topApps(days: DayLite[], n: number): AppRow[] {
-  const m = new Map<string, { sec: number; byCat: Map<ActivityCategory, number>; target: AppRow['ruleTarget'] }>();
+  const m = new Map<string, { sec: number; byCat: Map<ActivityCategory, number>; target: AppRow['ruleTarget']; exe: string }>();
   for (const d of days)
     for (const a of d.apps) {
       let g = m.get(a.key);
-      if (!g) m.set(a.key, (g = { sec: 0, byCat: new Map(), target: a.ruleTarget }));
+      if (!g) m.set(a.key, (g = { sec: 0, byCat: new Map(), target: a.ruleTarget, exe: a.exe }));
       g.sec += a.sec;
       g.byCat.set(a.category, (g.byCat.get(a.category) ?? 0) + a.sec);
     }
@@ -119,6 +119,7 @@ export function topApps(days: DayLite[], n: number): AppRow[] {
       sec: g.sec,
       pct: total > 0 ? (g.sec / total) * 100 : 0,
       category: [...g.byCat.entries()].sort((a, b) => b[1] - a[1])[0][0],
+      exe: g.exe,
       ruleTarget: g.target,
     }))
     .sort((a, b) => b.sec - a.sec || a.key.localeCompare(b.key))

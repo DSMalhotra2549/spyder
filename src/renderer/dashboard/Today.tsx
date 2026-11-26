@@ -3,13 +3,13 @@ import clsx from 'clsx';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { alikeRuns, appSlot, dayLog, neighbours, type AppRow, type LogEntry, type SessionLine } from '../../core/aggregate';
 import type { ActivityCategory } from '../../core/categorize';
-import { fmtDuration, fmtHM, fmtTime } from '../../core/format';
+import { fmtDuration, fmtTime } from '../../core/format';
 import type { DayVM } from '../../core/review';
 import { EFFICIENCIES, TAG_LABEL, TAGS, type Efficiency, type EngineError, type Tag } from '../../core/types';
 import type { EditResult, Ok } from '../../preload/api';
 import { AnswerInput, Btn } from '../ui/controls';
 import { answerText, AppSwatch, appColor, blockColor, ownAnswer, TAG_COLOR, Timeline, useAppColors } from './Timeline';
-import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, StatCell, StatStrip, Toggle, TopBar, useLoader } from './parts';
+import { CAT_COLOR, CAT_LABEL, CategoryChip, Empty, StatCell, statIcon, StatStrip, Toggle, TopBar, useLoader } from './parts';
 import { appTexts, dur, statTexts } from './stats';
 import { showEditResult } from './toast';
 
@@ -96,14 +96,15 @@ function StatRow({ vm, t }: { vm: DayVM; t: ReturnType<typeof statTexts> }) {
   const frac = s.goalSec > 0 ? Math.min(1, s.productiveSec / s.goalSec) : 0;
   return (
     <StatStrip cols={4}>
-      <StatCell label="Productive" id="stat-productive" value={t.productive} sub={t.productiveSub} tone={s.goalMet ? 'green' : undefined}>
+      <StatCell label="Productive" id="stat-productive" icon={statIcon('target', 'icon-productive')} value={t.productive} sub={t.productiveSub} tone={s.goalMet ? 'green' : undefined}>
         <div className="mt-2.5 h-1.5 overflow-hidden rounded-pill bg-text/10">
           <div className={clsx('h-full rounded-pill', s.goalMet ? 'bg-green' : 'bg-productive')} style={{ width: `${frac * 100}%` }} />
         </div>
       </StatCell>
-      <StatCell label="Work" id="stat-work" value={t.work} sub={t.workSub} />
-      <StatCell label="Efficiency" id="stat-efficiency" value={t.efficiency} sub={t.efficiencySub} />
-      <StatCell label="Streak" id="stat-streak" value={t.streak} sub="goal met in a row" />
+      <StatCell label="Work" id="stat-work" icon={statIcon('briefcase', 'icon-work')} value={t.work} sub={t.workSub} />
+      <StatCell label="Efficiency" id="stat-efficiency" icon={statIcon('gauge', 'icon-efficiency')} value={t.efficiency} sub={t.efficiencySub} />
+      {/* The flame is lit (orange) while the streak is alive. */}
+      <StatCell label="Streak" id="stat-streak" icon={statIcon('flame', 'icon-streak', vm.streak > 0 ? 'text-orange' : undefined)} value={t.streak} sub="goal met in a row" />
     </StatStrip>
   );
 }
@@ -158,11 +159,46 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
   };
 
   // Neighbouring blocks with the same tag and answer are shown joined (P64), and Merge repeats merges them (P73).
+  // P102: a run starts collapsed into one row; its "N blocks" caption opens it. Open runs are known by their first block.
   const runs = alikeRuns(log);
+  const [open, setOpen] = useState<Set<string>>(new Set());
   const joinedWithPrev = new Set(runs.flatMap((r) => r.slice(1)));
+  const runOf = new Map(runs.flatMap((r) => r.map((id) => [id, r] as const)));
+  const lines = (ids: string[]) => ids.map((id) => blocks.find((x) => x.id === id)!);
   const groupOf = new Map(
-    runs.map((r) => [r[0], { count: r.length, sec: r.reduce((t, id) => t + (blocks.find((x) => x.id === id)?.daySec ?? 0), 0) }]),
+    runs.map((r) => [
+      r[0],
+      {
+        count: r.length,
+        sec: lines(r).reduce((t, x) => t + x.daySec, 0),
+        open: open.has(r[0]),
+        onToggle: () =>
+          setOpen((o) => {
+            const n = new Set(o);
+            if (n.has(r[0])) n.delete(r[0]);
+            else n.add(r[0]);
+            return n;
+          }),
+      },
+    ]),
   );
+  /** The blocks a row stands for: the whole run while it's collapsed. */
+  const idsOf = (id: string) => {
+    const r = runOf.get(id);
+    return r && !open.has(r[0]) ? r : [id];
+  };
+  const toggleAll = (ids: string[]) => {
+    setPanel(null);
+    setChecked((c) => {
+      const n = new Set(c);
+      const all = ids.every((id) => n.has(id));
+      for (const id of ids) {
+        if (all) n.delete(id);
+        else n.add(id);
+      }
+      return n;
+    });
+  };
 
   const workCount = blocks.filter((x) => x.kind !== 'break').length;
   const pending = blocks.filter((x) => x.kind !== 'break' && x.name === null && !x.running).length;
@@ -246,34 +282,71 @@ function BlockLog({ vm, reload, picked, onPick }: { vm: DayVM; reload: () => Pro
       ) : (
         <ul className="flex flex-col gap-1">
           {log.map((e, i) => {
-            if (e.type !== 'session') return <QuietRow key={`${e.type}${e.startMs}`} e={e} />;
+            if (e.type === 'untracked' && editing === `untracked:${e.startMs}`) {
+              // P95: untracked time becomes a block with this answer (Save = work, Break = break), with Undo.
+              return (
+                <EditRow
+                  key={`fill${e.startMs}`}
+                  startMs={e.startMs}
+                  endMs={e.endMs}
+                  initial=""
+                  tag="work"
+                  testId="untracked-edit-row"
+                  submit={async (answer, tag) => {
+                    const r = await window.spyder.fillUntracked(e.startMs, e.endMs, answer, tag ?? 'work');
+                    if ('error' in r) return r.message;
+                    setEditing(null);
+                    await after(r);
+                    return null;
+                  }}
+                  onCancel={() => setEditing(null)}
+                />
+              );
+            }
+            if (e.type !== 'session') return <QuietRow key={`${e.type}${e.startMs}`} e={e} onFill={() => setEditing(`untracked:${e.startMs}`)} />;
+            const ids = idsOf(e.id);
+            if (ids[0] !== e.id) return null; // inside a collapsed run: its first row stands for it
+            const collapsed = ids.length > 1;
+            const run = lines(ids);
+            const last = run[run.length - 1];
+            // A collapsed run reads as one block over its whole span, rated as a merge would keep it (P104).
+            const x: SessionLine = collapsed
+              ? { ...e, endMs: last.endMs, daySec: run.reduce((t, y) => t + y.daySec, 0), efficiency: runEfficiency(run), merged: false }
+              : e;
             const next = log[i + 1];
-            const joinedNext = next?.type === 'session' && joinedWithPrev.has(next.id);
+            const joinedNext = !collapsed && next?.type === 'session' && joinedWithPrev.has(next.id);
             return editing === e.id ? (
               <EditRow
                 key={e.id}
-                x={e}
-                onDone={async (saved) => {
+                startMs={x.startMs}
+                endMs={x.endMs}
+                initial={ownAnswer(e) ?? ''}
+                tag={e.tag}
+                submit={async (answer, tag) => {
+                  const r = await window.spyder.answerBlocks(ids.map((id) => ({ id, answer, tag })));
+                  if ('error' in r) return r.message;
                   setEditing(null);
-                  if (saved) await reload();
+                  await reload();
+                  return null;
                 }}
+                onCancel={() => setEditing(null)}
               />
             ) : (
               <BlockRow
                 key={e.id}
-                x={e}
-                joinedPrev={joinedWithPrev.has(e.id)}
+                x={x}
+                joinedPrev={!collapsed && joinedWithPrev.has(e.id)}
                 joinedNext={joinedNext}
                 group={groupOf.get(e.id) ?? null}
-                checked={checked.has(e.id)}
-                picked={picked === e.id}
-                onCheck={() => toggle(e.id)}
-                onPick={() => onPick(picked === e.id ? null : e.id)}
+                checked={ids.every((id) => checked.has(id))}
+                picked={picked !== null && ids.includes(picked)}
+                onCheck={() => (collapsed ? toggleAll(ids) : toggle(e.id))}
+                onPick={() => onPick(picked !== null && ids.includes(picked) ? null : e.id)}
                 onEdit={() => setEditing(e.id)}
-                onDelete={() => void del([e.id])}
+                onDelete={() => void del(ids)}
                 onUnmerge={() => void window.spyder.unmergeBlock(e.id).then(after)}
-                onTag={(t) => void window.spyder.tagBlocks([e.id], t).then(after)}
-                onRate={(r) => void window.spyder.rateBlocks([e.id], r).then(after)}
+                onTag={(t) => void window.spyder.tagBlocks(ids, t).then(after)}
+                onRate={(r) => void window.spyder.rateBlocks(ids, r).then(after)}
               />
             );
           })}
@@ -330,6 +403,16 @@ function IconBtn({ label, testId, onClick, children, danger }: { label: string; 
   );
 }
 
+/** P104: a collapsed run's efficiency, as a merge would keep it: the time-weighted mean of its rated blocks (P75). */
+function runEfficiency(run: SessionLine[]): number | null {
+  const rated = run.filter((y) => y.efficiency !== null);
+  if (!rated.length) return null;
+  const sec = rated.reduce((t, y) => t + y.daySec, 0);
+  return Math.round(
+    sec > 0 ? rated.reduce((t, y) => t + y.daySec * y.efficiency!, 0) / sec : rated.reduce((t, y) => t + y.efficiency!, 0) / rated.length,
+  );
+}
+
 function BlockRow({
   x,
   joinedPrev,
@@ -348,7 +431,7 @@ function BlockRow({
   x: SessionLine;
   joinedPrev: boolean;
   joinedNext: boolean;
-  group: { count: number; sec: number } | null;
+  group: { count: number; sec: number; open: boolean; onToggle: () => void } | null;
   checked: boolean;
   picked: boolean;
   onCheck: () => void;
@@ -372,6 +455,7 @@ function BlockRow({
       data-session={x.id}
       data-picked={picked || undefined}
       data-joined={joinedPrev || undefined}
+      data-collapsed={(group && !group.open) || undefined}
       onClick={onPick}
       className={clsx(
         rowCls,
@@ -391,7 +475,11 @@ function BlockRow({
       <span className="flex min-w-0 flex-1 items-center gap-2">
         {x.running ? (
           <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+            {/* P102: a ring pings out of the dot, so the running block reads as live. */}
+            <span data-testid="running-dot" className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75 motion-reduce:hidden" />
+              <span className="relative h-1.5 w-1.5 rounded-full bg-accent" />
+            </span>
             Running
           </span>
         ) : (
@@ -411,20 +499,33 @@ function BlockRow({
           </button>
         )}
         {group && (
-          <span data-testid="block-group" className="shrink-0 text-[11px] text-faint tabular">
+          <button
+            type="button"
+            data-testid="block-group"
+            aria-expanded={group.open}
+            title={group.open ? 'Show as one row' : `Show the ${group.count} blocks`}
+            onClick={(e) => {
+              e.stopPropagation();
+              group.onToggle();
+            }}
+            className="flex shrink-0 items-center gap-1 rounded-control px-1 text-[11px] text-faint tabular hover:bg-surface-2 hover:text-muted"
+          >
             {group.count} blocks · {dur(group.sec)}
-          </span>
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden className={clsx('transition-transform', group.open && 'rotate-90')}>
+              <path d="M4 2.5 6.5 5 4 7.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         )}
       </span>
       <TagSelect testId="block-tag" label={`Tag of ${text}`} value={x.tag} disabled={x.running} onChange={onTag} />
+      <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
+        {dur(x.daySec)}
+      </span>
       {x.tag === 'work' ? (
         <EfficiencySelect testId="block-efficiency" label={`Efficiency of ${text}`} value={x.efficiency} disabled={x.running} onChange={onRate} />
       ) : (
         <span className="w-[64px] shrink-0" />
       )}
-      <span data-testid="block-dur" className="w-[64px] shrink-0 text-right tabular">
-        {dur(x.daySec)}
-      </span>
       <span className="flex w-[88px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
         {!x.running && (
           <>
@@ -452,26 +553,43 @@ function BlockRow({
   );
 }
 
-/** Re-answer one block inline (P64, P66): Save keeps its tag, Break makes it a break. Enter saves, Escape cancels. */
-function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Promise<void> }) {
-  const [text, setText] = useState(ownAnswer(x) ?? '');
+/**
+ * Answer one stretch inline: re-answer a block (P64, P66; Save keeps its tag) or account for untracked time (P95; Save
+ * makes work). Break makes a break. Enter saves, Escape cancels. `submit` returns an error to show, or null when done.
+ */
+function EditRow({
+  startMs,
+  endMs,
+  initial,
+  tag: current,
+  testId = 'block-edit-row',
+  submit,
+  onCancel,
+}: {
+  startMs: number;
+  endMs: number | null;
+  initial: string;
+  tag: Tag;
+  testId?: string;
+  submit: (answer: string | null, tag?: Tag) => Promise<string | null>;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const save = async (tag?: Tag) => {
-    if ((tag ?? x.tag) === 'work' && !text.trim()) return setError('Say what you did, or pick Break');
-    const r = await window.spyder.answerBlocks([{ id: x.id, answer: text.trim() || null, tag }]);
-    if ('error' in r) return setError(r.message);
-    await onDone(true);
+    if ((tag ?? current) === 'work' && !text.trim()) return setError('Say what you did, or pick Break');
+    setError(await submit(text.trim() || null, tag));
   };
   return (
     <li
-      data-testid="block-edit-row"
+      data-testid={testId}
       className="flex flex-col gap-1 rounded-[10px] bg-surface-2 py-2 pr-2 pl-3"
       onKeyDown={(e) => {
-        if (e.key === 'Escape') void onDone(false);
+        if (e.key === 'Escape') onCancel();
       }}
     >
       <div className="flex items-center gap-2">
-        <span className="w-[92px] shrink-0 pl-7 text-[13px] text-muted tabular">{span(x.startMs, x.endMs)}</span>
+        <span className="w-[92px] shrink-0 pl-7 text-[13px] text-muted tabular">{span(startMs, endMs)}</span>
         <div className="min-w-0 flex-1">
           <AnswerInput value={text} onChange={setText} onEnter={() => void save()} autoFocus />
         </div>
@@ -481,7 +599,7 @@ function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Pr
         <Btn data-testid="edit-break" onClick={() => void save('break')}>
           Break
         </Btn>
-        <Btn variant="ghost" onClick={() => void onDone(false)}>
+        <Btn variant="ghost" onClick={onCancel}>
           Cancel
         </Btn>
       </div>
@@ -490,8 +608,8 @@ function EditRow({ x, onDone }: { x: SessionLine; onDone: (saved: boolean) => Pr
   );
 }
 
-/** Untracked spans: read-only lines in the log. */
-function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
+/** Away and untracked spans: quiet lines in the log. An untracked one can be accounted for (P95). */
+function QuietRow({ e, onFill }: { e: Exclude<LogEntry, { type: 'session' }>; onFill: () => void }) {
   return (
     <li data-testid={e.type === 'away' ? 'log-away' : 'log-untracked'} className={clsx(rowCls, 'bg-surface-2/20 text-muted')}>
       <span className="w-4 shrink-0" />
@@ -499,7 +617,16 @@ function QuietRow({ e }: { e: Exclude<LogEntry, { type: 'session' }> }) {
       <span className="h-4 w-[3px] shrink-0 rounded-pill bg-faint/60" />
       <span className="min-w-0 flex-1 truncate text-faint">{e.type === 'away' ? 'Away' : 'Untracked'}</span>
       <span className="w-[64px] shrink-0 text-right tabular">{dur(e.sec)}</span>
-      <span className="w-[88px] shrink-0" />
+      <span className="w-[64px] shrink-0" />
+      <span className="flex w-[88px] shrink-0 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+        {e.type === 'untracked' && (
+          <IconBtn label="Account for this time" testId="untracked-fill" onClick={onFill}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M10.5 2.5l3 3L6 13H3v-3z" />
+            </svg>
+          </IconBtn>
+        )}
+      </span>
     </li>
   );
 }
@@ -653,7 +780,11 @@ function EfficiencySelect({
           'disabled:cursor-default disabled:opacity-50',
           picker
             ? 'border-border pl-2.5 text-text hover:bg-surface-2'
-            : clsx('w-[64px] border-transparent pl-2 enabled:hover:border-border enabled:hover:bg-surface-2 enabled:hover:text-text', value === null ? 'text-faint' : 'text-muted'),
+            : clsx(
+                'w-[64px] border-transparent pl-2 enabled:hover:border-border enabled:hover:bg-surface-2 enabled:hover:text-text',
+                // P102: not rated shows nothing until the row is hovered (or the picker is open).
+                value === null ? 'text-transparent group-hover:text-faint focus:text-faint' : 'text-muted',
+              ),
         )}
       >
         {picker && (
@@ -727,7 +858,7 @@ function CategoryBar({ totals }: { totals: Record<ActivityCategory, number> }) {
           <li key={d.k} data-testid={`cat-${d.k}`} className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-[2px]" style={{ background: CAT_COLOR[d.k] }} />
             {CAT_LABEL[d.k]}
-            <span className="text-text tabular">{fmtHM(d.v)}</span>
+            <span className="text-text tabular">{dur(d.v)}</span>
           </li>
         ))}
       </ul>
@@ -737,13 +868,28 @@ function CategoryBar({ totals }: { totals: Record<ActivityCategory, number> }) {
 
 const TOP_N = 5;
 
+/** P102: each app's own icon by exe (a site shows its browser's); apps whose program file isn't known yet have none. */
+function useAppIcons(rows: AppRow[]): Record<string, string> {
+  const [icons, setIcons] = useState<Record<string, string>>({});
+  const exes = [...new Set(rows.map((a) => a.exe))].sort().join('|');
+  useEffect(() => {
+    let live = true;
+    void window.spyder.appIcons(exes ? exes.split('|') : []).then((r) => live && setIcons(r));
+    return () => {
+      live = false;
+    };
+  }, [exes]);
+  return icons;
+}
+
 /** Top apps & sites, the rest behind "Show all". Category is a quiet, clickable label (P12). */
 /** P81: each row's square is the app's colour on the app track, and picks it like the legend. */
 function TopApps({ rows, reload }: { rows: AppRow[]; reload: () => Promise<void> }) {
   const [all, setAll] = useState(false);
   const [picked, pick] = useAppColors();
-  if (!rows.length) return null;
   const shown = all ? rows : rows.slice(0, TOP_N);
+  const icons = useAppIcons(shown);
+  if (!rows.length) return null;
   return (
     <>
       <ol className="rounded-card border border-border bg-surface">
@@ -753,10 +899,15 @@ function TopApps({ rows, reload }: { rows: AppRow[]; reload: () => Promise<void>
           return (
             <li key={a.key} data-testid="app-row" className="flex h-10 items-center gap-3 border-b border-border px-3 text-[13px] last:border-0">
               <AppSwatch appKey={a.key} picked={picked} pick={pick} />
+              {icons[a.exe] ? (
+                <img data-testid="app-icon" src={icons[a.exe]} alt="" width={16} height={16} className="h-4 w-4 shrink-0" draggable={false} />
+              ) : (
+                <span className="h-4 w-4 shrink-0" />
+              )}
               <span data-k="key" className="min-w-0 flex-1 truncate">
                 {t.key}
               </span>
-              <span data-k="time" className="w-12 text-right tabular">
+              <span data-k="time" className="w-16 text-right tabular">
                 {t.time}
               </span>
               <span data-k="pct" className="w-12 text-right text-[12px] text-faint tabular">
@@ -838,7 +989,7 @@ export function AppsList({ rows, reload, compact }: { rows: AppRow[]; reload: ()
             <span data-k="key" className="relative min-w-0 flex-1 truncate">
               {t.key}
             </span>
-            <span data-k="time" className={clsx('relative text-right tabular', compact ? 'w-11' : 'w-14')}>
+            <span data-k="time" className={clsx('relative text-right tabular', compact ? 'w-14' : 'w-16')}>
               {t.time}
             </span>
             <span data-k="pct" className={clsx('relative text-right text-muted tabular', compact ? 'w-12' : 'w-14')}>

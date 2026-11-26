@@ -8,6 +8,8 @@ export interface Foreground {
   exe: string;
   appName: string;
   title: string;
+  /** The program file's full path (P102: its icon). */
+  path: string;
 }
 
 const TIMEOUT_MS = 1000;
@@ -63,7 +65,7 @@ export class ForegroundClient {
       this.pending = (r) => {
         clearTimeout(timer);
         if (!r?.ok || !r.path) return resolve(null);
-        resolve({ exe: basename(r.path).toLowerCase(), appName: r.name || basename(r.path), title: r.title ?? '' });
+        resolve({ exe: basename(r.path).toLowerCase(), appName: r.name || basename(r.path), title: r.title ?? '', path: r.path });
       };
       p.postMessage('sample');
     });

@@ -7,6 +7,203 @@ changed default, a migration, a new setting or a test-helper change. The full re
 
 Add an entry in the same commit as the change (see AGENTS.md → Commits).
 
+## 2026-11-26: Collapsed rows show their efficiency (P104)
+
+**What**
+- A collapsed row whose blocks are rated differently shows their time-weighted mean (e.g. `67%`), the same value a merge would keep, instead of `mixed`.
+
+**Why**
+The user asked never to show `mixed`, just the calculated efficiency.
+
+**If you pull this**
+- Nothing to do.
+
+## 2026-11-26: Efficiency after the duration (P103)
+
+**What**
+- In Today's block log, the efficiency picker moved to the right of the duration.
+
+**Why**
+The user asked for the duration next to the tag and the rating after it.
+
+**If you pull this**
+- Nothing changes beyond the column order.
+
+## 2026-11-26: Today at a glance (P102)
+
+**What**
+- Today's stat tiles have icons: a target (Productive), a briefcase (Work), a gauge (Efficiency) and a flame (Streak), orange while the streak is alive.
+- Week and Month's stat tiles have icons too: target, briefcase, a star (Avg day score), gauge and a check circle (Goals hit).
+- The running block's dot sends out a ring as it pulses.
+- Joined blocks start collapsed into one row with the whole time span and total duration. Click the `3 blocks · 45m ›` caption to open them. The collapsed row ticks, tags, rates (`mixed` when the ratings differ), re-answers and deletes all of its blocks.
+- An unrated work block no longer shows `—`; the cell stays empty until you hover the row.
+- Every duration on screen reads `1h 26m` (was `1:26` in Apps & sites, Week, Month, Rules and the prompt's app list). Exports are unchanged.
+- Apps & sites shows each app's real icon, read from its program file; a site shows its browser's icon.
+
+**Why**
+The user wants Today easier to take in at a glance.
+
+**If you pull this**
+- Migration 008 adds the `app_paths` table. Apps get their icon once capture has seen them run after this update; older apps show none until then.
+- `AppRow` has a new `exe` field. New IPC `appIcons(exes)` and debug hook `rememberAppPath(exe, path)`.
+- e2e: block rows of joined blocks are hidden until opened; `openRuns(d)` in `tests/e2e/helpers.ts` opens them all. `fmtHM` is now used only by the export.
+
+## 2026-11-26: Long wins and improvements wrap (P101)
+
+**What**
+- On the Review page and in the midnight card, a long win or improvement wraps onto more lines and its field grows to show all of it. Nothing is cut off.
+- Enter still adds the next line; it never puts a line break inside an entry.
+
+**Why**
+Long entries were cut off in their one-line fields.
+
+**If you pull this**
+- Nothing special. Those fields are now `<textarea>`s (new `WrapInput` in `ui/controls.tsx`); the test ids are unchanged.
+
+## 2026-11-26: The midnight card: Wins, + Add, up to 10 (P100)
+
+**What**
+- The midnight card's first section reads "Wins" instead of "Today's wins".
+- Each section has a "+ Add" button for another line, up to 10 lines each. The card grows with its lines, and scrolls inside once the prompt window is at its tallest.
+
+**Why**
+The card is about yesterday, and the user wants an obvious way to add several wins and improvements.
+
+**If you pull this**
+- Nothing special.
+
+## 2026-11-26: Clearer heading for yesterday's improvements (P99)
+
+**What**
+- The heading above yesterday's improvements on the Block ended card and the start reminder now reads "Your “How I'll improve” from yesterday" (or "from Friday").
+
+**Why**
+The user found "Yesterday I'll improve" unclear.
+
+**If you pull this**
+- Nothing special.
+
+## 2026-11-26: Yesterday's improvements in the morning (P99)
+
+**What**
+- The next day, the Block ended card and the start reminder show yesterday's "How I'll improve" items at the bottom, until you answer your first block of the day.
+- The midnight card's button reads "Skip" instead of "Skip for today".
+
+**Why**
+The user wants to see yesterday's improvements when starting the day. The start reminder alone wouldn't do, because it never shows with Track from startup on.
+
+**If you pull this**
+- Nothing special. `accountView` and `reminderView` take an optional `improves`, and their view models gain an `improves` field.
+
+## 2026-11-26: The midnight card (P98)
+
+**What**
+- Once a day ends, the prompt asks for its wins and how I'll improve, the same columns as Review. Both are optional: the button reads "Skip for today" until you type, then "Save". What you save shows on that day's Review.
+- If the laptop was asleep or off at midnight, it asks on the next wake or launch, about the last day with blocks. Each day is asked about once, and not at all if its review already has a win and an improvement.
+- Settings → Goal → "Ask about the day at midnight" turns it off.
+
+**Why**
+The user wants to write the day's wins and improvements every day without opening the dashboard.
+
+**If you pull this**
+- Migration 007 adds the `reflections` table. New setting `askReflection` (on by default) and IPC method `saveReflection(date, lists | null)`. `ReviewVM` gains `reflectedMs`.
+- The e2e helper's `SPYDER_DEFAULTS` now turns `askReflection` off, so specs that cross midnight don't see the card; `reflect.spec.ts` turns it on.
+
+## 2026-11-26: Productive is the Review headline (P97)
+
+**What**
+- On Review, the Day summary card is now first and the Leftover card is under it.
+- Day summary leads with **productive time** against the daily goal in large type, e.g. "5h 23m/6h": red under the goal, green at or over it, and the plain text colour on a day off. The other five stats sit in one smaller row under it.
+
+**Why**
+Productive time and hitting the daily goal are what matter most to the user.
+
+**If you pull this**
+- Nothing special. `review.spec.ts` checks the headline's text and colour (new test id `review-productive`).
+
+## 2026-11-26: No "Update review" (P96)
+
+**What**
+- Once a day's **review** is complete, the Review page shows only the green "✓ Reviewed at HH:MM" chip. The "Update review" button is gone.
+
+**Why**
+Re-completing only moved the completion time, because the saved day numbers already follow later edits (P52). The second label confused the user.
+
+**If you pull this**
+- Nothing special. `review.spec.ts` checks that the button is gone after completing.
+
+## 2026-11-26: Time asleep or off is accounted for (P95)
+
+**What**
+- When the laptop sleeps or Spyder isn't running while the loop runs, the work hours of that gap become a **break** block reading "Computer asleep or off". The prompt asks about it on return, alongside the other ended blocks. If it's never answered it stays a break, so it never counts as work. The night (outside work hours) stays untracked.
+- Every **untracked** row in Today's block log gets a ✎. It opens the inline answer (Save = work, Break = break), and the span becomes one block, with Undo.
+
+**Why**
+The user wants every minute of the day accounted for. A 2-hour nap with the laptop asleep showed only as untracked, with no way to say what it was.
+
+**If you pull this**
+- New engine DB effect `insertGapBlock` and IPC method `fillUntracked(startMs, endMs, answer, tag)`. No migration and no new settings.
+- Waking after a sleep in work hours now adds a break block before the fresh loop, so specs that count blocks across a sleep or restart may see one more.
+
+## 2026-11-25: Release 0.2.0
+
+**What**
+- Spyder 0.2.0: everything from P75 to P94 since 0.1.0, packaged as `Spyder Setup 0.2.0.exe`.
+
+**Why**
+The user asked for a new release.
+
+**If you pull this**
+- `package.json` version is 0.2.0, tagged `v0.2.0`.
+
+## 2026-11-25: e2e runs stay off your screen
+
+**What**
+- `npm run test:e2e` no longer takes over the screen: the test windows are invisible and click-through, never steal focus or keyboard input, stay off the taskbar, and nudge toasts don't pop up. The app itself is unchanged.
+
+**Why**
+Test runs hijacked the user's screen and keyboard, so they couldn't work while the suite ran.
+
+**If you pull this**
+- New debug-only env var `SPYDER_QUIET=1` (ignored without `SPYDER_DEBUG=1`); the e2e helper sets it. Set `SPYDER_E2E_SHOW=1` to watch a run with real windows.
+
+## 2026-11-25: Spider web in the sidebar (P94)
+
+**What**
+- The dashboard's top-left mark beside "Spyder" is now the spider web app icon instead of the purple square with an "S".
+
+**Why**
+The user expected the dashboard to show the latest icon.
+
+**If you pull this**
+- The renderer imports `resources/icon.png` directly, so replacing that file updates the sidebar too. The mark has `data-testid="sidebar-mark"`.
+
+## 2026-11-25: Accent colour in Settings (P93)
+
+**What**
+- Settings → Look has an **Accent colour** swatch: pick any colour and it replaces Spyder purple at once in the dashboard, the bar and the prompt (buttons, selection, toggles, highlights). `Reset to default` brings back the purple.
+- Text on the accent turns dark when the picked colour is light, so it stays readable.
+
+**Why**
+The user wanted to choose the accent colour themselves.
+
+**If you pull this**
+- New setting `accentColor` (`#rrggbb`, or `null` = Spyder purple, the default). Nothing changes until it's set.
+- `applyFont` / `applyFontTo` in `src/main/theme.ts` are now `applyStyle` / `applyStyleTo`; they insert the accent CSS along with the font. New e2e screenshot `settings-accent.png` (theme spec).
+
+## 2026-11-25: Prompt glass like the dashboard (P92)
+
+**What**
+- The prompt (Block ended, start reminder) now looks like the dashboard: a smoke-tinted glass frame with a solid rounded card inside, so its text is crisp whether or not the window is focused.
+- The grey bar at the bottom of the prompt is gone.
+- Settings → Glass tint now tints the prompt's frame too.
+
+**Why**
+The prompt looked faded and out of place next to the glass dashboard, with a stray grey bar at the bottom.
+
+**If you pull this**
+- The prompt's `<body>` has class `prompt` (was `transparent`); the `.glass-prompt` frosting rules are gone. New e2e screenshot `prompt-glass-tint.png` (theme spec).
+
 ## 2026-11-25: Spider web icon (P91)
 
 **What**

@@ -10,7 +10,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { fmtHM } from '../../core/format';
 import { dayStartFromKey } from '../../core/schedule';
 import {
   STACK_KEYS,
@@ -23,8 +22,8 @@ import {
 } from '../../core/trends';
 import { AppsList } from './Today';
 import { EfficiencyTrend } from './charts';
-import { CAT_COLOR, Card, StatCell, StatStrip, TopBar, useLoader } from './parts';
-import { pct, rangeTexts } from './stats';
+import { CAT_COLOR, Card, StatCell, statIcon, StatStrip, TopBar, useLoader } from './parts';
+import { dur, pct, rangeTexts } from './stats';
 
 export const STACK_COLOR: Record<keyof DayStacks, string> = {
   ...CAT_COLOR,
@@ -45,11 +44,11 @@ export function RangeStats({ vm }: { vm: RangeVM }) {
   const t = rangeTexts(vm.days);
   return (
     <StatStrip cols={5}>
-      <StatCell label="Productive" id="range-productive" value={t.productive} sub={t.productiveSub} />
-      <StatCell label="Work" id="range-work" value={t.work} sub={t.workSub} />
-      <StatCell label="Avg day score" id="range-score" value={t.score} sub="scheduled days" />
-      <StatCell label="Efficiency" id="range-efficiency" value={t.efficiency} sub={t.efficiencySub} />
-      <StatCell label="Goals hit" id="range-goals" value={t.goals} sub={`streak ${vm.streak} ${vm.streak === 1 ? 'day' : 'days'}`} />
+      <StatCell label="Productive" id="range-productive" icon={statIcon('target', 'icon-range-productive')} value={t.productive} sub={t.productiveSub} />
+      <StatCell label="Work" id="range-work" icon={statIcon('briefcase', 'icon-range-work')} value={t.work} sub={t.workSub} />
+      <StatCell label="Avg day score" id="range-score" icon={statIcon('star', 'icon-range-score')} value={t.score} sub="scheduled days" />
+      <StatCell label="Efficiency" id="range-efficiency" icon={statIcon('gauge', 'icon-range-efficiency')} value={t.efficiency} sub={t.efficiencySub} />
+      <StatCell label="Goals hit" id="range-goals" icon={statIcon('check', 'icon-range-goals')} value={t.goals} sub={`streak ${vm.streak} ${vm.streak === 1 ? 'day' : 'days'}`} />
     </StatStrip>
   );
 }
@@ -179,7 +178,7 @@ function TopLabel({ x, y, width, value, byDate }: LabelProps & { byDate: Map<str
           fill="var(--color-muted)"
           className="tabular"
         >
-          {fmtHM(total)}
+          {dur(total)}
         </text>
       )}
       {d.goalMet && d.scheduled && (
@@ -217,11 +216,11 @@ function BarTip({
         <div key={k} className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full" style={{ background: STACK_COLOR[k] }} />
           <span className="text-muted">{STACK_LABEL[k]}</span>
-          <span className="ml-auto pl-4 tabular">{fmtHM(d.stacks[k])}</span>
+          <span className="ml-auto pl-4 tabular">{dur(d.stacks[k])}</span>
         </div>
       ))}
       <div className="mt-1 border-t border-border pt-1 text-muted">
-        Productive {fmtHM(d.productiveSec)} · score {pct(d.score)}
+        Productive {dur(d.productiveSec)} · score {pct(d.score)}
         {d.goalMet && d.scheduled ? ' · goal met' : ''}
       </div>
     </div>
