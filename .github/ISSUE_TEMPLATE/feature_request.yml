@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Spyder is a small tool with firm opinions. Settled behaviour is in `docs/product-decisions.md`, and AI or LLM features are out of scope (ADR-0009).
+        Spyder is a small tool with firm opinions. Settled behaviour is in `docs/product-decisions.md`.
   - type: textarea
     id: problem
     attributes:

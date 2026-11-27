@@ -4,7 +4,7 @@ A personal Windows app that holds you accountable for your working time.
 
 Most time trackers quietly log what you did. Spyder is stricter: you press **Start**, and every 15 minutes (or whatever block length you pick) it asks **what did you do?**, then the next block starts. Your working day becomes a list of equal blocks, each saying where the time went.
 
-No accounts, no cloud and no AI. Everything stays in a local SQLite file on your machine.
+No accounts. Your data lives in a local SQLite file on your machine.
 
 **[Download the latest installer](https://github.com/perplexingpasta/spyder/releases/latest)** (Windows 10/11), or [build it from source](#getting-started).
 
@@ -105,7 +105,7 @@ The core logic never reads the real clock. Time is passed in, so tests can run a
 |---|---|
 | [`CONTEXT.md`](CONTEXT.md) | The vocabulary: block, loop, answer, untracked, nudge, review… |
 | [`docs/product-decisions.md`](docs/product-decisions.md) | Every behavior decision and why it was made |
-| [`docs/adr/`](docs/adr/) | Architecture decisions (why Electron, why `node:sqlite`, why no AI, …) |
+| [`docs/adr/`](docs/adr/) | Architecture decisions (why Electron, why `node:sqlite`, why AI-first, …) |
 | [`SPYDER_PLAN.md`](SPYDER_PLAN.md) | The full original spec and the build log |
 | [`design/DESIGN.md`](design/DESIGN.md) | Visual design: colors, type, widget and page layouts |
 | [`AGENTS.md`](AGENTS.md) | Orientation for AI coding agents working on the repo |

@@ -27,7 +27,7 @@ Each one owns its own subject. Update the owner, and point to it from elsewhere.
 - Activity rows store raw facts; categories and Firefox sites are computed at read time (ADR-0005, P39).
 - A block is a row in `sessions` and its time is the sum of its segments. `kind` holds its tag (`open` = Work, `break` = Break, P66); Gym and Food are breaks named by the `tag` column (`gym` / `food`, NULL otherwise, P74). A work block's `name` NULL = not accounted for yet; a break's `name` is never NULL (`'Break'` = no answer of its own). The tables keep their old names (ADR-0011).
 - Prompt wording comes from `src/core/promptView.ts`, which follows P59 and P60 exactly.
-- No AI or LLM features of any kind (ADR-0009).
+- AI-first: AI and LLM features are welcome and expected (ADR-0012).
 - Windows stay sandboxed with context isolation, and pages can't open pop-ups or navigate away (`main.ts`). Register IPC handlers through `h` in `ipc.ts`, which refuses calls from any page that isn't Spyder's, never with a bare `ipcMain.handle` (`SECURITY.md`, `tests/e2e/security.spec.ts`).
 - TypeScript strict. Any `any` carries a `// reason:` comment.
 

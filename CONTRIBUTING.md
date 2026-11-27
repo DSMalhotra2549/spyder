@@ -7,7 +7,6 @@ Thanks for your interest. Spyder is a small personal tool with firm opinions, so
 - Read [`AGENTS.md`](AGENTS.md). It's written for AI agents, but it's also the shortest map of the code, the invariants and how to verify a change.
 - Use the terms in [`CONTEXT.md`](CONTEXT.md) (block, loop, answer, untracked…) in code, UI copy and commits.
 - Behavior is settled in [`docs/product-decisions.md`](docs/product-decisions.md) (P1…) and architecture in [`docs/adr/`](docs/adr/). A change that contradicts one of them needs a discussion first.
-- **No AI or LLM features** ([ADR-0009](docs/adr/0009-no-ai.md)). Pull requests adding them will be closed.
 
 ## Setup
 

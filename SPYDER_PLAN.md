@@ -2,7 +2,7 @@
 
 > **Note (2026-11-22):** fixed-length blocks replaced sessions (ADR-0011, P58–P65). The session engine (§7), check-ins, pauses, projects and away classification described below are history; `CONTEXT.md` and `docs/product-decisions.md` describe the app as it is.
 
-Spyder is a personal Windows app that holds the user accountable for their time. It has a Rize-style floating timer widget. Every minute of work hours belongs to a labelled session. Away and sleep time is accounted for. Foreground apps and websites are tracked. There are daily, weekly and monthly reports with charts, an end-of-day review, and spreadsheet export. **No AI.**
+Spyder is a personal Windows app that holds the user accountable for their time. It has a Rize-style floating timer widget. Every minute of work hours belongs to a labelled session. Away and sleep time is accounted for. Foreground apps and websites are tracked. There are daily, weekly and monthly reports with charts, an end-of-day review, and spreadsheet export. **AI-first** (ADR-0012).
 
 ## 0. Read these first (in this order)
 1. `CONTEXT.md`: the glossary. Use these terms exactly in code, UI and commits (Block, Loop, Answer, Untracked, Nudge, Review, ...).
